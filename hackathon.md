@@ -11,7 +11,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:27:31Z
+- **Last updated:** 2026-11-15T20:29:00Z
 
 ## Log
 
@@ -113,3 +113,13 @@ first time it is used in an area, once per grid cell, so the map fills in
 anywhere and not only around the seed data. A failed request leaves the list as
 it is. Checked on the dev deployment: an area with no places returned 60 ranked
 results about 20 seconds after the request (`src/lib/useNearby.ts`).
+
+### 2026-11-15 - 107b415
+Added the Luma import. An action pages the public discover list that luma.com/sf
+itself calls, one request a second, and keeps public in-person events inside San
+Francisco that start within 7 days. Events whose host shares the exact address
+only with guests keep Luma's approximate pin and no address, and host or guest
+data is never stored. Each event is featurized from its title and upserted
+through the ingest mutation, which writes nothing while the ingest is frozen.
+Ran it on the dev deployment: 41 events, and a second run changed nothing.
+Convex features: actions, mutations (`convex/imports/luma.ts`).

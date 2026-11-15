@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as debug from "../debug.js";
 import type * as discover from "../discover.js";
+import type * as imports_luma from "../imports/luma.js";
 import type * as imports_osm from "../imports/osm.js";
 import type * as ingest from "../ingest.js";
 import type * as lib_contract from "../lib/contract.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   debug: typeof debug;
   discover: typeof discover;
+  "imports/luma": typeof imports_luma;
   "imports/osm": typeof imports_osm;
   ingest: typeof ingest;
   "lib/contract": typeof lib_contract;
