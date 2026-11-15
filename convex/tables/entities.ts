@@ -36,5 +36,7 @@ export const entitiesTables = {
   })
     .index("by_user", ["userId"])
     .index("by_performer", ["performerId"])
-    .index("by_user_performer", ["userId", "performerId"]),
+    .index("by_user_performer", ["userId", "performerId"])
+    // v2 (Data): the catch-up alert reads affinities that changed in the last day.
+    .index("by_updatedAt", ["updatedAt"]),
 };

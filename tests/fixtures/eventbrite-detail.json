@@ -1,0 +1,105 @@
+{
+ "name": {
+  "text": "LESBIAN LUBE WRESTLING: A Fundraiser for Lesbian Visibility Week"
+ },
+ "description": {
+  "text": "Slippery battle for the title of SF Lesbian Lube Wrestling champion! Ft. MC Marga Gomez & DJ Mama San. Benefiting Lesbian Visibility Week."
+ },
+ "url": "https://www.eventbrite.com/e/lesbian-lube-wrestling-a-fundraiser-for-lesbian-visibility-week-tickets-2003558514451",
+ "start": {
+  "timezone": "America/Los_Angeles",
+  "utc": "2026-11-16T00:00:00Z",
+  "local": "2026-11-15T16:00:00"
+ },
+ "end": {
+  "timezone": "America/Los_Angeles",
+  "utc": "2026-11-16T02:00:00Z",
+  "local": "2026-11-15T18:00:00"
+ },
+ "status": "live",
+ "currency": "USD",
+ "listed": true,
+ "online_event": false,
+ "is_series": false,
+ "is_series_parent": false,
+ "is_free": false,
+ "summary": "Slippery battle for the title of SF Lesbian Lube Wrestling champion! Ft. MC Marga Gomez & DJ Mama San. Benefiting Lesbian Visibility Week.",
+ "logo_id": "1196026163",
+ "venue_id": "99765889",
+ "category_id": "105",
+ "subcategory_id": "5999",
+ "format_id": "11",
+ "id": "2003558514451",
+ "is_externally_ticketed": false,
+ "logo": {
+  "url": "https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F1196026163%2F375279996079%2F1%2Foriginal.20261018-023721?crop=focalpoint&fit=crop&h=200&w=450&auto=format%2Ccompress&q=75&sharp=10&fp-x=0.5&fp-y=0.5&s=e10424d34e27d446af46a220708dd93a",
+  "original": {
+   "url": "https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F1196026163%2F375279996079%2F1%2Foriginal.20261018-023721?auto=format%2Ccompress&q=75&sharp=10&s=b6dd10be759a564e8ca6c26e4f42cfa9"
+  }
+ },
+ "ticket_availability": {
+  "has_available_tickets": true,
+  "minimum_ticket_price": {
+   "currency": "USD",
+   "value": 0,
+   "major_value": "0.00",
+   "display": "0.00 USD"
+  },
+  "maximum_ticket_price": {
+   "currency": "USD",
+   "value": 5733,
+   "major_value": "57.33",
+   "display": "57.33 USD"
+  },
+  "is_sold_out": false,
+  "start_sales_date": {
+   "timezone": "America/Los_Angeles",
+   "utc": "2026-10-17T07:00:00Z",
+   "local": "2026-10-17T00:00:00"
+  },
+  "waitlist_available": false
+ },
+ "venue": {
+  "address": {
+   "address_1": "298 11th Street",
+   "address_2": "",
+   "city": "San Francisco",
+   "region": "CA",
+   "postal_code": "94103",
+   "country": "US",
+   "latitude": "37.77200880000001",
+   "longitude": "-122.4143809",
+   "localized_address_display": "298 11th Street, San Francisco, CA 94103",
+   "localized_area_display": "San Francisco, CA",
+   "localized_multi_line_address_display": [
+    "298 11th Street",
+    "San Francisco, CA 94103"
+   ]
+  },
+  "id": "99765889",
+  "age_restriction": null,
+  "capacity": null,
+  "name": "OASIS",
+  "latitude": "37.77200880000001",
+  "longitude": "-122.4143809"
+ },
+ "category": {
+  "id": "105",
+  "name": "Performing & Visual Arts",
+  "name_localized": "Performing & Visual Arts",
+  "short_name": "Arts",
+  "short_name_localized": "Arts"
+ },
+ "subcategory": {
+  "id": "5999",
+  "name": "Other",
+  "name_localized": "Other"
+ },
+ "format": {
+  "id": "11",
+  "name": "Party or Social Gathering",
+  "name_localized": "Party or Social Gathering",
+  "short_name": "Party",
+  "short_name_localized": "Party"
+ }
+}
