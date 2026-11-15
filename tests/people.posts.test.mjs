@@ -89,7 +89,7 @@ test("who can see a post: author always, public anyone signed in, friends only f
   assert.equal((await page(me)).page.length, 0);
 });
 
-test("feed pages newest first with a stable cursor and skips strangers", async () => {
+test("feed pages newest first with a stable cursor, full pages, no strangers", async () => {
   const { t, f, me, friend, stranger, rank, page } = await world();
   const places = [];
   for (let i = 0; i < 7; i++) places.push(await f.place(`Bar ${i}`));
@@ -97,13 +97,12 @@ test("feed pages newest first with a stable cursor and skips strangers", async (
     await rank(index % 3 === 2 ? stranger : friend, place);
     await t.db.patch(t.all("posts").at(-1)._id, { createdAt: 1000 + index });
   }
+  // Strangers' posts (Bar 5, Bar 2) don't use up the page: every page is full until the posts run out.
   const first = await page(me, 3);
-  assert.deepEqual(first.page.map((item) => item.target.name), ["Bar 6", "Bar 4"]);
+  assert.deepEqual(first.page.map((item) => item.target.name), ["Bar 6", "Bar 4", "Bar 3"]);
   assert.equal(first.isDone, false);
   const second = await page(me, 3, first.continueCursor);
-  assert.deepEqual(second.page.map((item) => item.target.name), ["Bar 3", "Bar 1"]);
-  const third = await page(me, 3, second.continueCursor);
-  assert.deepEqual([third.page.map((item) => item.target.name), third.isDone], [["Bar 0"], true]);
+  assert.deepEqual([second.page.map((item) => item.target.name), second.isDone], [["Bar 1", "Bar 0"], true]);
   assert.deepEqual((await t.run(posts.friendsFeed, me)).map((item) => item.target.name), ["Bar 6", "Bar 4", "Bar 3", "Bar 1", "Bar 0"]);
   assert.equal((await page(me, 9999)).page.length, 5);
 });
@@ -215,4 +214,41 @@ test("comments: trimmed, 1–500 characters, oldest first, removable by the comm
   await t.run(posts.removeComment, me, { commentId: mine.id });
   assert.equal(await t.run(posts.removeComment, me, { commentId: mine.id }), null);
   assert.deepEqual((await t.run(posts.comments, me, { postId })).map((row) => row.text), ["thanks"]);
+});
+
+test("the first feed page is full even when strangers posted more recently than my friends", async () => {
+  const { t, f, me, friend, stranger } = await world();
+  const place = await f.place("Somewhere", { category: "food" });
+  const add = (userId, createdAt, visibility = "friends") => t.db.insert("posts", { userId, targetKind: "place", targetId: place, createdAt, visibility });
+  for (let i = 0; i < 20; i++) await add(friend, i);
+  await add(friend, 20, "private");
+  await add(me, 21);
+  for (let i = 0; i < 60; i++) await add(stranger, 1000 + i);
+
+  const first = await t.run(posts.feed, me, { paginationOpts: { numItems: 15, cursor: null } });
+  assert.equal(first.page.length, 15);
+  assert.deepEqual(first.page.slice(0, 3).map((item) => item.createdAt), [21, 19, 18]);
+  const second = await t.run(posts.feed, me, { paginationOpts: { numItems: 15, cursor: first.continueCursor } });
+  assert.deepEqual([second.page.length, second.isDone], [6, true]);
+  const all = [...first.page, ...second.page].map((item) => item.createdAt);
+  assert.deepEqual(all, [21, ...Array.from({ length: 20 }, (_, k) => 19 - k)]);
+  // A stranger to everyone still gets an empty, finished feed.
+  const none = await t.run(posts.feed, stranger, { paginationOpts: { numItems: 15, cursor: null } });
+  assert.equal(none.page.length, 15);
+  assert.ok(none.page.every((item) => item.author.userId === stranger));
+});
+
+test("counts on a post leave out people the viewer has blocked", async () => {
+  const { t, f, me, friend, bar, rank, postOf } = await world();
+  const troll = await f.user("troll");
+  await rank(friend, bar, { visibility: "public" });
+  const postId = postOf(friend, bar)._id;
+  await t.run(posts.addComment, troll, { postId, text: "first" });
+  await t.run(posts.addComment, me, { postId, text: "second" });
+  await t.run(posts.react, troll, { postId });
+  await t.db.insert("blocks", { blockerId: me, blockedId: troll, createdAt: 1 });
+  const mine = await t.run(posts.get, me, { postId });
+  assert.deepEqual([mine.commentCount, mine.reactionCount], [1, 0]);
+  const theirs = await t.run(posts.get, friend, { postId });
+  assert.deepEqual([theirs.commentCount, theirs.reactionCount], [2, 1]);
 });
