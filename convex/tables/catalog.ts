@@ -47,6 +47,8 @@ export const catalogTables = {
     externalRating: v.optional(v.number()),
     externalRatingCount: v.optional(v.number()),
     googlePlaceId: v.optional(v.string()),
+    // v2 (Brain writes it): venueVector blended with what visitors answered. Imports must never clear it.
+    learnedVector: v.optional(v.array(v.number())),
   })
     .index("by_source", ["source", "sourceId"])
     .index("by_category", ["category"])
@@ -79,6 +81,7 @@ export const catalogTables = {
     venueName: v.optional(v.string()),
     performerNames: v.optional(v.array(v.string())),
     createdAt: v.optional(v.number()),
+    learnedVector: v.optional(v.array(v.number())),
   })
     .index("by_source", ["source", "sourceId"])
     .index("by_category", ["category"])
