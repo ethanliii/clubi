@@ -1,18 +1,18 @@
 import { useQuery } from "convex/react";
 import { router, type Href } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Button, EmptyState, Header, Icon, IconButton, Screen, SectionHeader, Text, type IconName } from "../../components";
+import { Button, EmptyState, IconButton, Screen, Text } from "../../components";
 import { PostCard, ProfileHeader, ProfileSkeleton, RankedLists, TasteMeters } from "../../features/profile";
 import { api } from "../../lib/api";
 import { paths, rankingsPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
 import { colors, radius, spacing } from "../../theme";
 
-const SHORTCUTS: { label: string; icon: IconName; href: Href }[] = [
-  { label: "Friends", icon: "users", href: paths.friends },
-  { label: "Saved", icon: "bookmark", href: paths.saved },
-  { label: "Following", icon: "music", href: paths.following },
-  { label: "Trips", icon: "calendar", href: paths.trips },
+const SHORTCUTS: { label: string; href: Href }[] = [
+  { label: "Friends", href: paths.friends },
+  { label: "Saved", href: paths.saved },
+  { label: "Following", href: paths.following },
+  { label: "Trips", href: paths.trips },
 ];
 
 /** My profile: who I am, my taste, my counts and my ranked lists, all from `api.profile.get`. */
@@ -22,11 +22,12 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <Header
-        title="Profile"
-        back={false}
-        right={<IconButton icon="gear" accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} />}
-      />
+      <View style={styles.between}>
+        <Text variant="heading" accessibilityRole="header">
+          Profile
+        </Text>
+        <IconButton icon="gear" accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} />
+      </View>
       {/* null only while signing out; the gate moves the user on. */}
       {profile === undefined || profile === null ? (
         <ProfileSkeleton />
@@ -49,8 +50,7 @@ export default function ProfileScreen() {
                 onPress={() => router.push(shortcut.href)}
                 style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}
               >
-                <Icon name={shortcut.icon} size={20} color={colors.fg} />
-                <Text variant="caption" numberOfLines={1}>
+                <Text numberOfLines={1} style={styles.shortcutText}>
                   {shortcut.label}
                 </Text>
               </Pressable>
@@ -71,7 +71,9 @@ export default function ProfileScreen() {
 
           {profile.recentPosts.length > 0 ? (
             <View style={styles.section}>
-              <SectionHeader title="Recent" />
+              <Text variant="label" accessibilityRole="header">
+                Recent
+              </Text>
               {profile.recentPosts.map((post) => (
                 <PostCard key={post.postId} post={post} now={now} />
               ))}
@@ -84,19 +86,21 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  shortcuts: { flexDirection: "row", gap: spacing.sm },
+  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  // His chips: pill, line border on the surface colour.
+  shortcuts: { flexDirection: "row", gap: 6 },
   shortcut: {
     flex: 1,
-    minHeight: 64,
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs + 2,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
   },
+  shortcutText: { fontSize: 13, lineHeight: 17 },
   pressed: { opacity: 0.6 },
   section: { gap: spacing.md },
 });

@@ -3,13 +3,12 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
+  BackButton,
   Button,
   EmptyState,
-  Header,
   ListRow,
   Loading,
   Screen,
-  SectionHeader,
   Sheet,
   Text,
   goBack,
@@ -93,7 +92,7 @@ export default function UserScreen() {
   if (profile === undefined) {
     return (
       <Screen>
-        <Header title="" />
+        <BackButton />
         <ProfileSkeleton />
       </Screen>
     );
@@ -101,7 +100,7 @@ export default function UserScreen() {
   if (profile === null) {
     return (
       <Screen>
-        <Header title="" />
+        <BackButton />
         <EmptyState icon="user" title="This person isn't on clubi anymore" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
@@ -112,7 +111,7 @@ export default function UserScreen() {
 
   return (
     <Screen>
-      <Header title={user.displayName} />
+      <BackButton />
       <ProfileHeader user={user} counts={profile.counts} />
 
       {user.isMe ? (
@@ -162,7 +161,9 @@ export default function UserScreen() {
           )}
           {profile.recentPosts.length > 0 ? (
             <View style={styles.section}>
-              <SectionHeader title="Recent" />
+              <Text variant="label" accessibilityRole="header">
+                Recent
+              </Text>
               {profile.recentPosts.map((post) => (
                 <PostCard key={post.postId} post={post} now={now} />
               ))}

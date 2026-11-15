@@ -10,7 +10,7 @@ export function PersonRow({ user, subtitle, right }: { user: UserCard; subtitle?
     <ListRow
       title={user.displayName}
       subtitle={subtitle}
-      left={<Avatar name={user.displayName} uri={user.avatarUrl} size={44} />}
+      left={<Avatar name={user.displayName} uri={user.avatarUrl} size={40} />}
       right={right}
       onPress={() => router.push(userPath(user.userId))}
     />

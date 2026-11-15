@@ -1,11 +1,11 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import { Chip, ChipRow, IconButton, ScoreBadge, Text } from "../../components";
+import { Chip, ChipRow, IconButton, Text } from "../../components";
 import type { FeedItem } from "../../lib/api";
 import { formatRelativeTime, pluralize } from "../../lib/format";
 import { postPath, venuePath } from "../../lib/links";
-import { colors, radius, spacing } from "../../theme";
+import { colors, fontWeight, radius, ratingColor, spacing } from "../../theme";
 
 /**
  * A person's recent post on their profile: the place, the backend's label ("#1 of their bars · 9.4"),
@@ -25,14 +25,16 @@ export function PostCard({ post, now }: { post: FeedItem; now: number }) {
       >
         <View style={styles.top}>
           <View style={styles.titles}>
-            <Text variant="title" numberOfLines={1}>
+            <Text numberOfLines={1} style={styles.name}>
               {post.target.name}
             </Text>
             <Text variant="caption" muted numberOfLines={1}>
               {post.label}
             </Text>
           </View>
-          <ScoreBadge score={post.score} />
+          <View accessibilityLabel={`Score ${post.score.toFixed(1)}`} style={[styles.ring, { borderColor: ratingColor(post.score) }]}>
+            <Text style={[styles.ringText, { color: ratingColor(post.score) }]}>{post.score.toFixed(1)}</Text>
+          </View>
         </View>
         {photo && !photoFailed ? (
           <Image
@@ -44,7 +46,12 @@ export function PostCard({ post, now }: { post: FeedItem; now: number }) {
         ) : null}
         {post.caption ? <Text>{`“${post.caption}”`}</Text> : null}
         {post.myScoreForIt !== undefined ? (
-          <Text variant="caption" muted>{`You gave it ${post.myScoreForIt.toFixed(1)}`}</Text>
+          <Text variant="caption" muted>
+            {"You gave it "}
+            <Text variant="caption" style={[styles.mine, { color: ratingColor(post.myScoreForIt) }]}>
+              {post.myScoreForIt.toFixed(1)}
+            </Text>
+          </Text>
         ) : null}
       </Pressable>
       {chips.length > 0 ? (
@@ -73,18 +80,16 @@ export function PostCard({ post, now }: { post: FeedItem; now: number }) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  body: { gap: spacing.sm },
+  // Same shape as a post on Home: no box, a line underneath.
+  card: { gap: 10, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.line },
+  body: { gap: 10 },
   pressed: { opacity: 0.7 },
-  top: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  titles: { flex: 1, gap: 2 },
-  photo: { width: "100%", height: 170, borderRadius: radius.lg, backgroundColor: colors.raised },
+  top: { flexDirection: "row", alignItems: "center", gap: 10 },
+  titles: { flex: 1 },
+  name: { fontWeight: fontWeight.bold },
+  ring: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  ringText: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
+  mine: { fontWeight: fontWeight.bold },
+  photo: { width: "100%", height: 190, borderRadius: radius.lg, backgroundColor: colors.raised },
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
 });

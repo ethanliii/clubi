@@ -7,14 +7,15 @@ export function ProfileSkeleton() {
   return (
     <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.wrap}>
       <View style={styles.top}>
-        <Skeleton width={72} height={72} round={36} />
+        <Skeleton width={86} height={86} round={43} />
         <View style={styles.names}>
-          <Skeleton width="60%" height={24} />
-          <Skeleton width="40%" height={14} />
+          <Skeleton width="60%" height={22} />
+          <Skeleton width="80%" height={34} />
         </View>
       </View>
-      <Skeleton height={64} round={radius.xl} />
-      <Skeleton height={150} round={radius.xl} />
+      <Skeleton width="45%" height={14} />
+      <Skeleton height={48} round={radius.lg} />
+      <Skeleton height={120} round={radius.lg} />
       <SkeletonRows count={3} avatar={false} />
     </View>
   );
@@ -22,6 +23,6 @@ export function ProfileSkeleton() {
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.lg },
-  top: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  top: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   names: { flex: 1, gap: spacing.sm },
 });

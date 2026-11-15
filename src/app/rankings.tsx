@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, Chip, ChipRow, EmptyState, Header, Screen, SkeletonRows, Text } from "../components";
+import { BackButton, Button, Chip, ChipRow, EmptyState, Screen, SkeletonRows, Text } from "../components";
 import { RankedRow } from "../features/profile";
 import { api, type Bucket, type Category, type RankedListItem } from "../lib/api";
 import { confirm } from "../lib/confirm";
@@ -10,6 +10,7 @@ import { CATEGORY_TABS, formatRelativeTime } from "../lib/format";
 import { paths } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
+import { spacing } from "../theme";
 
 const BUCKET_LABELS: Record<Bucket, string> = {
   loved: "Loved it",
@@ -48,7 +49,10 @@ export default function RankingsScreen() {
 
   return (
     <Screen>
-      <Header title="My rankings" />
+      <BackButton />
+      <Text variant="heading" accessibilityRole="header">
+        My rankings
+      </Text>
       <ChipRow scroll>
         {CATEGORY_TABS.map((tab) => (
           <Chip
@@ -86,6 +90,7 @@ export default function RankingsScreen() {
             <RankedRow
               key={item.rankingId}
               item={item}
+              ring
               subtitle={`${BUCKET_LABELS[item.bucket]} · ${formatRelativeTime(item.rankedAt, now)}`}
               trailing={
                 <Button
@@ -109,6 +114,6 @@ export default function RankingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  remove: { width: "auto", paddingVertical: 10, paddingHorizontal: 12 },
-  note: { paddingTop: 12 },
+  remove: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
+  note: { paddingTop: spacing.md },
 });

@@ -12,7 +12,7 @@ function Bar({ who, value, color }: { who: string; value: number; color: string 
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${share}%`, backgroundColor: color }]} />
       </View>
-      <Text variant="caption" muted style={styles.value}>
+      <Text variant="caption" style={styles.value}>
         {`${Math.round(value)}%`}
       </Text>
     </View>
@@ -41,10 +41,10 @@ export function DualMeter({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.xs + 2 },
+  wrap: { gap: spacing.xs },
   bar: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  who: { width: 64 },
-  track: { flex: 1, height: 8, borderRadius: 8, backgroundColor: colors.raised, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 8 },
+  who: { width: 54 },
+  track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.raised, overflow: "hidden" },
+  fill: { height: "100%" },
   value: { width: 36, textAlign: "right", fontVariant: ["tabular-nums"] },
 });

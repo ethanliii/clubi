@@ -2,7 +2,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, Chip, ChipRow, Header, Screen, Skeleton, SkeletonRows, Text, useToast } from "../components";
+import { BackButton, Button, Chip, ChipRow, Screen, Skeleton, SkeletonRows, Text, useToast } from "../components";
 import {
   DeleteAccountSheet,
   PasswordSheet,
@@ -55,7 +55,10 @@ export default function SettingsScreen() {
 
   return (
     <Screen scroll={false}>
-      <Header title="Settings" />
+      <BackButton />
+      <Text variant="heading" accessibilityRole="header">
+        Settings
+      </Text>
       <ScrollView
         style={styles.scroller}
         contentContainerStyle={styles.content}
@@ -66,7 +69,7 @@ export default function SettingsScreen() {
         {/* null only while signing out or after deleting the account; the gate moves the user on. */}
         {settings === undefined || settings === null ? (
           <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.section}>
-            <Skeleton width={72} height={72} round={36} />
+            <Skeleton width={86} height={86} round={43} />
             <Skeleton height={48} round={radius.lg} />
             <Skeleton height={96} round={radius.lg} />
             <Skeleton height={48} round={radius.lg} />
@@ -77,7 +80,7 @@ export default function SettingsScreen() {
             <ProfileForm settings={settings} />
 
             <View style={styles.section}>
-              <Text variant="title" accessibilityRole="header">
+              <Text variant="label" accessibilityRole="header">
                 Who sees my posts
               </Text>
               <ChipRow>
@@ -107,7 +110,7 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text variant="title" accessibilityRole="header">
+              <Text variant="label" accessibilityRole="header">
                 Notifications
               </Text>
               <View>
@@ -123,7 +126,7 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text variant="title" accessibilityRole="header">
+              <Text variant="label" accessibilityRole="header">
                 Location
               </Text>
               <SwitchRow
@@ -135,7 +138,7 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text variant="title" accessibilityRole="header">
+              <Text variant="label" accessibilityRole="header">
                 Account
               </Text>
               <Text muted>{`Signed in as @${settings.username}`}</Text>

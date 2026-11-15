@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
-import { Button, Chip, ChipRow, EmptyState, Header, ListRow, Screen, SkeletonRows, VenuePhoto } from "../components";
+import { BackButton, Button, Chip, ChipRow, EmptyState, ListRow, Screen, SkeletonRows, Text, VenuePhoto } from "../components";
 import { api, type SavedItem, type SaveType } from "../lib/api";
 import { categoryHue, categoryLabel, formatEventTime } from "../lib/format";
 import { venuePath } from "../lib/links";
@@ -36,7 +36,10 @@ export default function SavedScreen() {
 
   return (
     <Screen>
-      <Header title="Saved" />
+      <BackButton />
+      <Text variant="heading" accessibilityRole="header">
+        Saved
+      </Text>
       <ChipRow>
         {TABS.map((tab) => (
           <Chip
@@ -90,5 +93,5 @@ const styles = StyleSheet.create({
   thumb: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.raised },
   thumbBox: { width: 48, height: 48 },
   thumbPhoto: { borderRadius: radius.md },
-  remove: { width: "auto", paddingVertical: 10, paddingHorizontal: 12 },
+  remove: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
 });
