@@ -17,6 +17,8 @@ export const sourceValidator = v.union(
   v.literal("luma"),
   v.literal("partiful"),
   v.literal("manual"),
+  v.literal("eventbrite"),
+  v.literal("google"),
 );
 
 export const catalogTables = {
@@ -39,6 +41,12 @@ export const catalogTables = {
     elo: v.optional(v.number()),
     nComparisons: v.optional(v.number()),
     city: v.optional(v.string()),
+    // v2 (Data): enrichment, all optional
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    externalRating: v.optional(v.number()),
+    externalRatingCount: v.optional(v.number()),
+    googlePlaceId: v.optional(v.string()),
   })
     .index("by_source", ["source", "sourceId"])
     .index("by_category", ["category"])
@@ -67,6 +75,10 @@ export const catalogTables = {
     nComparisons: v.optional(v.number()),
     blurb: v.optional(v.string()),
     city: v.optional(v.string()),
+    // v2 (Data): all optional
+    venueName: v.optional(v.string()),
+    performerNames: v.optional(v.array(v.string())),
+    createdAt: v.optional(v.number()),
   })
     .index("by_source", ["source", "sourceId"])
     .index("by_category", ["category"])

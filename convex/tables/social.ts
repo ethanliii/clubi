@@ -37,4 +37,23 @@ export const socialTables = {
   })
     .index("by_post", ["postId"])
     .index("by_user", ["userId"]),
+
+  // v2 (People)
+  comments: defineTable({
+    postId: v.id("posts"),
+    userId: v.id("users"),
+    text: v.string(),
+    createdAt: v.number(),
+  }).index("by_post", ["postId", "createdAt"]),
+
+  // "want" = saved for later, "going" = I'm going to this event
+  saves: defineTable({
+    userId: v.id("users"),
+    targetKind: v.union(v.literal("place"), v.literal("event")),
+    targetId: v.union(v.id("places"), v.id("events")),
+    type: v.union(v.literal("want"), v.literal("going")),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId", "type"])
+    .index("by_target", ["targetId", "type"]),
 };

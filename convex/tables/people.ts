@@ -9,7 +9,24 @@ export const notificationTypeValidator = v.union(
   v.literal("friend_ranked_same"),
   v.literal("event_tonight"),
   v.literal("friend_request"),
+  v.literal("friend_accepted"),
+  v.literal("artist_event"),
+  v.literal("trip_invite"),
+  v.literal("trip_update"),
+  v.literal("post_reaction"),
+  v.literal("post_comment"),
 );
+
+export const visibilityValidator = v.union(v.literal("friends"), v.literal("public"), v.literal("private"));
+
+export const notifPrefsValidator = v.object({
+  friendPosts: v.optional(v.boolean()),
+  friendRequests: v.optional(v.boolean()),
+  eventsTonight: v.optional(v.boolean()),
+  artistAlerts: v.optional(v.boolean()),
+  tripUpdates: v.optional(v.boolean()),
+  reactions: v.optional(v.boolean()),
+});
 
 export const peopleTables = {
   users: defineTable({
@@ -21,7 +38,15 @@ export const peopleTables = {
     avatar: v.optional(v.string()),
     tasteVector: v.optional(v.array(v.number())),
     tastePrior: v.optional(v.array(v.number())),
-  }).index("by_username", ["username"]),
+    // v2 (People): settings, all optional
+    bio: v.optional(v.string()),
+    avatarStorageId: v.optional(v.id("_storage")),
+    defaultVisibility: v.optional(visibilityValidator),
+    discoverable: v.optional(v.boolean()),
+    notifPrefs: v.optional(notifPrefsValidator),
+  })
+    .index("by_username", ["username"])
+    .searchIndex("search_displayName", { searchField: "displayName" }),
 
   quizAnswers: defineTable({
     userId: v.id("users"),
