@@ -42,8 +42,8 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
         <View>
           <MapPhoto item={item} height={PHOTO} />
           <LinearGradient
-            colors={["rgba(11,10,15,0)", "rgba(11,10,15,0.35)", "rgba(11,10,15,0.9)"]}
-            locations={[0.3, 0.6, 1]}
+            colors={["rgba(11,10,15,0)", "rgba(11,10,15,0.62)", "rgba(11,10,15,0.96)"]}
+            locations={[0.12, 0.55, 1]}
             style={StyleSheet.absoluteFill}
           />
           <View style={styles.onPhoto}>
@@ -101,7 +101,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   titles: { flex: 1, gap: 2 },
-  name: { fontSize: 21, lineHeight: 25, fontWeight: fontWeight.bold, color: colors.white, letterSpacing: -0.3 },
+  name: {
+    fontSize: 21,
+    lineHeight: 25,
+    fontWeight: fontWeight.bold,
+    color: colors.white,
+    letterSpacing: -0.2,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowRadius: 8,
+    textShadowOffset: { width: 0, height: 1 },
+  },
   meta: { fontSize: 13, lineHeight: 17, color: "rgba(255,255,255,0.78)" },
   when: { fontSize: 13, lineHeight: 17, color: colors.mid, fontWeight: fontWeight.semibold },
   text: {

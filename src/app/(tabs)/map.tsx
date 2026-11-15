@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
 
   filters: { position: "absolute", left: 0, right: 0 },
   // While searching, everything but the field and its results steps back.
-  dim: { ...StyleSheet.absoluteFillObject, zIndex: 3, backgroundColor: "rgba(11,10,15,0.78)" },
+  dim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 3, backgroundColor: "rgba(11,10,15,0.78)" },
   // The results drop down over the filters, the list and the pin's card.
   search: { position: "absolute", left: GUTTER, right: GUTTER, gap: spacing.sm, zIndex: 3, elevation: 20 },
 
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "rgba(11,10,15,0.66)",
   },
-  creditText: { fontSize: 9.5, lineHeight: 13, color: "rgba(242,238,247,0.8)" },
+  creditText: { fontSize: 9, lineHeight: 12, color: "rgba(242,238,247,0.8)" },
   round: {
     width: 44,
     height: 44,
