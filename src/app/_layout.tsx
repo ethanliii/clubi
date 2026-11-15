@@ -1,6 +1,6 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient, useQuery } from "convex/react";
-import { router, Stack, usePathname } from "expo-router";
+import { router, Stack, usePathname, type Href } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -104,7 +104,7 @@ function RootNavigator() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open overlord menu"
-        onPress={() => router.push("/overlord")}
+        onPress={() => router.push("/overlord" as Href)}
         style={styles.overlordButton}
       >
         <Text style={styles.overlordIcon}>⚡</Text>
