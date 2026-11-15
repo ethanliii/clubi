@@ -1,211 +1,116 @@
 import { useQuery } from "convex/react";
-import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { BackButton, Button, EmptyState, Screen, SkeletonRows, Text, TextField } from "../components";
-import { FriendButton, PersonRow, personFacts } from "../features/friends";
-import { api, type FriendSuggestion, type FriendsOverview } from "../lib/api";
-import { pluralize } from "../lib/format";
-import { useDebounced } from "../lib/useDebounced";
-import { useMutationToast } from "../lib/useMutationToast";
-import { spacing } from "../theme";
+import { router } from "expo-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { Avatar, BackButton, EmptyState, FriendButton, Screen, Skeleton, Text } from "../components/bryan";
+import { colors, radius, spacing } from "../theme";
 
-const mutualLine = (count: number | undefined) => (count ? pluralize(count, "mutual friend") : null);
-
-/** Search results from `api.friends.search`. Each row's button follows the row's `status`. */
-function SearchResults({ text }: { text: string }) {
-  const results = useQuery(api.friends.search, text.length >= 2 ? { text } : "skip");
-  if (results === undefined) return <SkeletonRows count={4} />;
-  if (results.length === 0) return <EmptyState icon="search" title="No one found" body="Check the spelling, or try their username." />;
-  return (
-    <View>
-      {results.map((person) => (
-        <PersonRow
-          key={person.userId}
-          user={person}
-          subtitle={personFacts([`@${person.username}`, mutualLine(person.mutualCount)])}
-          right={
-            <FriendButton
-              compact
-              addLabel="Add"
-              userId={person.userId}
-              displayName={person.displayName}
-              status={person.status}
-              requestId={person.requestId}
-            />
-          }
-        />
-      ))}
-    </View>
-  );
-}
-
-/** Requests, suggestions, friends and sent requests, from `api.friends.list` and `api.friends.suggestions`. */
-function Overview({
-  overview,
-  suggestions,
-}: {
-  overview: FriendsOverview | undefined;
-  suggestions: FriendSuggestion[] | undefined;
-}) {
-  const cancel = useMutationToast(api.friends.cancel);
-
-  if (overview === undefined || suggestions === undefined) return <SkeletonRows count={6} />;
-  const { friends, incoming, outgoing } = overview;
-
-  return (
-    <>
-      {incoming.length > 0 ? (
-        <View style={styles.section}>
-          <Text variant="label" accessibilityRole="header">
-            {`Requests (${incoming.length})`}
-          </Text>
-          <View>
-            {incoming.map((request) => (
-              <PersonRow
-                key={request.requestId}
-                user={request.user}
-                subtitle={personFacts([`@${request.user.username}`, mutualLine(request.mutualCount)])}
-                right={
-                  <FriendButton
-                    compact
-                    userId={request.user.userId}
-                    displayName={request.user.displayName}
-                    status="incoming"
-                    requestId={request.requestId}
-                  />
-                }
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {suggestions.length > 0 ? (
-        <View style={styles.section}>
-          <Text variant="label" accessibilityRole="header">
-            People you may know
-          </Text>
-          <View>
-            {suggestions.map((person) => (
-              <PersonRow
-                key={person.userId}
-                user={person}
-                subtitle={person.reason}
-                right={
-                  <FriendButton
-                    compact
-                    addLabel="Add"
-                    userId={person.userId}
-                    displayName={person.displayName}
-                    status="none"
-                  />
-                }
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {friends.length > 0 ? (
-        <View style={styles.section}>
-          <Text variant="label" accessibilityRole="header">
-            {`Your friends (${friends.length})`}
-          </Text>
-          <View>
-            {friends.map((friend) => (
-              <PersonRow
-                key={friend.userId}
-                user={friend}
-                subtitle={personFacts([
-                  `@${friend.username}`,
-                  friend.rankedCount !== undefined ? `${friend.rankedCount} ranked` : null,
-                ])}
-                right={
-                  friend.tasteMatchPct !== undefined ? (
-                    <Text variant="caption" muted>{`${friend.tasteMatchPct}% match`}</Text>
-                  ) : undefined
-                }
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {outgoing.length > 0 ? (
-        <View style={styles.section}>
-          <Text variant="label" accessibilityRole="header">
-            {`Sent (${outgoing.length})`}
-          </Text>
-          <View>
-            {outgoing.map((request) => (
-              <PersonRow
-                key={request.requestId}
-                user={request.user}
-                subtitle={personFacts([`@${request.user.username}`, mutualLine(request.mutualCount)])}
-                right={
-                  <Button
-                    title="Cancel"
-                    accessibilityLabel="Cancel"
-                    variant="ghost"
-                    disabled={cancel.pending}
-                    style={styles.rowButton}
-                    onPress={() => void cancel.run({ requestId: request.requestId })}
-                  />
-                }
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {friends.length === 0 && suggestions.length === 0 ? (
-        <EmptyState icon="users" title="Search for a friend's username to get started" />
-      ) : null}
-    </>
-  );
-}
-
-/** Find people and answer friend requests. Typing two letters swaps the sections for search results. */
-export default function FriendsScreen() {
-  const [input, setInput] = useState("");
-  const debounced = useDebounced(input, 300).trim();
-  const searching = input.trim().length >= 2;
-  // Asked here, not inside the sections, so they are still there the moment the search box is cleared.
+/** Friends: search, requests, suggestions (always with a reason), your friends, sent. UI-SPEC §10. */
+export default function Friends() {
+  const [text, setText] = useState("");
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(text.trim()), 300);
+    return () => clearTimeout(t);
+  }, [text]);
   const overview = useQuery(api.friends.list, {});
   const suggestions = useQuery(api.friends.suggestions, {});
+  const results = useQuery(api.friends.search, query.length >= 2 ? { text: query } : "skip");
+
+  const open = (userId: Id<"users">) => router.push({ pathname: "/user/[userId]", params: { userId: String(userId) } });
 
   return (
-    <Screen scroll={false}>
+    <Screen>
       <BackButton />
-      <Text variant="heading" accessibilityRole="header">
-        Friends
-      </Text>
-      <TextField
-        placeholder="Search by name or username"
-        accessibilityLabel="Search by name or username"
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="search"
-        value={input}
-        onChangeText={setInput}
-      />
-      <ScrollView
-        style={styles.scroller}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        automaticallyAdjustKeyboardInsets
-        showsVerticalScrollIndicator={false}
-      >
-        {searching ? <SearchResults text={debounced} /> : <Overview overview={overview} suggestions={suggestions} />}
-      </ScrollView>
+      <Text variant="heading">Friends</Text>
+      <TextInput style={styles.input} placeholder="Search by name or username" placeholderTextColor={colors.muted}
+        autoCapitalize="none" value={text} onChangeText={setText} />
+
+      {query.length >= 2 ? (
+        results === undefined ? <Skeleton height={120} /> : results.length === 0 ? <EmptyState text="No one found" /> : (
+          results.map((u) => (
+            <Person key={u.userId} name={u.displayName} sub={`@${u.username}`} url={u.avatarUrl} onPress={() => open(u.userId)}>
+              <FriendButton userId={u.userId} status={u.status} requestId={u.requestId} compact />
+            </Person>
+          ))
+        )
+      ) : overview === undefined ? (
+        <Skeleton height={200} />
+      ) : (
+        <>
+          {overview.incoming.length > 0 && (
+            <Section title={`Requests (${overview.incoming.length})`}>
+              {overview.incoming.map((r) => (
+                <Person key={r.requestId} name={r.user.displayName} sub={r.mutualCount ? `${r.mutualCount} mutual` : `@${r.user.username}`}
+                  url={r.user.avatarUrl} onPress={() => open(r.user.userId)}>
+                  <FriendButton userId={r.user.userId} status="incoming" requestId={r.requestId} compact />
+                </Person>
+              ))}
+            </Section>
+          )}
+          {suggestions && suggestions.length > 0 && (
+            <Section title="People you may know">
+              {suggestions.map((s) => (
+                <Person key={s.userId} name={s.displayName} sub={s.reason} url={s.avatarUrl} onPress={() => open(s.userId)}>
+                  <FriendButton userId={s.userId} status="none" compact />
+                </Person>
+              ))}
+            </Section>
+          )}
+          {overview.friends.length > 0 && (
+            <Section title={`Your friends (${overview.friends.length})`}>
+              {overview.friends.map((f) => (
+                <Person key={f.userId} name={f.displayName} sub={f.tasteMatchPct !== undefined ? `${f.tasteMatchPct}% match` : `@${f.username}`}
+                  url={f.avatarUrl} onPress={() => open(f.userId)} />
+              ))}
+            </Section>
+          )}
+          {overview.outgoing.length > 0 && (
+            <Section title={`Sent (${overview.outgoing.length})`}>
+              {overview.outgoing.map((r) => (
+                <Person key={r.requestId} name={r.user.displayName} sub={`@${r.user.username}`} url={r.user.avatarUrl} onPress={() => open(r.user.userId)}>
+                  <FriendButton userId={r.user.userId} status="outgoing" requestId={r.requestId} compact />
+                </Person>
+              ))}
+            </Section>
+          )}
+          {!overview.friends.length && !overview.incoming.length && !suggestions?.length && (
+            <EmptyState text="Search for a friend's username to get started" />
+          )}
+        </>
+      )}
     </Screen>
   );
 }
 
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <View style={{ gap: spacing.sm }}>
+      <Text variant="label">{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+function Person({ name, sub, url, onPress, children }: { name: string; sub?: string; url?: string; onPress: () => void; children?: ReactNode }) {
+  return (
+    <View style={styles.row}>
+      <Pressable onPress={onPress} style={styles.who}>
+        <Avatar name={name} url={url} size={40} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: "600" }}>{name}</Text>
+          {sub ? <Text variant="caption" muted numberOfLines={1}>{sub}</Text> : null}
+        </View>
+      </Pressable>
+      {children}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  scroller: { flex: 1 },
-  content: { gap: spacing.lg, paddingBottom: spacing.xl },
-  section: { gap: spacing.sm },
-  rowButton: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
+  input: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, color: colors.fg, borderRadius: radius.lg, padding: spacing.md },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  who: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md },
 });

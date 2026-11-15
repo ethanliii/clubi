@@ -22,3 +22,13 @@ export type MapCanvasProps = {
   /** How much of the map is covered by the search bar (top) and the list (bottom), in points. */
   padding: { top: number; bottom: number };
 };
+
+/** Bryan's map tab (`MapSurface.*`): the same idea with fewer props. */
+export type MapSurfaceProps = {
+  items: NearbyItem[];
+  center: { lat: number; lng: number };
+  selectedId: string | null;
+  onSelect: (item: NearbyItem | null) => void;
+  /** Bump to move the camera back to `center`. */
+  recenterKey: number;
+};

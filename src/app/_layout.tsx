@@ -9,6 +9,7 @@ import { api } from "../../convex/_generated/api";
 import { ErrorBoundary, Splash, ToastProvider } from "../components";
 import { paths } from "../lib/links";
 import { OVERLORD_USERNAMES, setOverlord, useOverlord } from "../lib/overlord";
+import { OnboardingProvider, useOnboarding } from "../state/onboarding";
 import { SessionProvider, useSession } from "../state/session";
 import { colors } from "../theme";
 
@@ -34,6 +35,7 @@ export default function RootLayout() {
       }}
     >
       <SessionProvider>
+        <OnboardingProvider>
         {/* On a wide browser window the app stays a phone-width column. */}
         <View style={styles.page}>
           <View style={styles.app}>
@@ -45,19 +47,22 @@ export default function RootLayout() {
           </View>
         </View>
         <StatusBar style="light" />
+        </OnboardingProvider>
       </SessionProvider>
     </ConvexAuthProvider>
   );
 }
 
 /**
- * Which screens exist depends on the session gate (see src/state/session.tsx):
- * signed out → welcome + sign-in · not onboarded → the quiz · onboarded → everything else.
- * A screen whose guard is false cannot be opened, and anyone standing on it is moved to the
- * first screen that is still allowed.
+ * Which screens exist follows Bryan's gating (docs/BRYAN-UI.md):
+ * signed out → welcome + sign-in · signed in and not onboarded → the quiz · otherwise the app.
+ * "Onboarded" is `users.me.onboarded`, or the quiz finished on this device; while the quiz is
+ * open (first card until "Let's go") the app stays closed so the taste card and Find friends show.
+ * A screen whose guard is false cannot be opened, and anyone standing on it is moved to `home`.
  */
 function RootNavigator() {
-  const { gate, landing } = useSession();
+  const { gate } = useSession();
+  const { completed, inQuiz } = useOnboarding();
   // Overlord mode (testing): every guard below opens, so any page can be visited from /overlord.
   const overlord = useOverlord();
   const me = useQuery(api.users.me);
@@ -65,11 +70,13 @@ function RootNavigator() {
   useEffect(() => {
     if (me?.username !== undefined && OVERLORD_USERNAMES.has(me.username)) setOverlord(true);
   }, [me?.username]);
-  if (gate === null) return <Splash />;
+  if (gate === null || (gate !== "signedOut" && me === undefined)) return <Splash />;
 
-  const inApp = overlord || gate === "ready" || gate === "tasteCard";
+  const signedIn = gate !== "signedOut";
+  const onboarded = signedIn && !!me && (completed || me.onboarded) && !inQuiz;
+  const inApp = overlord || onboarded;
   // Where someone lands when the screen they are on (or asked for) is not allowed for them.
-  const home = gate === "signedOut" ? paths.welcome : gate === "quiz" ? paths.quiz : landing;
+  const home = onboarded ? paths.home : signedIn && me ? paths.quiz : paths.welcome;
   return (
     <>
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
@@ -91,10 +98,10 @@ function RootNavigator() {
         <Stack.Screen name="following" />
         <Stack.Screen name="performer/[performerId]" />
       </Stack.Protected>
-      <Stack.Protected guard={overlord || gate !== "ready"} redirectTo={home}>
+      <Stack.Protected guard={overlord || !onboarded} redirectTo={home}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
-      <Stack.Protected guard={overlord || gate === "signedOut"} redirectTo={home}>
+      <Stack.Protected guard={overlord || !onboarded} redirectTo={home}>
         <Stack.Screen name="sign-in" options={{ presentation: "modal" }} />
       </Stack.Protected>
       <Stack.Screen name="overlord" />

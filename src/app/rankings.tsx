@@ -1,119 +1,87 @@
 import { useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { BackButton, Button, Chip, ChipRow, EmptyState, Screen, SkeletonRows, Text } from "../components";
-import { RankedRow } from "../features/profile";
-import { api, type Bucket, type Category, type RankedListItem } from "../lib/api";
-import { confirm } from "../lib/confirm";
-import { CATEGORY_TABS, formatRelativeTime } from "../lib/format";
-import { paths } from "../lib/links";
-import { useMutationToast } from "../lib/useMutationToast";
-import { useNow } from "../lib/useNow";
-import { spacing } from "../theme";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { api } from "../../convex/_generated/api";
+import type { Category } from "../../convex/lib/contract";
+import { BackButton, Chip, EmptyState, Screen, Skeleton, Text, openVenue } from "../components/bryan";
+import { colors, radius, ratingColor, spacing } from "../theme";
 
-const BUCKET_LABELS: Record<Bucket, string> = {
-  loved: "Loved it",
-  fine: "It was fine",
-  didnt: "Didn't like it",
-};
+type Tab = "been" | "want" | "going";
+const CATS: { c: Category | undefined; label: string }[] = [
+  { c: undefined, label: "All" }, { c: "nightlife", label: "Bars" }, { c: "food", label: "Food" }, { c: "culture", label: "Culture" },
+  { c: "outdoors", label: "Outdoors" }, { c: "live", label: "Shows" }, { c: "popup", label: "Pop-ups" },
+];
 
-/** My ranked list for one category, from `api.rankings.mine`, best first as the backend sorted it. */
-export default function RankingsScreen() {
+/** My lists, Beli-style: Been (my rankings) · Want to go · Going, by category, with View map. UI-SPEC §8, §14. */
+export default function MyLists() {
   const params = useLocalSearchParams<{ category?: string }>();
-  const [picked, setPicked] = useState<Category | null>(null);
-  const now = useNow();
-  // Every category at once: only used to open on a tab that has something in it, and to know "nothing at all".
-  const everything = useQuery(api.rankings.mine, {});
-  const fromLink = CATEGORY_TABS.find((tab) => tab.category === params.category)?.category;
-  const firstUsed =
-    everything === undefined
-      ? undefined
-      : (CATEGORY_TABS.find((tab) => everything.some((item) => item.category === tab.category))?.category ?? "nightlife");
-  const category = picked ?? fromLink ?? firstUsed;
-  const items = useQuery(api.rankings.mine, category === undefined ? "skip" : { category });
-  const remove = useMutationToast(api.rankings.remove, { success: "Removed" });
-
-  const onRemove = async (item: RankedListItem) => {
-    const sure = await confirm({
-      title: `Remove ${item.name}?`,
-      message: "This deletes your ranking and its post.",
-      confirmLabel: "Remove",
-      destructive: true,
-    });
-    if (sure) await remove.run({ rankingId: item.rankingId });
-  };
-
-  const tabLabel = CATEGORY_TABS.find((tab) => tab.category === category)?.label ?? "";
-  const nothingAtAll = everything !== undefined && everything.length === 0;
+  const [tab, setTab] = useState<Tab>("been");
+  const [category, setCategory] = useState<Category | undefined>(params.category as Category | undefined);
+  const ranked = useQuery(api.rankings.mine, tab === "been" ? { category } : "skip");
+  const saved = useQuery(api.saves.list, tab !== "been" ? { type: tab } : "skip");
+  const savedRows = saved?.filter((s) => !category || s.category === category);
 
   return (
-    <Screen>
-      <BackButton />
-      <Text variant="heading" accessibilityRole="header">
-        My rankings
-      </Text>
-      <ChipRow scroll>
-        {CATEGORY_TABS.map((tab) => (
-          <Chip
-            key={tab.category}
-            label={tab.label}
-            accessibilityLabel={tab.label}
-            selected={tab.category === category}
-            onPress={() => setPicked(tab.category)}
-          />
-        ))}
-      </ChipRow>
-
-      {items === undefined ? (
-        <SkeletonRows count={6} avatar={false} />
-      ) : items.length === 0 ? (
-        nothingAtAll ? (
-          <EmptyState
-            icon="star"
-            title="Nothing ranked yet"
-            body="Rank the places you go and your lists build themselves here."
-            actionLabel="Rank your first place"
-            onAction={() => router.push(paths.rate)}
-          />
-        ) : (
-          <EmptyState
-            icon="star"
-            title={`Nothing ranked in ${tabLabel} yet`}
-            actionLabel="Rank a place"
-            onAction={() => router.push(paths.rate)}
-          />
-        )
-      ) : (
-        <View>
-          {items.map((item) => (
-            <RankedRow
-              key={item.rankingId}
-              item={item}
-              ring
-              subtitle={`${BUCKET_LABELS[item.bucket]} · ${formatRelativeTime(item.rankedAt, now)}`}
-              trailing={
-                <Button
-                  title="Remove"
-                  accessibilityLabel="Remove"
-                  variant="ghost"
-                  disabled={remove.pending}
-                  style={styles.remove}
-                  onPress={() => void onRemove(item)}
-                />
-              }
-            />
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Screen>
+        <BackButton />
+        <Text variant="heading">My lists</Text>
+        <View style={styles.tabs}>
+          {(["been", "want", "going"] as Tab[]).map((t) => (
+            <Pressable key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabOn]}>
+              <Text style={[styles.tabText, tab === t && { color: colors.fg }]}>{{ been: "Been", want: "Want to go", going: "Going" }[t]}</Text>
+            </Pressable>
           ))}
-          <Text variant="caption" muted style={styles.note}>
-            Removing a ranking also removes its post.
-          </Text>
         </View>
-      )}
-    </Screen>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {CATS.map((x) => <Chip key={x.label} label={x.label} on={category === x.c} onPress={() => setCategory(x.c)} />)}
+        </ScrollView>
+
+        {tab === "been" ? (
+          ranked === undefined ? <Skeleton height={240} /> : ranked.length === 0 ? (
+            <EmptyState text="Rank your first place" action={<Chip label="Rank a spot" on onPress={() => router.push("/rate")} />} />
+          ) : (
+            ranked.map((r, i) => (
+              <Pressable key={String(r.rankingId)} onPress={() => openVenue(r)} style={styles.row}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ fontWeight: "700" }}>{category ? r.position : i + 1}. {r.name}</Text>
+                  <Text variant="caption" muted style={{ textTransform: "capitalize" }}>{r.category}</Text>
+                </View>
+                <View style={[styles.ring, { borderColor: ratingColor(r.score) }]}>
+                  <Text style={{ fontWeight: "700", color: ratingColor(r.score), fontSize: 13 }}>{r.score.toFixed(1)}</Text>
+                </View>
+              </Pressable>
+            ))
+          )
+        ) : savedRows === undefined ? <Skeleton height={240} /> : savedRows.length === 0 ? (
+          <EmptyState text="Tap Save on any place to keep it here." />
+        ) : (
+          savedRows.map((s) => (
+            <Pressable key={`${s.kind}${String(s.id)}`} onPress={() => openVenue(s)} style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: "700" }}>{s.name}</Text>
+                <Text variant="caption" muted>
+                  {s.category}{s.startsAt ? ` · ${new Date(s.startsAt).toLocaleString([], { weekday: "short", hour: "numeric" })}` : ""}
+                </Text>
+              </View>
+            </Pressable>
+          ))
+        )}
+      </Screen>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/map")} style={styles.viewMap}>
+        <Text style={{ color: colors.white, fontWeight: "700" }}>View map</Text>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  remove: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
-  note: { paddingTop: spacing.md },
+  tabs: { flexDirection: "row", gap: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
+  tab: { paddingVertical: 8 },
+  tabOn: { borderBottomWidth: 2, borderBottomColor: colors.fg },
+  tabText: { color: colors.muted, fontWeight: "600" },
+  row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
+  ring: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  viewMap: { position: "absolute", right: 18, bottom: 28, backgroundColor: colors.accent, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 12 },
 });

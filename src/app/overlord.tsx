@@ -37,10 +37,10 @@ export default function OverlordScreen() {
     {
       title: "Tabs",
       rows: [
-        { label: "Home / Tonight", href: paths.home },
+        { label: "Home / Feed", href: paths.home },
         { label: "Map", href: paths.map },
         { label: "Rate: pick a spot", href: paths.rate },
-        { label: "Feed", href: paths.feed },
+        { label: "Search / Tonight", href: paths.search },
         { label: "Profile", href: paths.profile },
       ],
     },
