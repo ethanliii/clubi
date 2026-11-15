@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Button, IconButton, Text } from "../../components";
 import { colors, fontWeight, radius, spacing } from "../../theme";
+import { FieldLabel } from "./ScreenTop";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -90,11 +91,11 @@ export function DateRangeField({
 
   return (
     <View style={styles.wrap}>
-      <Text variant="label">Dates</Text>
+      <FieldLabel>Dates</FieldLabel>
+      {/* One box, two halves: from and to. */}
       <View style={styles.fields}>
         {(["start", "end"] as const).map((which) => {
           const ms = value[which];
-          const title = which === "start" ? "Start" : "End";
           return (
             <Pressable
               key={which}
@@ -102,13 +103,18 @@ export function DateRangeField({
               accessibilityLabel={which === "start" ? "Start date" : "End date"}
               accessibilityState={{ expanded: open === which }}
               onPress={() => show(which)}
-              style={({ pressed }) => [styles.field, open === which && styles.fieldOpen, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.field,
+                which === "end" && styles.fieldEnd,
+                open === which && styles.fieldOpen,
+                pressed && styles.pressed,
+              ]}
             >
               <Text variant="caption" muted>
-                {title}
+                {which === "start" ? "From" : "To"}
               </Text>
               <Text style={ms === undefined ? styles.placeholder : styles.value}>
-                {ms === undefined ? "Add a date" : dayLabel(ms)}
+                {ms === undefined ? "Any day" : dayLabel(ms)}
               </Text>
             </Pressable>
           );
@@ -190,42 +196,32 @@ export function DateRangeField({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.xs + 2 },
-  fields: { flexDirection: "row", gap: spacing.sm },
+  wrap: { gap: spacing.sm },
+  fields: { flexDirection: "row", borderRadius: radius.lg, backgroundColor: colors.surface, overflow: "hidden" },
   field: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 56,
     justifyContent: "center",
     gap: 2,
     paddingHorizontal: spacing.md + 2,
     paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
   },
-  fieldOpen: { borderColor: colors.accent },
-  placeholder: { color: colors.muted },
-  value: { fontWeight: fontWeight.semibold },
+  fieldEnd: { borderLeftWidth: 1, borderLeftColor: colors.line },
+  fieldOpen: { backgroundColor: colors.raised },
+  placeholder: { fontSize: 15, color: colors.muted },
+  value: { fontSize: 15, fontWeight: fontWeight.semibold },
   pressed: { opacity: 0.6 },
-  calendar: {
-    padding: spacing.md,
-    gap: 2,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
+  calendar: { paddingVertical: spacing.sm, gap: 2 },
   monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.xs },
-  month: { fontWeight: fontWeight.semibold },
+  month: { fontSize: 15, fontWeight: fontWeight.semibold },
   week: { flexDirection: "row" },
   cell: { flex: 1 },
-  day: { height: 40, alignItems: "center", justifyContent: "center", borderRadius: radius.md },
-  dayInRange: { backgroundColor: colors.accentSoft },
+  day: { height: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
+  dayInRange: { backgroundColor: colors.accentSoft, borderRadius: 0 },
   daySelected: { backgroundColor: colors.accent },
-  dayText: { fontVariant: ["tabular-nums"] },
+  dayText: { fontSize: 15, fontVariant: ["tabular-nums"] },
   dayToday: { fontWeight: fontWeight.bold, color: colors.accent },
   dayDisabled: { color: colors.low },
   dayTextSelected: { color: colors.white, fontWeight: fontWeight.bold },
-  clear: { alignSelf: "flex-start", minHeight: 32, justifyContent: "center" },
+  clear: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
 });

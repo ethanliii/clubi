@@ -1,4 +1,6 @@
-import { Chip, ChipRow } from "../../components";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../components";
+import { colors, fontWeight, radius } from "../../theme";
 
 export type Vibe = "chill" | "balanced" | "wild";
 
@@ -15,7 +17,10 @@ export function vibeLabel(vibe: string | undefined): string {
   return VIBES.find((option) => option.value === vibe)?.label ?? vibe;
 }
 
-/** "Chill" / "Balanced" / "Wild". `value` is whatever is selected now (it may come from the backend). */
+/**
+ * "Chill" / "Balanced" / "Wild" as one three-way switch.
+ * `value` is whatever is selected now (it may come from the backend).
+ */
 export function VibeChips({
   value,
   onChange,
@@ -24,16 +29,31 @@ export function VibeChips({
   onChange: (vibe: Vibe) => void;
 }) {
   return (
-    <ChipRow>
-      {VIBES.map((option) => (
-        <Chip
-          key={option.value}
-          label={option.label}
-          accessibilityLabel={option.label}
-          selected={value === option.value}
-          onPress={() => onChange(option.value)}
-        />
-      ))}
-    </ChipRow>
+    <View accessibilityRole="radiogroup" style={styles.track}>
+      {VIBES.map((option) => {
+        const on = value === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="button"
+            accessibilityLabel={option.label}
+            accessibilityState={{ selected: on }}
+            onPress={() => onChange(option.value)}
+            style={({ pressed }) => [styles.segment, on && styles.segmentOn, pressed && !on && styles.pressed]}
+          >
+            <Text style={[styles.label, on && styles.labelOn]}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  track: { flexDirection: "row", padding: 4, borderRadius: radius.pill, backgroundColor: colors.surface },
+  segment: { flex: 1, height: 40, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
+  segmentOn: { backgroundColor: colors.fg },
+  pressed: { opacity: 0.6 },
+  label: { fontSize: 15, lineHeight: 20, color: colors.muted, fontWeight: fontWeight.medium },
+  labelOn: { color: colors.bg, fontWeight: fontWeight.semibold },
+});
