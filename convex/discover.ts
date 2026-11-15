@@ -12,12 +12,12 @@ import { FEATURES, clip, groupScore, mapRank, matchPct, predict, topFeatures, wh
 const TOP_PICKS = 6;
 const SECTION_SIZE = 10;
 const MAX_PLAN_MEMBERS = 8;
-const PLAN_VIBE_WEIGHT = 3;
+const PLAN_VIBE_WEIGHT = 6;
 const DEFAULT_VIBE = "balanced";
 const ENERGY = FEATURES.indexOf("energy");
 
 const PLAN_SLOTS: { slot: PlanSlot; label: string; categories: Category[] }[] = [
-  { slot: "early", label: "Start", categories: ["food", "culture", "outdoors", "popup"] },
+  { slot: "early", label: "Start", categories: ["food", "culture", "outdoors"] },
   { slot: "mid", label: "Then", categories: ["nightlife", "live", "popup"] },
   { slot: "late", label: "End the night", categories: ["nightlife", "live"] },
 ];

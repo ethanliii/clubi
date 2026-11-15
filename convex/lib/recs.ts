@@ -23,6 +23,7 @@ export const DIDNT_STEP = 0.05;
 export const QUIZ_BASELINE = 0.3;
 export const FEATURE_BASELINE = 0.15;
 export const UNKNOWN_SIMILARITY = 0.5;
+export const MIN_TASTE_WEIGHT = 0.05;
 export const NEUTRAL_TASTE: number[] = FEATURES.map(() => 0.5);
 
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
@@ -69,9 +70,16 @@ export function updateElo(bW: number, bL: number, nW: number, nL: number, K0 = E
 /** 8.4: the content-only score, 1 to 10. */
 export const contentScore = (t: number[], f: number[]) => 1 + 4.5 * (1 + similarity(t, f));
 
-/** The features with the largest taste x venue contribution, best first. */
+/**
+ * The features that best explain a match, best first: what the place is strongest in, weighted by how
+ * much the viewer cares about it. Both are measured from the baseline, and the venue side is squared so
+ * a pizza place reads as "great food" even to someone whose own strongest taste is loud music.
+ */
 export function topFeatures(t: number[], f: number[], n = 2): Feature[] {
-  return FEATURES.map((k, i) => ({ k, v: (t[i] ?? 0) * (f[i] ?? 0) }))
+  return FEATURES.map((k, i) => ({
+    k,
+    v: Math.max((f[i] ?? 0) - FEATURE_BASELINE, 0) ** 2 * Math.max((t[i] ?? 0) - FEATURE_BASELINE, MIN_TASTE_WEIGHT),
+  }))
     .sort((a, b) => b.v - a.v)
     .slice(0, n)
     .map((c) => c.k);
