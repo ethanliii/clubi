@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Icon, Text, type IconName } from "../../components";
 import { colors, fontWeight } from "../../theme";
 
@@ -7,6 +7,8 @@ import { colors, fontWeight } from "../../theme";
  * One row, thumb height, no explanations.
  */
 export function Shortcuts({ onPlan, onTrips, onSaved }: { onPlan: () => void; onTrips: () => void; onSaved: () => void }) {
+  // On the narrowest phones the three labels only fit without the two small icons.
+  const roomy = useWindowDimensions().width >= 360;
   return (
     <View style={styles.row}>
       <Pressable
@@ -19,13 +21,13 @@ export function Shortcuts({ onPlan, onTrips, onSaved }: { onPlan: () => void; on
           Plan my night
         </Text>
       </Pressable>
-      <Quiet label="Trips" icon="users" onPress={onTrips} />
-      <Quiet label="Saved" icon="bookmark" onPress={onSaved} />
+      <Quiet label="Trips" icon={roomy ? "users" : null} onPress={onTrips} />
+      <Quiet label="Saved" icon={roomy ? "bookmark" : null} onPress={onSaved} />
     </View>
   );
 }
 
-function Quiet({ label, icon, onPress }: { label: string; icon: IconName; onPress: () => void }) {
+function Quiet({ label, icon, onPress }: { label: string; icon: IconName | null; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -33,7 +35,7 @@ function Quiet({ label, icon, onPress }: { label: string; icon: IconName; onPres
       onPress={onPress}
       style={({ pressed }) => [styles.button, styles.quiet, pressed && styles.pressed]}
     >
-      <Icon name={icon} size={18} color={colors.fg} />
+      {icon ? <Icon name={icon} size={18} color={colors.fg} /> : null}
       <Text numberOfLines={1} style={styles.label}>
         {label}
       </Text>

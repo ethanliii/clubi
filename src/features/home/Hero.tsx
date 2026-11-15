@@ -10,8 +10,8 @@ import { cardLabel, friendsLine, metaLine, whenLine } from "./itemText";
 import { Photo } from "./Photo";
 
 const ROUND = 28;
-/** Height for a given width: a tall 4:5 picture, the way a poster hangs. */
-const heightFor = (width: number) => Math.round(width * 1.22);
+/** Height for a given width: a tall picture, the way a poster hangs, but never the whole screen on a wide window. */
+const heightFor = (width: number) => Math.min(Math.round(width * 1.22), 460);
 
 /** The one place the backend ranked first for tonight: a big photo with its score and the reason on it. */
 export function Hero({ item, now }: { item: NearbyItem; now: number }) {
