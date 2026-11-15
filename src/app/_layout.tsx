@@ -1,12 +1,14 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { ConvexReactClient } from "convex/react";
-import { Stack } from "expo-router";
+import { ConvexReactClient, useQuery } from "convex/react";
+import { router, Stack, usePathname } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import { Platform, StyleSheet, View } from "react-native";
+import { useEffect } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { api } from "../../convex/_generated/api";
 import { ErrorBoundary, Splash, ToastProvider } from "../components";
 import { paths } from "../lib/links";
+import { OVERLORD_USERNAMES, setOverlord, useOverlord } from "../lib/overlord";
 import { SessionProvider, useSession } from "../state/session";
 import { colors } from "../theme";
 
@@ -56,12 +58,20 @@ export default function RootLayout() {
  */
 function RootNavigator() {
   const { gate, landing } = useSession();
+  // Overlord mode (testing): every guard below opens, so any page can be visited from /overlord.
+  const overlord = useOverlord();
+  const me = useQuery(api.users.me);
+  const pathname = usePathname();
+  useEffect(() => {
+    if (me?.username !== undefined && OVERLORD_USERNAMES.has(me.username)) setOverlord(true);
+  }, [me?.username]);
   if (gate === null) return <Splash />;
 
-  const inApp = gate === "ready" || gate === "tasteCard";
+  const inApp = overlord || gate === "ready" || gate === "tasteCard";
   // Where someone lands when the screen they are on (or asked for) is not allowed for them.
   const home = gate === "signedOut" ? paths.welcome : gate === "quiz" ? paths.quiz : landing;
   return (
+    <>
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       <Stack.Protected guard={inApp} redirectTo={home}>
         <Stack.Screen name="(tabs)" />
@@ -81,18 +91,35 @@ function RootNavigator() {
         <Stack.Screen name="following" />
         <Stack.Screen name="performer/[performerId]" />
       </Stack.Protected>
-      <Stack.Protected guard={gate !== "ready"} redirectTo={home}>
+      <Stack.Protected guard={overlord || gate !== "ready"} redirectTo={home}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
-      <Stack.Protected guard={gate === "signedOut"} redirectTo={home}>
+      <Stack.Protected guard={overlord || gate === "signedOut"} redirectTo={home}>
         <Stack.Screen name="sign-in" options={{ presentation: "modal" }} />
       </Stack.Protected>
+      <Stack.Screen name="overlord" />
       <Stack.Screen name="+not-found" />
     </Stack>
+    {overlord && pathname !== "/overlord" ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open overlord menu"
+        onPress={() => router.push("/overlord")}
+        style={styles.overlordButton}
+      >
+        <Text style={styles.overlordIcon}>⚡</Text>
+      </Pressable>
+    ) : null}
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, alignItems: "center", backgroundColor: colors.page },
   app: { flex: 1, width: "100%", maxWidth: 520, backgroundColor: colors.bg },
+  overlordButton: {
+    position: "absolute", left: 12, bottom: 96, width: 40, height: 40, borderRadius: 20,
+    alignItems: "center", justifyContent: "center", backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.accent, opacity: 0.9,
+  },
+  overlordIcon: { fontSize: 18 },
 });
