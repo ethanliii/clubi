@@ -4,7 +4,7 @@ import { QueryCtx } from "../_generated/server";
 import type { Category, Filter, FriendScore, NearbyItem, Tier } from "./contract";
 import { isOpenAt } from "./hours";
 import {
-  FEATURES, NEUTRAL_TASTE, Rater, clip, mapRank, matchPct, predict, similarity, whyFromFeatures,
+  FEATURES, GAMMA_ELO, NEUTRAL_TASTE, Rater, TIME_TAU, clip, mapRank, matchPct, predict, similarity, whyFromFeatures,
 } from "./recs";
 
 export const ALGO = "hybrid-v2";
@@ -12,7 +12,7 @@ export const ATTRIBUTION = "© OpenStreetMap contributors";
 export const DEFAULT_RADIUS_METERS = 2500;
 export const DEFAULT_LIMIT = 60;
 export const MAX_CANDIDATES = 200;
-export const SCAN_LIMIT = 1500;
+export const SCAN_LIMIT_PER_SIDE = 800;
 export const MAX_RATERS_PER_ITEM = 50;
 export const MAX_FRIENDS_SHOWN = 3;
 export const MAX_FRIENDS_LOADED = 50;
@@ -67,6 +67,12 @@ export type Scored = {
   vector: number[];
   mine: Doc<"rankings"> | null;
   friendRows: FriendRow[];
+  terms: {
+    content: number; crowd: number; lambda: number; elo: number; eloTerm: number; predicted: number;
+    ownScore?: number; score: number; distanceMeters: number; distancePenalty: number;
+    timeMatch: number; timeTerm: number; order: number;
+    raters: { count: number; locals: number; friends: number; weightSum: number };
+  };
 };
 
 export type UserLoader = (id: Id<"users">) => Promise<Doc<"users"> | null>;
@@ -146,29 +152,58 @@ export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
   };
 }
 
-/** Every place and upcoming event within the radius, nearest first. */
+/**
+ * Every place and upcoming event within the radius, nearest first. The lat index is read outward from
+ * the centre in both directions, so when a dense area hits the scan limit it is the far edge that is cut.
+ */
 export async function loadInRadius(ctx: QueryCtx, lat: number, lng: number, radiusMeters: number, now: number): Promise<Candidate[]> {
   const dLat = radiusMeters / METERS_PER_DEGREE;
   const dLng = radiusMeters / (METERS_PER_DEGREE * Math.cos((lat * Math.PI) / 180));
-  const places = await ctx.db
-    .query("places")
-    .withIndex("by_lat", (q) => q.gte("lat", lat - dLat).lte("lat", lat + dLat))
-    .filter((q) => q.and(q.gte(q.field("lng"), lng - dLng), q.lte(q.field("lng"), lng + dLng)))
-    .take(SCAN_LIMIT);
-  const events = await ctx.db
-    .query("events")
-    .withIndex("by_lat", (q) => q.gte("lat", lat - dLat).lte("lat", lat + dLat))
-    .filter((q) => q.and(q.gte(q.field("lng"), lng - dLng), q.lte(q.field("lng"), lng + dLng)))
-    .take(SCAN_LIMIT);
+  const [placesNorth, placesSouth, eventsNorth, eventsSouth] = await Promise.all([
+    ctx.db
+      .query("places")
+      .withIndex("by_lat", (q) => q.gte("lat", lat).lte("lat", lat + dLat))
+      .filter((q) => q.and(q.gte(q.field("lng"), lng - dLng), q.lte(q.field("lng"), lng + dLng)))
+      .take(SCAN_LIMIT_PER_SIDE),
+    ctx.db
+      .query("places")
+      .withIndex("by_lat", (q) => q.gte("lat", lat - dLat).lt("lat", lat))
+      .order("desc")
+      .filter((q) => q.and(q.gte(q.field("lng"), lng - dLng), q.lte(q.field("lng"), lng + dLng)))
+      .take(SCAN_LIMIT_PER_SIDE),
+    ctx.db
+      .query("events")
+      .withIndex("by_lat", (q) => q.gte("lat", lat).lte("lat", lat + dLat))
+      .filter((q) => q.and(q.gte(q.field("lng"), lng - dLng), q.lte(q.field("lng"), lng + dLng)))
+      .take(SCAN_LIMIT_PER_SIDE),
+    ctx.db
+      .query("events")
+      .withIndex("by_lat", (q) => q.gte("lat", lat - dLat).lt("lat", lat))
+      .order("desc")
+      .filter((q) => q.and(q.gte(q.field("lng"), lng - dLng), q.lte(q.field("lng"), lng + dLng)))
+      .take(SCAN_LIMIT_PER_SIDE),
+  ]);
   const all: Candidate[] = [
-    ...places.map((doc) => ({ kind: "place" as const, doc })),
-    ...events.filter((e) => !isPastEvent(e, now)).map((doc) => ({ kind: "event" as const, doc })),
+    ...[...placesNorth, ...placesSouth].map((doc) => ({ kind: "place" as const, doc })),
+    ...[...eventsNorth, ...eventsSouth].filter((e) => !isPastEvent(e, now)).map((doc) => ({ kind: "event" as const, doc })),
   ];
   return all
     .map((c) => ({ c, d: haversineMeters(lat, lng, c.doc.lat, c.doc.lng) }))
     .filter((x) => x.d <= radiusMeters)
     .sort((a, b) => a.d - b.d)
     .map((x) => x.c);
+}
+
+/** Looks a place or event up from the plain string id a route param carries. */
+export async function getCandidate(ctx: QueryCtx, kind: "place" | "event", id: string): Promise<Candidate | null> {
+  if (kind === "place") {
+    const placeId = ctx.db.normalizeId("places", id);
+    const doc = placeId === null ? null : await ctx.db.get(placeId);
+    return doc === null ? null : { kind, doc };
+  }
+  const eventId = ctx.db.normalizeId("events", id);
+  const doc = eventId === null ? null : await ctx.db.get(eventId);
+  return doc === null ? null : { kind, doc };
 }
 
 /** The nearest candidates that pass the filter, capped so scoring stays bounded. */
@@ -272,6 +307,27 @@ export async function scoreCandidate(
     vector,
     mine,
     friendRows,
+    terms: {
+      content: prediction.content,
+      crowd: prediction.crowd,
+      lambda: prediction.lam,
+      elo,
+      eloTerm: GAMMA_ELO * elo,
+      predicted: prediction.score,
+      ownScore,
+      score: exact,
+      distanceMeters: distance,
+      distancePenalty: exact - mapRank(exact, distance, 0),
+      timeMatch: time.timeMatch,
+      timeTerm: TIME_TAU * time.timeMatch,
+      order,
+      raters: {
+        count: raters.length,
+        locals: raters.filter((r) => r.local).length,
+        friends: raters.filter((r) => r.friend).length,
+        weightSum: prediction.weightSum,
+      },
+    },
   };
 }
 

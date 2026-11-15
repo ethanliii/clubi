@@ -172,7 +172,7 @@ export function predict(tU: number[], fI: number[], eloI: number, raters: Rater[
   const content = contentScore(tU, fI);
   const lam = wSum / (wSum + CROWD_HALF_WEIGHT);
   const score = clip((1 - lam) * content + lam * crowd + GAMMA_ELO * eloI, 1, 10);
-  return { score, lam, crowd, content, topFeatures: topFeatures(tU, fI), topRater: best };
+  return { score, lam, crowd, content, weightSum: wSum, topFeatures: topFeatures(tU, fI), topRater: best };
 }
 
 /** 8.4: map ordering. distanceM from haversine, timeMatch in [0, 1]. */
