@@ -1,0 +1,93 @@
+{
+ "_note": "Written by hand from the documented Discovery API v2 response shape (developer.ticketmaster.com), not captured live: there was no TICKETMASTER_KEY when this was built. Replace with a trimmed live response once a key exists.",
+ "_embedded": {
+  "events": [
+   {
+    "name": "Calvin Harris",
+    "type": "event",
+    "id": "vvG1VZKS5pr1qy",
+    "url": "https://www.ticketmaster.com/calvin-harris-san-francisco-california-12-05-2026/event/1C005F00A1B2C3D4",
+    "images": [
+     { "ratio": "3_2", "url": "https://s1.ticketm.net/dam/a/123/calvin_ARTIST_PAGE_3_2.jpg", "width": 305, "height": 203, "fallback": false },
+     { "ratio": "16_9", "url": "https://s1.ticketm.net/dam/a/123/calvin_TABLET_LANDSCAPE_LARGE_16_9.jpg", "width": 2048, "height": 1152, "fallback": false },
+     { "ratio": "16_9", "url": "https://s1.ticketm.net/dam/a/123/calvin_TABLET_LANDSCAPE_16_9.jpg", "width": 1024, "height": 576, "fallback": false },
+     { "ratio": "16_9", "url": "https://s1.ticketm.net/dam/a/123/calvin_RECOMENDATION_16_9.jpg", "width": 100, "height": 56, "fallback": false }
+    ],
+    "dates": {
+     "start": { "localDate": "2026-12-05", "localTime": "21:00:00", "dateTime": "2026-12-06T05:00:00Z", "dateTBD": false, "dateTBA": false, "timeTBA": false, "noSpecificTime": false },
+     "timezone": "America/Los_Angeles",
+     "status": { "code": "onsale" }
+    },
+    "classifications": [
+     { "primary": true, "segment": { "id": "KZFzniwnSyZfZ7v7nJ", "name": "Music" }, "genre": { "id": "KnvZfZ7vAvF", "name": "Dance/Electronic" }, "subGenre": { "id": "KZazBEonSMnZfZ7vAJ1", "name": "House" }, "family": false }
+    ],
+    "priceRanges": [ { "type": "standard", "currency": "USD", "min": 79.5, "max": 250.0 } ],
+    "_embedded": {
+     "venues": [
+      { "name": "The Midway", "type": "venue", "id": "KovZ917ARPV", "timezone": "America/Los_Angeles", "city": { "name": "San Francisco" }, "state": { "name": "California", "stateCode": "CA" }, "address": { "line1": "900 Marin Street" }, "location": { "longitude": "-122.386600", "latitude": "37.749400" } }
+     ],
+     "attractions": [
+      { "name": "Calvin Harris", "type": "attraction", "id": "K8vZ917G1V7", "url": "https://www.ticketmaster.com/calvin-harris-tickets/artist/1057637",
+        "images": [
+         { "ratio": "16_9", "url": "https://s1.ticketm.net/dam/a/123/calvin_artist_TABLET_LANDSCAPE_16_9.jpg", "width": 1024, "height": 576, "fallback": false },
+         { "ratio": "4_3", "url": "https://s1.ticketm.net/dam/a/123/calvin_artist_CUSTOM.jpg", "width": 305, "height": 225, "fallback": false }
+        ],
+        "classifications": [ { "primary": true, "segment": { "name": "Music" }, "genre": { "name": "Dance/Electronic" }, "subGenre": { "name": "House" }, "family": false } ] },
+      { "name": "Disclosure", "type": "attraction", "id": "K8vZ9175rX7",
+        "images": [ { "ratio": "16_9", "url": "https://s1.ticketm.net/dam/c/fbc/b293c0ad_TABLET_LANDSCAPE_16_9.jpg", "width": 1024, "height": 576, "fallback": true } ],
+        "classifications": [ { "primary": true, "segment": { "name": "Music" }, "genre": { "name": "Dance/Electronic" }, "subGenre": { "name": "Undefined" }, "family": false } ] }
+     ]
+    }
+   },
+   {
+    "name": "Golden State Warriors vs. Los Angeles Lakers",
+    "type": "event",
+    "id": "G5vYZb2n_2V2d",
+    "url": "https://www.ticketmaster.com/event/1C005F2E9D0A1B2C",
+    "images": [ { "ratio": "16_9", "url": "https://s1.ticketm.net/dam/a/456/warriors_RETINA_LANDSCAPE_16_9.jpg", "width": 1136, "height": 639, "fallback": false } ],
+    "dates": { "start": { "localDate": "2026-11-20", "localTime": "19:00:00", "dateTime": "2026-11-21T03:00:00Z", "dateTBA": false, "timeTBA": false }, "timezone": "America/Los_Angeles", "status": { "code": "onsale" } },
+    "classifications": [ { "primary": true, "segment": { "name": "Sports" }, "genre": { "name": "Basketball" }, "subGenre": { "name": "NBA" }, "family": false } ],
+    "priceRanges": [ { "type": "standard including fees", "currency": "USD", "min": 140.0, "max": 900.0 }, { "type": "standard", "currency": "USD", "min": 120.0, "max": 850.0 } ],
+    "_embedded": {
+     "venues": [ { "name": "Chase Center", "timezone": "America/Los_Angeles", "city": { "name": "San Francisco" }, "address": { "line1": "300 16th Street" }, "location": { "longitude": "-122.387464", "latitude": "37.768007" } } ],
+     "attractions": [
+      { "name": "Golden State Warriors", "id": "K8vZ91718T0", "classifications": [ { "primary": true, "segment": { "name": "Sports" }, "genre": { "name": "Basketball" }, "subGenre": { "name": "NBA" } } ] },
+      { "name": "Los Angeles Lakers", "id": "K8vZ91719n0", "classifications": [ { "primary": true, "segment": { "name": "Sports" }, "genre": { "name": "Basketball" }, "subGenre": { "name": "NBA" } } ] }
+     ]
+    }
+   },
+   {
+    "name": "Hamilton (Touring)",
+    "type": "event",
+    "id": "Z7r9jZ1A7bfp4",
+    "url": "https://www.ticketmaster.com/event/Z7r9jZ1A7bfp4",
+    "images": [],
+    "dates": { "start": { "localDate": "2026-11-22", "dateTBA": false, "timeTBA": true, "noSpecificTime": false }, "timezone": "America/Los_Angeles", "status": { "code": "rescheduled" } },
+    "classifications": [ { "primary": true, "segment": { "name": "Arts & Theatre" }, "genre": { "name": "Theatre" }, "subGenre": { "name": "Musical" }, "family": false } ],
+    "_embedded": {
+     "venues": [ { "name": "Orpheum Theatre", "city": { "name": "San Francisco" }, "address": { "line1": "1192 Market Street" }, "location": { "longitude": "-122.414700", "latitude": "37.779200" } } ]
+    }
+   },
+   {
+    "name": "Cancelled Show",
+    "id": "cancelled1",
+    "url": "https://www.ticketmaster.com/event/cancelled1",
+    "dates": { "start": { "dateTime": "2026-11-25T04:00:00Z" }, "status": { "code": "canceled" } },
+    "_embedded": { "venues": [ { "name": "The Fillmore", "city": { "name": "San Francisco" }, "location": { "longitude": "-122.433100", "latitude": "37.784000" } } ] }
+   },
+   {
+    "name": "Date To Be Announced",
+    "id": "tba1",
+    "dates": { "start": { "dateTBA": true }, "status": { "code": "onsale" } },
+    "_embedded": { "venues": [ { "name": "The Fillmore", "location": { "longitude": "-122.433100", "latitude": "37.784000" } } ] }
+   },
+   {
+    "name": "Venue Without A Map Point",
+    "id": "nomap1",
+    "dates": { "start": { "dateTime": "2026-11-25T04:00:00Z" }, "status": { "code": "onsale" } },
+    "_embedded": { "venues": [ { "name": "Somewhere", "city": { "name": "San Francisco" } } ] }
+   }
+  ]
+ },
+ "page": { "size": 100, "totalElements": 6, "totalPages": 1, "number": 0 }
+}
