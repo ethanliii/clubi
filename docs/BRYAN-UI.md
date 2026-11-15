@@ -23,6 +23,11 @@ Branch `bryan-ui-input`, merged up to `main` first. Decisions come from the merg
 - **Rank flow (Beli):** "Add to my list of …", "How was it?" as three colored circles, "Which do you prefer?" with OR, and Undo · Too tough · Skip (Skip compares against the next place instead).
 - **Later, needs backend:** a "For You" full-screen mode (Instagram/TikTok) needs a public feed; "ranked with Nicole, Leanna…" needs tagged friends on a post; visit count needs a visits field. Letterboxd-style quick sheet (Been / Save / Going + share to stories) can be added to the venue page.
 
+## Pass 4 (references: Beli My Lists, Google Maps place card, Instagram profile)
+- **Map tab:** real map (react-native-maps; web shows a note), pins by `tier` (top = ringed score bubble, good = labeled bubble, other = dot, events dashed), the 7 "Filter: …" chips, search, ranked sheet list, OSM attribution, demo-location switch, recenter. Tap a pin → Google-Maps-style card: Directions · Rank this place · Save · Details, a swipeable strip of friends' photos (name · score · when), Know before you go (insights), quote cards.
+- **My lists (`rankings.tsx`):** Been (`rankings.mine`) · Want to go / Going (`saves.list`), category chips, score rings, floating View map.
+- **Profile (Instagram):** avatar + posts / friends / ranked counts, @username · city, bio, Edit profile / Share profile (or Add friend / Compare), taste meters, "memories" highlight circles (top place of each list + New), Photos grid / Ranked lists tabs.
+
 ## Not done yet
 Map pins by tier with Bryan's bubble style · rankings / plan / notifications / settings / saved / trips / performer screens · photo upload in the rank flow · light/dark toggle · public accounts + Follow (backend ask below).
 
@@ -34,5 +39,6 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 | E5 | `friendsAvg` on `NearbyItem` | Map badges |
 | E6 | Bulk seed ratings from "Been here?" (answers kept on device for now) | Quiz |
 | E11 | Apple + Google OAuth providers in `convex/auth.ts` | Welcome |
+| E13 | Pinned favorites / highlights on a profile (photo ids + titles), followers count for public accounts | Profile |
 | E12 | Public / private accounts: `isPublic` setting, `follows` (follow / unfollow, follower counts), `ProfileResult.user.isPublic`, `canSee` true for public | Q20 |
 | — | Vibe filter on `discover.tonight` / `forGroup` (Vibe chips pass to Plan my night for now) | Search |
