@@ -3,12 +3,29 @@ import { useEffect, useSyncExternalStore } from "react";
 
 export const DEMO_COORDS = { lat: 37.7608, lng: -122.3861 } as const;
 const FIX_TIMEOUT_MS = 5000;
+// Follow the device as it moves: a new fix every 50 m or 15 s, whichever comes first.
+const WATCH_DISTANCE_METERS = 50;
+const WATCH_INTERVAL_MS = 15000;
 
 type Coords = { lat: number; lng: number };
 type State = { device: Coords | null; pinned: boolean; failed: boolean };
 
 let state: State = { device: null, pinned: false, failed: false };
 let locating = false;
+let watching = false;
+
+async function watchDevice() {
+  if (watching) return;
+  watching = true;
+  try {
+    await Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.Balanced, distanceInterval: WATCH_DISTANCE_METERS, timeInterval: WATCH_INTERVAL_MS },
+      (position) => update({ device: { lat: position.coords.latitude, lng: position.coords.longitude }, failed: false }),
+    );
+  } catch {
+    watching = false;
+  }
+}
 const listeners = new Set<() => void>();
 
 function update(next: Partial<State>) {
@@ -37,6 +54,7 @@ async function locateDevice() {
     }
     const position = await Location.getCurrentPositionAsync({});
     update({ device: { lat: position.coords.latitude, lng: position.coords.longitude }, failed: false });
+    void watchDevice();
   } catch {
     update({ failed: true });
   } finally {
