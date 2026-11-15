@@ -244,13 +244,14 @@ type EnrichResult = { looked: number; matched: number; patched: number; noMatch:
 
 /**
  * Enrich up to 40 catalog places with Google Places details: `npx convex run imports/google:enrichPlaces`.
- * Does nothing when GOOGLE_MAPS_KEY is not set.
+ * Does nothing when GOOGLE_MAPS_KEY is not set or while the ingest is frozen.
  */
 export const enrichPlaces = internalAction({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }): Promise<EnrichResult | { skipped: string }> => {
     const key = process.env.GOOGLE_MAPS_KEY;
     if (!key) return { skipped: "no GOOGLE_MAPS_KEY" };
+    if (await ctx.runQuery(internal.ingest.isIngestFrozen, {})) return { skipped: "ingest frozen" };
     const places = await ctx.runQuery(internal.imports.google.candidates, { limit });
     const result: EnrichResult = { looked: 0, matched: 0, patched: 0, noMatch: 0 };
     const patches: (ReturnType<typeof googleToPatch> & { placeId: Id<"places"> })[] = [];

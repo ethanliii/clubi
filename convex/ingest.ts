@@ -296,7 +296,7 @@ async function upsertPlace(ctx: MutationCtx, row: IngestRow, nameKey: string): P
     await ctx.db.insert("places", { ...fields, elo: 0, nComparisons: 0 });
     return "inserted";
   }
-  if (isProtected(duplicate.source) || richness(duplicate) >= richness(fields)) return "duplicate";
+  if (isProtected(duplicate.source) || (!isProtected(row.source) && richness(duplicate) >= richness(fields))) return "duplicate";
   await ctx.db.patch(duplicate._id, {
     ...fields,
     address: fields.address ?? duplicate.address,
@@ -513,7 +513,7 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     if (lineup.length) await notifyPerformerFans(ctx, eventId);
     return "inserted";
   }
-  if (isProtected(duplicate.source) || richness(duplicate) >= richness(fields)) {
+  if (isProtected(duplicate.source) || (!isProtected(row.source) && richness(duplicate) >= richness(fields))) {
     // The other source's row stays, but a line-up it did not have is worth keeping.
     if (lineup.length && !duplicate.performerNames?.length) {
       await ctx.db.patch(duplicate._id, { performerNames: fields.performerNames });
@@ -536,6 +536,42 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
   return "replaced";
 }
 
+type Counts = { inserted: number; updated: number; unchanged: number; replaced: number; duplicate: number; dropped: number; frozen: boolean };
+
+/**
+ * The work of `upsertBatch`, for mutations that write catalog rows themselves (convex/catalog.ts).
+ * `ignoreFreeze` is for rows a person adds by hand: the freeze is about imports.
+ */
+export async function upsertRows(
+  ctx: MutationCtx,
+  kind: "place" | "event",
+  rows: IngestRow[],
+  options: { ignoreFreeze?: boolean } = {},
+): Promise<Counts> {
+  if (rows.length > MAX_BATCH) throw new Error("upsertBatch takes at most " + MAX_BATCH + " rows");
+  const counts: Counts = { inserted: 0, updated: 0, unchanged: 0, replaced: 0, duplicate: 0, dropped: 0, frozen: false };
+  if (kind === "event" && !options.ignoreFreeze && (await readFrozen(ctx))) return { ...counts, frozen: true };
+  const now = Date.now();
+  const venues: VenueCache = new Map();
+  for (const row of rows) {
+    const nameKey = normalizeName(row.name);
+    const located = Number.isFinite(row.lat) && Number.isFinite(row.lng);
+    const past =
+      kind === "event" &&
+      (row.start === undefined || (row.end ?? row.start + ASSUMED_EVENT_MS) < now);
+    if (!nameKey || !located || past) {
+      counts.dropped++;
+      continue;
+    }
+    counts[
+      kind === "place"
+        ? await upsertPlace(ctx, row, nameKey)
+        : await upsertEvent(ctx, row, nameKey, row.start!, venues)
+    ]++;
+  }
+  return counts;
+}
+
 /**
  * Upsert up to MAX_BATCH places or events by source + sourceId. A row with the
  * same name within 50 m (places) or the same title starting within 1 h
@@ -550,30 +586,7 @@ export const upsertBatch = internalMutation({
     kind: v.union(v.literal("place"), v.literal("event")),
     rows: v.array(ingestRow),
   },
-  handler: async (ctx, { kind, rows }) => {
-    if (rows.length > MAX_BATCH) throw new Error("upsertBatch takes at most " + MAX_BATCH + " rows");
-    const counts = { inserted: 0, updated: 0, unchanged: 0, replaced: 0, duplicate: 0, dropped: 0, frozen: false };
-    if (kind === "event" && (await readFrozen(ctx))) return { ...counts, frozen: true };
-    const now = Date.now();
-    const venues: VenueCache = new Map();
-    for (const row of rows) {
-      const nameKey = normalizeName(row.name);
-      const located = Number.isFinite(row.lat) && Number.isFinite(row.lng);
-      const past =
-        kind === "event" &&
-        (row.start === undefined || (row.end ?? row.start + ASSUMED_EVENT_MS) < now);
-      if (!nameKey || !located || past) {
-        counts.dropped++;
-        continue;
-      }
-      counts[
-        kind === "place"
-          ? await upsertPlace(ctx, row, nameKey)
-          : await upsertEvent(ctx, row, nameKey, row.start!, venues)
-      ]++;
-    }
-    return counts;
-  },
+  handler: (ctx, { kind, rows }) => upsertRows(ctx, kind, rows),
 });
 
 const MAX_KNOWN_IDS = 300;
