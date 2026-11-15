@@ -4,8 +4,8 @@ import { QueryCtx } from "../_generated/server";
 import type { Category, Filter, FriendScore, NearbyItem, Tier } from "./contract";
 import { isOpenAt } from "./hours";
 import {
-  FEATURES, NEUTRAL_TASTE, PerformerAffinity, Rater, TIME_TAU, clip, exploreBonus, mapRank, matchPct, mmrPick, newSlotPick,
-  performerAffinity, predict, socialBump, whyFromFeatures,
+  CROWD_HALF_WEIGHT, FEATURES, NEUTRAL_TASTE, PerformerAffinity, Rater, TIME_TAU, clip, exploreBonus, mapRank, matchPct, mmrPick,
+  newSlotPick, performerAffinity, predict, socialBump, whyFromFeatures,
 } from "./recs";
 
 export const ALGO = "hybrid-v4";
@@ -27,7 +27,10 @@ export const NEW_SLOT_TAG = "New on clubi";
 export const TOP_TIER_SIZE = 5;
 export const GOOD_TIER_SIZE = 25;
 export const DIVERSITY_MAX_COSINE = 0.95;
-export const WHY_SOCIAL_LAMBDA = 0.4;
+/** The reason line turns social once similar raters weigh this much together (two full-weight raters). */
+export const WHY_SOCIAL_WEIGHT = 2;
+/** The same threshold as a crowd share. It was 0.4 while CROWD_HALF_WEIGHT was 3: the same weight of 2. */
+export const WHY_SOCIAL_LAMBDA = WHY_SOCIAL_WEIGHT / (WHY_SOCIAL_WEIGHT + CROWD_HALF_WEIGHT);
 export const ADULT_AGE = 21;
 const HOUR_MS = 60 * 60 * 1000;
 export const EVENT_DEFAULT_LENGTH_MS = 3 * HOUR_MS;

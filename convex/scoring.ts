@@ -39,7 +39,7 @@ export async function applyComparison(ctx: MutationCtx, userId: Id<"users">, win
   await ctx.db.patch(l._id, { elo: eloL, nComparisons: (l.nComparisons ?? 0) + 1 });
 }
 
-/** The bucket alone: loved moves taste 10% toward the item's features, didnt 5% away. */
+/** The bucket alone: loved moves taste 3% toward the item's features (LOVED_STEP), didnt 5% away. */
 export async function applyBucket(ctx: MutationCtx, userId: Id<"users">, item: ItemId, bucket: Bucket): Promise<void> {
   const [user, doc] = await Promise.all([ctx.db.get(userId), ctx.db.get(item)]);
   if (user === null || doc === null || bucket === "fine") return;
