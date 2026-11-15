@@ -1,59 +1,88 @@
 import { useEffect, useState } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import { Text } from "../../components";
-import { colors, spacing } from "../../theme";
+import { colors, fontWeight } from "../../theme";
+
+type Meter = { label: string; pct: number };
 
 /**
- * The taste card's meters, drawn in white for the pink card (the shared `Meter` is pink on dark).
- * Each bar fills to the percent the backend sent, one after the other. Nothing is computed here.
+ * The taste card's meters. Each bar fills to the percent the backend sent while its number counts
+ * up, one after the other. `highlight` is the label of the strongest meter, drawn in the accent.
+ * Nothing is computed here.
  */
-export function TasteMeters({ meters }: { meters: readonly { label: string; pct: number }[] }) {
+export function TasteMeters({
+  meters,
+  highlight,
+  startDelay = 0,
+}: {
+  meters: readonly Meter[];
+  highlight?: string | null;
+  /** Wait this long before the first bar moves, so the headline lands first. */
+  startDelay?: number;
+}) {
   return (
     <View style={styles.list}>
       {meters.map((meter, index) => (
-        <TasteMeter key={meter.label} label={meter.label} pct={meter.pct} delay={150 + index * 140} />
+        <TasteMeter
+          key={meter.label}
+          label={meter.label}
+          pct={meter.pct}
+          strong={meter.label === highlight}
+          delay={startDelay + index * 160}
+        />
       ))}
     </View>
   );
 }
 
-function TasteMeter({ label, pct, delay }: { label: string; pct: number; delay: number }) {
+function TasteMeter({ label, pct, strong, delay }: Meter & { strong: boolean; delay: number }) {
   const [fill] = useState(() => new Animated.Value(0));
+  const [appear] = useState(() => new Animated.Value(0));
+  const [shown, setShown] = useState(0);
 
   useEffect(() => {
-    const animation = Animated.timing(fill, {
-      toValue: pct,
-      duration: 650,
-      delay,
-      easing: Easing.out(Easing.cubic),
-      // Width is a layout property, which the native driver cannot animate.
-      useNativeDriver: false,
-    });
+    const counter = fill.addListener(({ value }) => setShown(Math.round(value)));
+    const animation = Animated.parallel([
+      // Opacity could run natively, but it shares a view tree with the width, which cannot.
+      Animated.timing(appear, { toValue: 1, duration: 300, delay, useNativeDriver: false }),
+      Animated.timing(fill, {
+        toValue: pct,
+        duration: 900,
+        delay: delay + 80,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+    ]);
     animation.start();
-    return () => animation.stop();
-  }, [fill, pct, delay]);
+    return () => {
+      animation.stop();
+      fill.removeListener(counter);
+    };
+  }, [fill, appear, pct, delay]);
 
   const width = fill.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"], extrapolate: "clamp" });
 
   return (
-    <View accessible accessibilityLabel={`${label} ${pct}%`} style={styles.meter}>
+    <Animated.View accessible accessibilityLabel={`${label} ${pct}%`} style={[styles.meter, { opacity: appear }]}>
       <View style={styles.labels}>
-        <Text variant="caption" style={styles.label}>{label}</Text>
-        <Text variant="caption" style={styles.value}>{pct}%</Text>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.value, strong && styles.valueStrong]}>{shown}%</Text>
       </View>
       <View style={styles.track}>
-        <Animated.View style={[styles.fill, { width }]} />
+        <Animated.View style={[styles.fill, strong && styles.fillStrong, { width }]} />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.md },
-  meter: { gap: spacing.xs },
-  labels: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
-  label: { color: colors.white },
-  value: { color: colors.white, fontVariant: ["tabular-nums"] },
-  track: { height: 8, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.2)", overflow: "hidden" },
-  fill: { height: "100%", backgroundColor: colors.white },
+  list: { gap: 24 },
+  meter: { gap: 10 },
+  labels: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12 },
+  label: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.semibold, color: colors.fg },
+  value: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.semibold, color: colors.muted, fontVariant: ["tabular-nums"] },
+  valueStrong: { color: colors.accent },
+  track: { height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 4, backgroundColor: colors.fg },
+  fillStrong: { backgroundColor: colors.accent },
 });
