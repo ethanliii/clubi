@@ -1,0 +1,40 @@
+{
+ "_note": "Written by hand from the documented Places API (New) Text Search response shape, not captured live: no Google call was made while building this.",
+ "places": [
+  {
+   "id": "ChIJexample0000000000000001",
+   "displayName": { "text": "Zeitgeist", "languageCode": "en" },
+   "location": { "latitude": 37.770052, "longitude": -122.422134 },
+   "businessStatus": "OPERATIONAL",
+   "rating": 4.4,
+   "userRatingCount": 5312,
+   "priceLevel": "PRICE_LEVEL_INEXPENSIVE",
+   "websiteUri": "https://www.zeitgeistsf.com/",
+   "nationalPhoneNumber": "(415) 255-7505",
+   "regularOpeningHours": {
+    "periods": [
+     { "open": { "day": 0, "hour": 9, "minute": 0 }, "close": { "day": 1, "hour": 2, "minute": 0 } },
+     { "open": { "day": 1, "hour": 9, "minute": 0 }, "close": { "day": 2, "hour": 2, "minute": 0 } },
+     { "open": { "day": 2, "hour": 9, "minute": 0 }, "close": { "day": 3, "hour": 2, "minute": 0 } },
+     { "open": { "day": 3, "hour": 9, "minute": 0 }, "close": { "day": 4, "hour": 2, "minute": 0 } },
+     { "open": { "day": 4, "hour": 9, "minute": 0 }, "close": { "day": 5, "hour": 2, "minute": 0 } },
+     { "open": { "day": 5, "hour": 9, "minute": 0 }, "close": { "day": 6, "hour": 2, "minute": 0 } },
+     { "open": { "day": 6, "hour": 9, "minute": 0 }, "close": { "day": 0, "hour": 2, "minute": 0 } }
+    ]
+   }
+  },
+  {
+   "id": "ChIJexample0000000000000002",
+   "displayName": { "text": "Zeitgeist Coffee", "languageCode": "en" },
+   "location": { "latitude": 37.7799, "longitude": -122.4101 },
+   "businessStatus": "OPERATIONAL",
+   "rating": 4.1
+  },
+  {
+   "id": "ChIJexample0000000000000003",
+   "displayName": { "text": "Mission Street Laundromat", "languageCode": "en" },
+   "location": { "latitude": 37.77006, "longitude": -122.42212 },
+   "businessStatus": "OPERATIONAL"
+  }
+ ]
+}

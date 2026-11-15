@@ -51,6 +51,12 @@ const KEYWORD_RULES: { match: RegExp; set: Weights }[] = [
   { match: /rooftop|patio|outdoor seating|beer garden|biergarten/, set: { outdoors: 0.6 } },
   { match: /festival|block party|street fair|parade/, set: { energy: 0.8, loudness: 0.7, outdoors: 0.7 } },
   { match: /restaurant|\bfood\b|cuisine|dinner|brunch|tasting|supper|pizza|taco|ramen|sushi|bbq|barbecue|burger|bakery|\bcafe\b|coffee|dim sum|noodle/, set: { food: 0.9 } },
+  // Cuisine (OpenStreetMap `cuisine`, Eventbrite food events): what kind of meal it is.
+  { match: /\b(french|italian|japanese|sushi|omakase|steak ?house|seafood|oyster|tapas|kaiseki|fine dining)\b/, set: { price: 0.65, loudness: 0.35 } },
+  { match: /\b(burger|pizza|tacos?|mexican|burrito|sandwich|hot ?dog|fried chicken|wings|donut|bagel|deli|diner|fast food|food truck)\b/, set: { price: 0.25, energy: 0.5 } },
+  { match: /\b(coffee shop|tea|bubble tea|ice cream|dessert|bakery|pastry|juice)\b/, set: { energy: 0.25, loudness: 0.2, price: 0.25, dancing: 0.05 } },
+  { match: /\b(korean bbq|hot ?pot|izakaya|dim sum|beer garden|gastropub|bar food)\b/, set: { energy: 0.65, loudness: 0.6 } },
+  { match: /craft beer|\bbeers? on tap\b/, set: { loudness: 0.55, price: 0.4 } },
   { match: /21\s?\+|college|student|university|\bfrat/, set: { crowdAge: 0.85 } },
   { match: /classical|symphony|opera|wine tasting|senior/, set: { crowdAge: 0.2 } },
   { match: /\${3,}|fine dining|upscale|michelin|omakase|tasting menu/, set: { price: 0.85 } },
