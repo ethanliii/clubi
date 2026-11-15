@@ -68,5 +68,6 @@ export const peopleTables = {
     actorId: v.optional(v.id("users")),
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
-    .index("by_user_read", ["userId", "read"]),
+    .index("by_user_read", ["userId", "read"])
+    .index("by_actor", ["actorId"]),
 };

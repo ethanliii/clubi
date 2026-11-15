@@ -25,7 +25,7 @@ const CATEGORY_NOUN: Record<Category, string> = {
 const DEGREES_PER_HOUR = 15;
 const MAX_COMPARISONS = 20;
 
-export const localOffsetMs = (lng: number) =>
+const localOffsetMs = (lng: number) =>
   Math.round(lng / DEGREES_PER_HOUR) * 3600 * 1000;
 
 const vKind = v.union(v.literal("place"), v.literal("event"));
