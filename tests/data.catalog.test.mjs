@@ -92,7 +92,7 @@ test("stats counts by source and category, the next 7 days, and how complete row
   assert.equal(s.places.missingVector, 0);
   assert.deepEqual([s.events.total, s.events.upcoming, s.events.past, s.events.next7Days], [4, 3, 1, 2]);
   assert.deepEqual(s.events.bySource, { luma: 2, ticketmaster: 1 });
-  assert.deepEqual(s.events.byCategory, { popup: 2, live: 1 });
+  assert.deepEqual(s.events.byCategory, { popup: 2, nightlife: 1 }, "a show at a bar is nightlife");
   assert.deepEqual(s.events.withImage, { count: 1, pct: 33.3 });
   assert.deepEqual(s.events.withPerformers, { count: 1, pct: 33.3 });
   assert.deepEqual(s.events.withPlace, { count: 1, pct: 33.3 }, "the event at Bar One is linked to the place");

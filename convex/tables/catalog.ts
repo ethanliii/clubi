@@ -84,6 +84,9 @@ export const catalogTables = {
     learnedVector: v.optional(v.array(v.number())),
     // v2 (Data): the same event's pages on other sources ("also on Eventbrite"), when two sources list it
     otherUrls: v.optional(v.array(v.string())),
+    // v2 (Data): 21 when the event is for adults only (it says so, it is about drinking, or it is at a bar
+    // or club). Such an event is always stored with category "nightlife", which is what hides it from under-21s.
+    minAge: v.optional(v.number()),
   })
     .index("by_source", ["source", "sourceId"])
     .index("by_category", ["category"])

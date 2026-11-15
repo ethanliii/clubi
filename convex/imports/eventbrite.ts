@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
-import { featurize } from "../ingest";
+import { ADULT_AGE, ageGate, featurize } from "../ingest";
 import { parsePerformers, titleNamesLineup } from "../lib/performers";
 
 // Public Eventbrite events for one city. Eventbrite's search API is gone (404 since 2020), so this
@@ -76,7 +76,7 @@ export type ApiEvent = {
   online_event?: boolean;
   is_free?: boolean;
   logo?: { url?: string | null; original?: { url?: string | null } | null } | null;
-  venue?: { name?: string | null; address?: Address | null; latitude?: string | null; longitude?: string | null } | null;
+  venue?: { name?: string | null; address?: Address | null; latitude?: string | null; longitude?: string | null; age_restriction?: string | null } | null;
   category?: { name?: string | null } | null;
   subcategory?: { name?: string | null } | null;
   format?: { name?: string | null } | null;
@@ -100,6 +100,8 @@ type Normal = {
   format?: string;
   imageUrl?: string;
   price?: number;
+  /** The venue's age rule, from the API only ("21+", "ALL_AGES"). */
+  ageRestriction?: string;
 };
 
 /** Epoch ms of a wall-clock time ("2026-11-15", "16:00") in an IANA time zone, or NaN. */
@@ -206,20 +208,27 @@ function fromApi(event: ApiEvent): Normal | null {
     format: event.format?.name ?? undefined,
     imageUrl: event.logo?.original?.url ?? event.logo?.url ?? undefined,
     price: event.is_free ? 0 : Number.isFinite(lowest) ? lowest : undefined,
+    ageRestriction: event.venue?.age_restriction ?? undefined,
   };
 }
 
-const NIGHTLIFE_WORDS = /night ?club|\brave\b|bar crawl|pub crawl|club crawl|after[- ]?party|bottle service|21\s?\+|\bdj set\b|day ?party|dance party/i;
 const PARTY = "Party or Social Gathering";
 const PERFORMANCE = "Concert or Performance";
 const LATE_HOUR = 21;
 const EARLY_HOUR = 4;
 
-/** Eventbrite category and format to ours: Music → live, Food & Drink → food, arts → culture, parties at night → nightlife, the rest → popup. */
+/** Whether the event is for adults only, from everything Eventbrite says about it. */
+const audienceOf = (event: Normal) =>
+  ageGate({ title: event.name, description: event.summary, venueName: event.venueName, ageRestriction: event.ageRestriction });
+
+/**
+ * Eventbrite category and format to ours: adults-only events and parties at night → nightlife,
+ * Music → live, Food & Drink → food, arts → culture, the rest → popup.
+ */
 function categoryOf(event: Normal) {
   const late = event.startHour !== undefined && (event.startHour >= LATE_HOUR || event.startHour < EARLY_HOUR);
   const party = event.format === PARTY;
-  if (NIGHTLIFE_WORDS.test(event.name) || (party && (late || event.category === "Music"))) return "nightlife" as const;
+  if (audienceOf(event) === "adults" || (party && (late || event.category === "Music"))) return "nightlife" as const;
   switch (event.category) {
     case "Music":
       return "live" as const;
@@ -272,6 +281,7 @@ function toRow(event: Normal | null, now: number) {
     ticketUrl: event.url ?? `${SITE}/e/${event.id}`,
     blurb: event.summary?.slice(0, BLURB_LENGTH),
     venueName: event.venueName,
+    minAge: audienceOf(event) === "adults" ? ADULT_AGE : undefined,
     performers: names.length ? names.map((name) => ({ name, kind, genres })) : undefined,
     venueVector: featurize({ category, subcategory, tags, title: event.name, description: event.summary, price: event.price }),
   };
