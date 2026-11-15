@@ -5,7 +5,7 @@ import { FlatList, StyleSheet, View } from "react-native";
 import { Button, EmptyState, IconButton, Loading, Screen, Text } from "../../components";
 import { CommentsSheet } from "../../features/feed/Comments";
 import { dayLabel } from "../../features/feed/dayLabel";
-import { PostCard, PostSkeletons } from "../../features/feed/PostCard";
+import { POST_GAP, PostCard, PostSkeletons } from "../../features/feed/PostCard";
 import { PostMenu } from "../../features/feed/PostMenu";
 import { useFeed } from "../../features/feed/useFeed";
 import { api, type Id } from "../../lib/api";
@@ -13,7 +13,7 @@ import { formatCount } from "../../lib/format";
 import { paths, postPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
 import { useMe } from "../../state/session";
-import { spacing } from "../../theme";
+import { fontWeight, spacing } from "../../theme";
 
 export default function FeedScreen() {
   const me = useMe();
@@ -33,16 +33,13 @@ export default function FeedScreen() {
   return (
     <Screen scroll={false}>
       <View style={styles.between}>
-        <View style={styles.flex}>
-          <Text variant="label">Friends · live</Text>
-          <Text variant="heading" accessibilityRole="header" numberOfLines={1}>
-            Feed
-          </Text>
-        </View>
+        <Text variant="heading" accessibilityRole="header" numberOfLines={1} style={styles.flex}>
+          Feed
+        </Text>
         <IconButton
           icon="bell"
           accessibilityLabel="Notifications"
-          size={36}
+          size={44}
           badge={unread ? formatCount(unread) : null}
           onPress={() => router.push(paths.notifications)}
         />
@@ -54,10 +51,15 @@ export default function FeedScreen() {
           const mine = item.author.userId === me?.userId;
           const previous = feed.posts[index - 1];
           const day = dayLabel(item.createdAt, now);
-          const showDay = !previous || dayLabel(previous.createdAt, now) !== day;
+          // The first posts need no "Today" over them; a day is named once the feed moves past it.
+          const showDay = previous ? dayLabel(previous.createdAt, now) !== day : day !== "Today";
           return (
             <View style={styles.item}>
-              {showDay ? <Text variant="label">{day}</Text> : null}
+              {showDay ? (
+                <Text muted style={styles.day}>
+                  {day}
+                </Text>
+              ) : null}
               <PostCard
                 post={item}
                 mine={mine}
@@ -86,9 +88,9 @@ export default function FeedScreen() {
           feed.posts.length === 0 ? undefined : feed.loadingMore ? (
             <Loading compact label="Loading more" />
           ) : feed.canLoadMore ? (
-            <Button title="Load more" accessibilityLabel="Load more" variant="ghost" onPress={feed.more} />
+            <Button title="Load more" accessibilityLabel="Load more" variant="link" onPress={feed.more} style={styles.more} />
           ) : feed.exhausted ? (
-            <Text variant="caption" muted center style={styles.caughtUp}>
+            <Text muted center style={styles.caughtUp}>
               You&apos;re all caught up
             </Text>
           ) : undefined
@@ -117,12 +119,13 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Bryan's tab header: a small label over the heading, round buttons on the right.
-  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md },
+  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md, minHeight: 44 },
   flex: { flex: 1 },
-  item: { gap: spacing.md },
+  item: { gap: spacing.lg },
+  day: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold },
   // The list runs edge to edge and down to the tab bar; `Screen` pads the header.
   list: { flex: 1, marginHorizontal: -spacing.lg, marginBottom: -spacing.xl },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg },
-  caughtUp: { paddingVertical: spacing.md },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxl, gap: POST_GAP },
+  more: { alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.lg },
+  caughtUp: { fontSize: 13, lineHeight: 18, paddingVertical: spacing.md },
 });
