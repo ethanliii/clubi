@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { ALGO, getCandidate, loadViewer, scoreCandidate, userLoader } from "./lib/discovery";
 import {
-  AFFINITY_NEUTRAL, ALPHA_LOCAL_VIEWER, ALPHA_VISITOR_VIEWER, ALSO_IOTA, BETA_FRIEND, CROWD_HALF_WEIGHT, DISTANCE_D0_METERS,
+  AFFINITY_EVIDENCE_PRIOR, AFFINITY_NEUTRAL, ALPHA_LOCAL_VIEWER, ALPHA_VISITOR_VIEWER, ALSO_IOTA, BETA_FRIEND, CROWD_HALF_WEIGHT, DISTANCE_D0_METERS,
   DISTANCE_DELTA, ELO_TERM_CAP, EXPLORE_C, FEATURES, FEATURE_BASELINE, FOLLOW_FLOOR, GAMMA_ELO, GLOBAL_MEAN, MMR_MU,
   NEW_ITEM_MAX_RATINGS, NEW_SLOT_MIN_CONTENT, PERFORMER_RHO, PERFORMER_TERM_MAX, PERFORMER_TERM_MIN, PSEUDO_VOTES, SAVE_BUMP,
   SAVE_BUMP_MAX_FRIENDS, TIME_TAU, TOP_MAX_PER_CATEGORY,
@@ -33,7 +33,7 @@ export const explain = query({
       reason,
       tag,
       vectorSource: candidate.doc.learnedVector?.length === FEATURES.length
-        ? "learnedVector (measured from visitors' answers)"
+        ? "learnedVector (measured from visitors' answers, questions 5+ people answered)"
         : candidate.doc.venueVector?.length === FEATURES.length ? "venueVector (featurizer)" : "category default",
       formula: [
         "content = 1 + 4.5 * (1 + similarity(taste, venue))",
@@ -41,8 +41,9 @@ export const explain = query({
         "lambda = sum(w) / (sum(w) + half)",
         "base = (1 - lambda) * content + lambda * crowd",
         "eloTerm = clip(gamma * elo, -cap, cap)",
-        "performer = clip(rho * (bestAffinity - 5) / 5, -0.75, 1.5), events only; following counts as at least 8",
-        "predicted = clip(base + eloTerm + performer + also, 1, 10)",
+        "affinity = 5 + (rated - 5) * n / (n + 1) for n rankings of the performer's events; following counts as at least 8",
+        "performer = clip(rho * (bestAffinity - 5) / 5, -0.75, 1.5), events only",
+        "predicted = clip(base + eloTerm + performer, 1, 10)",
         "explore = cE / sqrt(1 + nRatings), nRatings = rankings + comparisons",
         "social = saveBump * min(2, friends going or saved)",
         "order = score - delta * ln(1 + distance / d0) + tau * timeMatch + explore + social",
@@ -96,6 +97,7 @@ export const explain = query({
         performerMin: PERFORMER_TERM_MIN,
         performerMax: PERFORMER_TERM_MAX,
         affinityNeutral: AFFINITY_NEUTRAL,
+        affinityEvidencePrior: AFFINITY_EVIDENCE_PRIOR,
         followFloor: FOLLOW_FLOOR,
         alsoIota: ALSO_IOTA,
         exploreC: EXPLORE_C,

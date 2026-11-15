@@ -146,3 +146,26 @@ test("groupWhy is never empty and names the highest and lowest member", () => {
   assert.ok(groupWhy([{ name: "Ethan", score: 9.1 }]).length > 0);
   assert.ok(groupWhy([]).length > 0);
 });
+
+test("groupWhy rounds the two named scores the way the card's memberScores are rounded", () => {
+  // memberScores shows Math.round(x * 10) / 10: 9.16 -> 9.2 and 7.85 -> 7.9. The line must say the same.
+  const round1 = (x) => (Math.round(x * 10) / 10).toFixed(1);
+  const members = [{ name: "Ethan", score: 9.16 }, { name: "Bryan", score: 7.85 }];
+  assert.equal(groupWhy(members), "Best overlap: Ethan 9.2, Bryan 7.9");
+  assert.equal(groupWhy(members), `Best overlap: Ethan ${round1(9.16)}, Bryan ${round1(7.85)}`);
+  assert.equal(groupWhy([{ name: "Ethan", score: 6.47 }, { name: "Bryan", score: 6.47 }]), "Everyone's at 6.5 here");
+  // Just under 8 is not "8+", even though it rounds to 8.0.
+  assert.equal(groupWhy([{ name: "Ethan", score: 9.3 }, { name: "Bryan", score: 7.96 }]), "Best overlap: Ethan 9.3, Bryan 8.0");
+});
+
+test("groupScoreV2 counts votes as a share of everyone who could vote, when that is more than the scored members", () => {
+  const scores = [8, 8, 8, 8];
+  // Four of four voted up: the full bonus.
+  near(groupScoreV2(scores, { votes: { up: 4, down: 0 } }).voteTerm, GROUP_VOTE_NU);
+  // The same four up-votes on a trip of 20 joined members (only 4 scored): a fifth of the bonus.
+  near(groupScoreV2(scores, { votes: { up: 4, down: 0, of: 20 } }).voteTerm, GROUP_VOTE_NU * 0.2);
+  near(groupScoreV2(scores, { votes: { up: 2, down: 12, of: 20 } }).voteTerm, -GROUP_VOTE_NU * 0.5);
+  // `of` never makes the group smaller than the members scored, and bad input is ignored.
+  near(groupScoreV2(scores, { votes: { up: 2, down: 0, of: 1 } }).voteTerm, GROUP_VOTE_NU * 0.5);
+  near(groupScoreV2(scores, { votes: { up: 2, down: 0, of: NaN } }).voteTerm, GROUP_VOTE_NU * 0.5);
+});

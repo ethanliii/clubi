@@ -2,13 +2,17 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { NearbyItem, Tier, VenueDetail } from "./lib/contract";
 import {
-  Candidate, DEFAULT_RADIUS_METERS, friendScoreOf, getCandidate, isPastEvent, isVisibleTo, loadInRadius, loadViewer,
-  nearestMatching, rankItems, scoreAll, scoreCandidate, userLoader,
+  Candidate, DEFAULT_RADIUS_METERS, MAX_RATERS_PER_ITEM, friendScoreOf, getCandidate, isPastEvent, isVisibleTo, loadInRadius,
+  loadViewer, nearestMatching, rankItems, scoreAll, scoreCandidate, userLoader,
 } from "./lib/discovery";
-import { bestFor, highlights } from "./lib/insights";
-import { FEATURES, FEATURE_PHRASES } from "./lib/recs";
+import { Counts, summarize } from "./lib/insights";
+import { FEATURES, FEATURE_PHRASES, shownScore } from "./lib/recs";
 
 const SEARCH_LIMIT = 10;
+/** My list in one category, read to place a ranking in it. The same cap as People's MAX_RANKINGS_PER_CATEGORY. */
+const MAX_RANKINGS_PER_CATEGORY = 500;
+/** How far a venue page counts rankings: the same cap as insights.venue's nRatings, so the two agree. */
+const MAX_RATINGS_COUNTED = 500;
 const BREAKDOWN_SIZE = 4;
 const TOP_SCORE = 8.5;
 const GOOD_SCORE = 7;
@@ -36,12 +40,9 @@ export const get = query({
       .slice(0, BREAKDOWN_SIZE)
       .map((b) => ({ label: b.label[0].toUpperCase() + b.label.slice(1), value: b.value }));
 
+    // friendRows holds only rankings the viewer may see: a friend's "Only me" ranking never gets here.
     const friendRankings = await Promise.all(friendRows.map(async (row) => {
-      const linked = await ctx.db
-        .query("posts")
-        .withIndex("by_ranking", (q) => q.eq("rankingId", row.ranking._id))
-        .first();
-      const post = linked !== null && linked.visibility !== "private" ? linked : null;
+      const post = row.post;
       const photo = post?.photos?.[0];
       return {
         ...friendScoreOf(row),
@@ -57,27 +58,38 @@ export const get = query({
       const inCategory = await ctx.db
         .query("rankings")
         .withIndex("by_user_category", (q) => q.eq("userId", userId).eq("category", mine.category))
-        .collect();
+        .take(MAX_RANKINGS_PER_CATEGORY);
       myRanking = {
-        score: item.score,
+        // The score my ranking has (a "didn't like" can be under 1), the same number my profile list shows.
+        score: shownScore(mine.score),
         position: inCategory.filter((r) => r.score > mine.score).length + 1,
         outOf: inCategory.length,
         bucket: mine.bucket,
       };
     }
 
-    // What visitors answered after rating it. Totals only, and nothing is stated from fewer than 5 people.
+    // What visitors answered after rating it: the same summary insights.venue returns. Totals only, and
+    // nothing is stated from fewer than 5 people.
     const stats = await ctx.db
       .query("venueStats")
       .withIndex("by_target", (q) => q.eq("targetId", doc._id))
       .first();
-    const insights = stats === null
-      ? undefined
-      : { highlights: highlights(doc.category, stats.counts), bestFor: bestFor(doc.category, stats.counts) };
+    const summary = stats === null ? null : summarize(doc.category, stats.counts as Counts | undefined, stats.nAnswers);
+    const insights = summary === null ? undefined : { highlights: summary.highlights, bestFor: summary.bestFor };
 
-    // `item` already carries ratingCount, saved, going and performers.
+    // On a card ratingCount stops at the crowd sample; here it is counted as far as insights.venue counts.
+    let ratingCount = item.ratingCount;
+    if ((ratingCount ?? 0) >= MAX_RATERS_PER_ITEM) {
+      const all = candidate.kind === "place"
+        ? await ctx.db.query("rankings").withIndex("by_place", (q) => q.eq("placeId", candidate.doc._id)).take(MAX_RATINGS_COUNTED)
+        : await ctx.db.query("rankings").withIndex("by_event", (q) => q.eq("eventId", candidate.doc._id)).take(MAX_RATINGS_COUNTED);
+      ratingCount = Math.max(ratingCount ?? 0, all.length);
+    }
+
+    // `item` already carries saved, going and performers.
     return {
       ...item,
+      ratingCount,
       rank: 1,
       tier,
       address: doc.address,
