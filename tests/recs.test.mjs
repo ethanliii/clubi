@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  FEATURES, NEUTRAL_TASTE, contentScore, matchPct, nudgeTaste, predict, quizToVector, updateElo, updateTaste,
+  FEATURES, NEUTRAL_TASTE, contentScore, groupScore, matchPct, nudgeTaste, predict, quizToVector, updateElo, updateTaste,
 } from "../convex/lib/recs.ts";
 
 const loudPop = FEATURES.map((k) => (["energy", "loudness", "pop", "dancing"].includes(k) ? 0.9 : 0.1));
@@ -52,4 +52,10 @@ test("nudgeTaste pulls toward loved items, pushes away from disliked ones and ig
   assert.ok(nudgeTaste(NEUTRAL_TASTE, loudPop, "loved")[loud] > 0.5);
   assert.ok(nudgeTaste(NEUTRAL_TASTE, loudPop, "didnt")[loud] < 0.5);
   assert.deepEqual(nudgeTaste(NEUTRAL_TASTE, loudPop, "fine"), NEUTRAL_TASTE);
+});
+
+test("groupScore averages the mean and the least happy member and vetoes anything someone would hate", () => {
+  assert.equal(groupScore([8, 6]), 6.5);
+  assert.equal(groupScore([9, 3.9]), null);
+  assert.equal(groupScore([]), null);
 });
