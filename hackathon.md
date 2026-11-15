@@ -11,7 +11,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:17:00Z
+- **Last updated:** 2026-11-15T20:17:31Z
 
 ## Log
 
@@ -62,3 +62,13 @@ viewer's own position. Added four tests for the pure scoring functions, run with
 Node's built-in runner. Convex features: queries, indexes, file storage URLs
 (`convex/lib/discovery.ts`, `convex/lib/hours.ts`, `convex/lib/recs.ts`,
 `convex/discover.ts`, `convex/places.ts`, `tests/recs.test.mjs`).
+
+### 2026-11-15 - f244f0f
+Ranking a place or event now works end to end on the backend. The rank mutation
+inserts the item at the position the client's binary search chose, shifts the
+rest of the bucket, recomputes every score in the bucket, saves each pairwise
+comparison with its day and hour, and creates the friends-only post. Ranking
+something again replaces the old ranking and updates its post. A query lists a
+bucket best first, and the result carries a label such as "#1 of your bars ·
+9.2". Pushed to the Convex dev deployment. Convex features: queries, mutations,
+indexes (`convex/rankings.ts`).
