@@ -8,9 +8,7 @@ import {
   ChipRow,
   EmptyState,
   Header,
-  Icon,
   MatchBadge,
-  Meter,
   ScoreBadge,
   Screen,
   SectionHeader,
@@ -18,7 +16,6 @@ import {
   SkeletonRows,
   Text,
   goBack,
-  type IconName,
 } from "../../components";
 import { api, type Id, type Kind, type Source, type VenueDetail } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
@@ -27,7 +24,7 @@ import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScor
 import { directionsUrl, openUrl, ratePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { useNow } from "../../lib/useNow";
-import { colors, radius, spacing } from "../../theme";
+import { colors, radius, ratingColor, spacing } from "../../theme";
 import { FriendsSection, InsightsSection, PerformersSection, SimilarSection, VenueHero } from "./sections";
 
 /** "View on …" for the event sources that have a page worth opening (docs/UI-SPEC.md section 5). */
@@ -51,21 +48,25 @@ function LoadingVenue() {
   return (
     <Screen>
       <Header />
-      <Skeleton height={210} round={radius.xl} />
+      <Skeleton height={240} round={radius.xl} />
       <Skeleton height={28} width="70%" />
       <Skeleton height={14} width="50%" />
+      <Skeleton height={96} round={radius.xl} />
       <Skeleton height={48} round={radius.lg} />
       <SkeletonRows count={3} />
     </Screen>
   );
 }
 
-function Fact({ icon, text }: { icon: IconName; text: string }) {
+/** One line of the details card: a muted name, then the value. */
+function Fact({ label, text }: { label: string; text: string }) {
   return (
-    <View style={styles.fact}>
-      <Icon name={icon} size={16} color={colors.muted} />
-      <Text style={styles.flex}>{text}</Text>
-    </View>
+    <Text variant="caption">
+      <Text variant="caption" muted>
+        {`${label}  `}
+      </Text>
+      {text}
+    </Text>
   );
 }
 
@@ -156,7 +157,7 @@ function Loaded({
             title={saveLabel}
             accessibilityLabel={saveLabel}
             accessibilityState={{ selected: !!venue.saved, disabled: saving }}
-            variant={venue.saved ? "primary" : "ghost"}
+            variant="ghost"
             disabled={saving}
             onPress={() => void toggleSave({ kind: venue.kind, id: venue.id, type: "want" })}
             style={styles.saveButton}
@@ -165,7 +166,7 @@ function Loaded({
       />
       <VenueHero venue={venue} />
 
-      <View style={styles.block}>
+      <View style={styles.titles}>
         <Text variant="heading" accessibilityRole="header">
           {venue.name}
         </Text>
@@ -175,25 +176,26 @@ function Loaded({
         ) : null}
       </View>
 
-      <View style={styles.scoreCard}>
-        <View style={styles.scoreRow}>
-          <ScoreBadge score={venue.score} size="lg" />
-          <Text muted>for you</Text>
-          <View style={styles.flex} />
-          <MatchBadge match={venue.matchPct} />
-          <Text muted>match</Text>
+      <View style={styles.scorebox}>
+        <ScoreBadge score={venue.score} size="lg" />
+        <View style={styles.scoreText}>
+          <View style={styles.row}>
+            <Text variant="label">for you</Text>
+            <MatchBadge match={venue.matchPct} size="sm" />
+            <Text variant="label">match</Text>
+          </View>
+          <Text>{venue.why}</Text>
+          {venue.myRanking ? (
+            <Text variant="caption" muted>
+              {`You ranked it #${venue.myRanking.position} of ${venue.myRanking.outOf} · ${formatScore(venue.myRanking.score)}`}
+            </Text>
+          ) : null}
+          {venue.ratingCount !== undefined && venue.ratingCount > 0 ? (
+            <Text variant="caption" muted>
+              {`${pluralize(venue.ratingCount, "ranking")} on clubi`}
+            </Text>
+          ) : null}
         </View>
-        <Text>{venue.why}</Text>
-        {venue.myRanking ? (
-          <Text style={styles.mine}>
-            {`You ranked it #${venue.myRanking.position} of ${venue.myRanking.outOf} · ${formatScore(venue.myRanking.score)}`}
-          </Text>
-        ) : null}
-        {venue.ratingCount !== undefined && venue.ratingCount > 0 ? (
-          <Text variant="caption" muted>
-            {`${pluralize(venue.ratingCount, "ranking")} on clubi`}
-          </Text>
-        ) : null}
       </View>
 
       <View style={styles.block}>
@@ -207,7 +209,7 @@ function Loaded({
             title={goingLabel}
             accessibilityLabel={goingLabel}
             accessibilityState={{ selected: !!venue.going, disabled: goingPending }}
-            variant={venue.going ? "primary" : "ghost"}
+            variant="ghost"
             disabled={goingPending}
             onPress={() => void toggleGoing({ kind: venue.kind, id: venue.id, type: "going" })}
           />
@@ -231,9 +233,26 @@ function Loaded({
       {venue.breakdown && venue.breakdown.length > 0 ? (
         <View style={styles.section}>
           <SectionHeader title="Why it fits you" />
-          {venue.breakdown.map((row) => (
-            <Meter key={row.label} label={row.label} value={row.value} max={10} />
-          ))}
+          <View style={styles.card}>
+            {venue.breakdown.map((row) => (
+              <View key={row.label} accessibilityLabel={`${row.label} ${row.value.toFixed(1)}`} style={styles.row}>
+                <Text variant="caption" numberOfLines={1} style={styles.barLabel}>
+                  {row.label}
+                </Text>
+                <View style={styles.bar}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      { width: `${Math.min(1, Math.max(0, row.value / 10)) * 100}%`, backgroundColor: ratingColor(row.value) },
+                    ]}
+                  />
+                </View>
+                <Text variant="caption" style={styles.barValue}>
+                  {row.value.toFixed(1)}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       ) : null}
 
@@ -246,15 +265,19 @@ function Loaded({
       {venue.address || venue.hours || venue.phone || venue.tags.length > 0 ? (
         <View style={styles.section}>
           <SectionHeader title="Details" />
-          {venue.address ? <Fact icon="navigate" text={venue.address} /> : null}
-          {venue.hours ? <Fact icon="clock" text={venue.hours} /> : null}
-          {venue.phone ? <Fact icon="info" text={venue.phone} /> : null}
           {venue.tags.length > 0 ? (
-            <ChipRow>
+            <ChipRow style={styles.chips}>
               {venue.tags.map((tag) => (
                 <Chip key={tag} label={tag} size="sm" />
               ))}
             </ChipRow>
+          ) : null}
+          {venue.address || venue.hours || venue.phone ? (
+            <View style={styles.card}>
+              {venue.address ? <Fact label="Address" text={venue.address} /> : null}
+              {venue.hours ? <Fact label="Hours" text={venue.hours} /> : null}
+              {venue.phone ? <Fact label="Phone" text={venue.phone} /> : null}
+            </View>
           ) : null}
         </View>
       ) : null}
@@ -265,22 +288,27 @@ function Loaded({
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  titles: { gap: spacing.xs },
   block: { gap: spacing.sm },
-  section: { gap: spacing.md },
+  section: { gap: spacing.sm },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   when: { color: colors.mid, fontWeight: "600" },
-  saveButton: { width: "auto", paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.lg, minHeight: 40 },
-  scoreCard: {
-    gap: spacing.sm,
-    padding: spacing.lg,
+  saveButton: { width: "auto", paddingVertical: spacing.sm, paddingHorizontal: 14 },
+  scorebox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: 14,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  scoreRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  mine: { color: colors.ok, fontWeight: "600" },
+  scoreText: { flex: 1, gap: spacing.xs },
+  card: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface },
+  barLabel: { width: 84 },
+  bar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.raised, overflow: "hidden" },
+  barFill: { height: "100%" },
+  barValue: { width: 28, textAlign: "right" },
+  chips: { gap: 6 },
   links: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   link: { width: "auto", flexGrow: 1, flexBasis: "45%" },
-  fact: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
 });

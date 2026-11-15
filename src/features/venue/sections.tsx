@@ -23,7 +23,7 @@ import { useMutationToast } from "../../lib/useMutationToast";
 import { colors, radius, spacing } from "../../theme";
 
 /** The venue's own picture, or the app's category-colored placeholder when it has none or it fails to load. */
-export function VenueHero({ venue, height = 210 }: { venue: VenueDetail; height?: number }) {
+export function VenueHero({ venue, height = 240 }: { venue: VenueDetail; height?: number }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const url = venue.imageUrl && venue.imageUrl !== failedUrl ? venue.imageUrl : null;
   if (url === null) return <VenuePhoto hue={categoryHue(venue.category)} height={height} />;
@@ -55,7 +55,9 @@ export function InsightsSection({ insights }: { insights: VenueInsights | null |
       ) : null}
       {insights.bestFor.length > 0 ? (
         <View style={styles.bestFor}>
-          <Text muted>Best for:</Text>
+          <Text variant="caption" muted>
+            Best for:
+          </Text>
           <ChipRow style={styles.flex}>
             {insights.bestFor.map((label) => (
               <Chip key={label} label={label} size="sm" accessibilityLabel={`Best for ${label}`} />
@@ -70,7 +72,9 @@ export function InsightsSection({ insights }: { insights: VenueInsights | null |
       ) : null}
       {answered.map((distribution) => (
         <View key={distribution.questionId} style={styles.distribution}>
-          <Text style={styles.strong}>{distribution.text}</Text>
+          <Text variant="caption" style={styles.strong}>
+            {distribution.text}
+          </Text>
           {distribution.options.map((option) => (
             <Meter key={option.id} label={option.label} value={option.pct} />
           ))}
@@ -162,16 +166,16 @@ export function FriendsSection({ venue, now }: { venue: VenueDetail; now: number
               title={friend.displayName}
               subtitle={formatRelativeTime(friend.when, now)}
               accessibilityLabel={`${friend.displayName}, ${formatScore(friend.score)}`}
-              left={<Avatar name={friend.displayName} uri={friend.avatarUrl} size={44} />}
+              left={<Avatar name={friend.displayName} uri={friend.avatarUrl} size={34} />}
               right={
                 <View style={styles.center}>
-                  <ScoreBadge score={friend.score} />
+                  <ScoreBadge score={friend.score} size="sm" />
                 </View>
               }
               onPress={() => router.push(userPath(friend.userId))}
             >
               {friend.isLocal ? <Chip label="Local" size="sm" style={styles.start} /> : null}
-              {friend.caption ? <Text>{`“${friend.caption}”`}</Text> : null}
+              {friend.caption ? <Text variant="caption">{`“${friend.caption}”`}</Text> : null}
               {friend.photoUrl ? (
                 <Image
                   source={{ uri: friend.photoUrl }}
@@ -213,10 +217,11 @@ const styles = StyleSheet.create({
   center: { alignSelf: "center" },
   strong: { fontWeight: "600" },
   hero: { width: "100%", borderRadius: radius.xl, backgroundColor: colors.raised },
-  section: { gap: spacing.md },
+  section: { gap: spacing.sm },
   bestFor: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  distribution: { gap: spacing.sm },
-  smallButton: { width: "auto", paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.lg, minHeight: 40 },
-  friendPhoto: { width: "100%", height: 170, borderRadius: radius.lg, marginTop: spacing.xs, backgroundColor: colors.raised },
+  // Each question sits in the same filled card the venue page uses for its breakdown and details.
+  distribution: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface },
+  smallButton: { width: "auto", paddingVertical: spacing.sm, paddingHorizontal: 14 },
+  friendPhoto: { width: "100%", height: 190, borderRadius: radius.lg, marginTop: spacing.xs, backgroundColor: colors.raised },
   cards: { gap: spacing.md, paddingRight: spacing.lg },
 });

@@ -73,6 +73,7 @@ export function DetailsStep({
   return (
     <FlowScreen
       title="Add the details"
+      heading={venue.name}
       onBack={onBack}
       footer={
         <>
@@ -85,8 +86,6 @@ export function DetailsStep({
         </>
       }
     >
-      <Text variant="heading">{venue.name}</Text>
-
       <View style={styles.section}>
         <Text variant="label">What was it like?</Text>
         <ChipRow>

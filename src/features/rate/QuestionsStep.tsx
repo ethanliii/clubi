@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Button, Icon, Text } from "../../components";
 import type { InsightAnswer, InsightQuestion } from "../../lib/api";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, radius, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
 import { createTapGuard } from "./tapGuard";
 
@@ -86,15 +86,10 @@ export function QuestionsStep({
         </View>
       }
     >
-      <View style={styles.progressWrap}>
-        <Text muted center accessibilityLabel={`${index + 1} of ${questions.length}`}>
+      <View style={styles.intro}>
+        <Text muted accessibilityLabel={`${index + 1} of ${questions.length}`}>
           {index + 1} of {questions.length}
         </Text>
-        <View style={styles.track}>
-          <View style={[styles.trackFill, { width: `${((index + 1) / questions.length) * 100}%` }]} />
-        </View>
-      </View>
-      <View style={styles.intro}>
         <Text variant="heading" accessibilityRole="header">
           {question.text}
         </Text>
@@ -114,8 +109,10 @@ export function QuestionsStep({
               onPress={() => pick(option.id)}
               style={({ pressed }) => [styles.option, on && styles.optionOn, pressed && styles.pressed]}
             >
-              <Text style={[styles.optionLabel, on && styles.optionLabelOn]}>{option.label}</Text>
-              {on ? <Icon name="check" size={18} color={colors.white} /> : null}
+              <Text variant="title" style={styles.optionLabel}>
+                {option.label}
+              </Text>
+              {on ? <Icon name="check" size={18} color={colors.accent} /> : null}
             </Pressable>
           );
         })}
@@ -128,24 +125,19 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   pressed: { opacity: 0.7 },
   buttons: { flexDirection: "row", gap: spacing.md },
-  progressWrap: { gap: spacing.sm },
-  track: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
-  trackFill: { height: "100%", borderRadius: 2, backgroundColor: colors.accent },
   intro: { gap: spacing.xs },
   options: { gap: spacing.md },
   option: {
-    minHeight: 60,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
+    gap: 14,
+    padding: 18,
     borderRadius: radius.xl,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  optionOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-  optionLabel: { flex: 1, fontSize: 16, lineHeight: 21, fontWeight: fontWeight.medium },
-  optionLabelOn: { color: colors.white, fontWeight: fontWeight.semibold },
+  optionOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+  optionLabel: { flex: 1 },
 });
