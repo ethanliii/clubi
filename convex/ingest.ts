@@ -8,7 +8,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { ADULT_AGE, DEFAULT_RADIUS_METERS } from "./lib/discovery";
+import { DEFAULT_RADIUS_METERS } from "./lib/discovery";
 import {
   blendVectors,
   genresToVector,
@@ -132,43 +132,6 @@ export function featurize(input: {
   return FEATURES.map((f) => Math.round(Math.min(1, Math.max(0, vec[f])) * 100) / 100);
 }
 
-// ───────────── who an event is for ─────────────
-// Under-21 users never get nightlife, and the app hides by `category === "nightlife"`. Sources
-// file a 21+ comedy night under "arts" and a bar crawl under "food", so every event goes through
-// this one check, and an adults-only event is stored as nightlife whatever its source called it.
-
-export { ADULT_AGE };
-
-// Said outright, anywhere in the title or description.
-const SAYS_ADULTS =
-  /\b21\s?\+|\b21\s?(?:and|&|or)\s?(?:over|up|older|above)\b|\bages?\s?21\b|\bmust be (?:at least |over )?21\b|\bover 21\b|\bstrictly 21\b|\b21 ?to (?:enter|drink|attend)\b|\badults?[- ]only\b/i;
-const SAYS_OPEN =
-  /\ball[- ]ages\b|\b1[68]\s?\+|\b1[68]\s?(?:and|&|or)\s?(?:over|up|older)\b|\bfamily[- ]friendly\b|\bkid[- ]friendly\b|\bkids? (?:welcome|free)\b|\bfor (?:kids|children|families)\b|\bunder 21 (?:welcome|ok|allowed)\b/i;
-// In the title only: a description that mentions "happy hour to follow" does not make a talk a bar night.
-const ADULT_TITLE =
-  /night ?club|\brave\b|after[- ]?party|bottle service|\bdj set\b|day ?party|dance party|bar crawl|pub crawl|club crawl|happy hour|open bar|\bbottomless\b|wine (?:tasting|walk|night)|beer (?:fest|festival|tasting|garden)|\bcocktail (?:class|party|hour|night)\b|\bwhiske?y\b|\btequila\b|\bmezcal\b|\bboozy\b|sip (?:and|&|n) paint|paint (?:and|&|n) sip|party bus|brewery tour|burlesque|male revue|strip ?(?:club|tease)|\bkink\b|\bfetish\b|\bxxx\b/i;
-const ADULT_VENUE =
-  /night ?club|\blounge\b|\bbar\b|\bsaloon\b|\btavern\b|\bpub\b|\btap ?room\b|\bbrewery\b|\bbrewing\b|speakeasy|\bcabaret\b|\bcantina\b|\bcocktails?\b|beer garden|biergarten/i;
-
-/**
- * "adults": for people 21 and over. "open": the event says it is not (all ages, 18+). undefined:
- * nothing to go on. Saying 21+ outright beats everything; saying all ages beats the guesses from
- * the title and the venue's name.
- */
-export function ageGate(event: {
-  title: string;
-  description?: string;
-  venueName?: string;
-  /** A source's own age field, e.g. Eventbrite's venue age restriction ("21+", "ALL_AGES"). */
-  ageRestriction?: string | null;
-}): "adults" | "open" | undefined {
-  const said = [event.title, event.description, event.ageRestriction?.replace(/_/g, " ")].filter(Boolean).join(" | ");
-  if (SAYS_ADULTS.test(said)) return "adults";
-  if (SAYS_OPEN.test(said)) return "open";
-  if (ADULT_TITLE.test(event.title) || ADULT_VENUE.test(event.venueName ?? "")) return "adults";
-  return undefined;
-}
-
 export const MAX_BATCH = 100;
 const PLACE_DEDUPE_METERS = 50;
 const METERS_PER_DEGREE = 111_320;
@@ -229,9 +192,6 @@ export const ingestRow = v.object({
   ticketUrl: v.optional(v.string()),
   performers: v.optional(v.array(performerInput)),
   venueName: v.optional(v.string()),
-  // 21 when the source knows the event is for adults only from something the ingest cannot see
-  // (a description it does not store, an age field in the API).
-  minAge: v.optional(v.number()),
   website: v.optional(v.string()),
   phone: v.optional(v.string()),
 });
@@ -497,6 +457,7 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     end: row.end,
     lat: row.lat,
     lng: row.lng,
+    category: row.category,
     subcategory: row.subcategory,
     tags: row.tags ?? [],
     address: row.address,
@@ -517,25 +478,13 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
       PERFORMER_VECTOR_WEIGHT,
     ),
   };
-  // Who the event is for. An adults-only event is nightlife, whatever its source filed it under:
-  // because it says so, because another source said so before (`minAge` on the stored row), or
-  // because it is at a bar or club in the catalog. An event that says "all ages" is left alone.
-  const gate = (row.minAge ?? 0) >= ADULT_AGE ? "adults" : ageGate({ title: row.name, description: row.blurb, venueName: row.venueName });
-  const audience = async (existing: Doc<"events"> | null, placeId?: Id<"places"> | null) => {
-    let adults = gate === "adults";
-    if (!adults && gate !== "open") {
-      const venueId = placeId ?? existing?.placeId;
-      adults = (existing?.minAge ?? 0) >= ADULT_AGE || (venueId ? (await ctx.db.get(venueId))?.category === "nightlife" : false);
-    }
-    return { category: adults ? ("nightlife" as const) : row.category, minAge: adults ? ADULT_AGE : undefined };
-  };
   // After a write to an event that already existed. Fans hear about an event once, when it is
   // first stored with a line-up: a later update never notifies again.
   const afterUpdate = async (existing: Doc<"events">) => {
     await linkLineup(ctx, existing._id, start, lineup, row.source);
     if (!existing.placeId) {
       const placeId = await findVenuePlace(ctx, row, venues);
-      if (placeId) await ctx.db.patch(existing._id, { placeId, ...(await audience(existing, placeId)) });
+      if (placeId) await ctx.db.patch(existing._id, { placeId });
     }
     if (lineup.length && !existing.performerNames?.length) await notifyPerformerFans(ctx, existing._id);
   };
@@ -548,7 +497,6 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     // detail call does): what it told us before stays until it says something else.
     const merged = {
       ...fields,
-      ...(await audience(same)),
       end: fields.end ?? same.end,
       price: fields.price ?? same.price,
       imageUrl: fields.imageUrl ?? same.imageUrl,
@@ -579,15 +527,8 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
         (headliner !== undefined && e.performerNames?.[0] !== undefined && normalizePerformerName(e.performerNames[0]) === headliner)),
   );
   if (!duplicate) {
-    const placeId = await findVenuePlace(ctx, row, venues);
-    const eventId = await ctx.db.insert("events", {
-      ...fields,
-      ...(await audience(null, placeId)),
-      placeId: placeId ?? undefined,
-      createdAt: Date.now(),
-      elo: 0,
-      nComparisons: 0,
-    });
+    const placeId = (await findVenuePlace(ctx, row, venues)) ?? undefined;
+    const eventId = await ctx.db.insert("events", { ...fields, placeId, createdAt: Date.now(), elo: 0, nComparisons: 0 });
     await linkLineup(ctx, eventId, start, lineup, row.source);
     if (lineup.length) await notifyPerformerFans(ctx, eventId);
     return "inserted";
@@ -596,13 +537,6 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     // The other source's row stays; this source's page is remembered next to it.
     const otherUrls = withOtherUrl(duplicate, row.sourceUrl);
     if (otherUrls) await ctx.db.patch(duplicate._id, { otherUrls });
-    // If this source knows the event is for adults and the kept row does not say otherwise, the
-    // kept row becomes nightlife too. `minAge` makes that survive the kept source's next read.
-    const here = await audience(null);
-    const keptSays = ageGate({ title: duplicate.title, description: duplicate.blurb, venueName: duplicate.venueName });
-    if (here.category === "nightlife" && duplicate.category !== "nightlife" && keptSays !== "open") {
-      await ctx.db.patch(duplicate._id, { category: "nightlife", minAge: ADULT_AGE });
-    }
     // A line-up the kept row did not have is worth keeping too.
     if (lineup.length && !duplicate.performerNames?.length) {
       await ctx.db.patch(duplicate._id, { performerNames: fields.performerNames });
@@ -613,7 +547,6 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
   }
   await ctx.db.patch(duplicate._id, {
     ...fields,
-    ...(await audience(duplicate)),
     end: fields.end ?? duplicate.end,
     price: fields.price ?? duplicate.price,
     imageUrl: fields.imageUrl ?? duplicate.imageUrl,

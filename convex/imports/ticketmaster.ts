@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
-import { ADULT_AGE, ageGate, featurize } from "../ingest";
+import { featurize } from "../ingest";
 import { MAX_PERFORMERS } from "../lib/performers";
 import { zonedToEpoch } from "./eventbrite";
 
@@ -51,10 +51,6 @@ export type TicketmasterEvent = {
   };
   images?: Image[];
   priceRanges?: { type?: string; currency?: string; min?: number; max?: number }[];
-  // Free text where promoters put the age rule ("This is a 21 and over event").
-  info?: string;
-  pleaseNote?: string;
-  ageRestrictions?: { legalAgeEnforced?: boolean; ageRuleDescription?: string } | null;
   classifications?: Classification[];
   _embedded?: { venues?: Venue[]; attractions?: Attraction[] };
 };
@@ -180,14 +176,6 @@ export function ticketmasterToRow(event: TicketmasterEvent, now: number) {
     ticketUrl: event.url,
     blurb: [segment, ...genres].filter(Boolean).join(" · ") || undefined,
     venueName: venue.name?.trim() || undefined,
-    minAge:
-      ageGate({
-        title: name,
-        description: [event.info, event.pleaseNote, event.ageRestrictions?.ageRuleDescription].filter(Boolean).join(" | "),
-        venueName: venue.name,
-      }) === "adults"
-        ? ADULT_AGE
-        : undefined,
     performers: performers.length ? performers : undefined,
     // The ingest blends the performers' genre vectors into this.
     venueVector: featurize({ category: "live", subcategory, tags, title: name, price }),

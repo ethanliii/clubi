@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction, internalMutation, internalQuery } from "../_generated/server";
-import { ADULT_AGE, ageGate, featurize, haversineMeters, readConfig, writeConfig } from "../ingest";
+import { featurize, haversineMeters, readConfig, writeConfig } from "../ingest";
 
 // Public Partiful events only. There is no API. Each run reads the Explore page
 // once (its "Trending in the Bay" section of public events; robots.txt has no
@@ -126,8 +126,6 @@ export function partifulToRow(event: PartifulEvent, now: number, price?: number,
     sourceUrl: "https://partiful.com/e/" + event.id,
     blurb: blurb || undefined,
     venueName: location?.mapsInfo?.name?.trim() || undefined,
-    // The description is read here and not stored, so say what it says about age.
-    minAge: ageGate({ title: name, description: event.description, venueName: location?.mapsInfo?.name }) === "adults" ? ADULT_AGE : undefined,
     venueVector: featurize({
       category: "popup",
       subcategory: "party",

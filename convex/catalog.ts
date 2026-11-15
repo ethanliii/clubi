@@ -44,7 +44,6 @@ export const addManual = internalMutation({
     ticketUrl: v.optional(v.string()),
     venueName: v.optional(v.string()),
     performers: v.optional(v.array(performerInput)),
-    minAge: v.optional(v.number()),
   },
   handler: async (ctx, { kind, ...fields }): Promise<{ outcome: string; id: Id<"places"> | Id<"events"> | null }> => {
     const name = fields.name.trim();
@@ -55,7 +54,7 @@ export const addManual = internalMutation({
     const sourceId = `manual:${normalizeName(name)}${kind === "event" ? ":" + fields.start : ""}`;
     const row =
       kind === "place"
-        ? { ...fields, name, source: "manual" as const, sourceId, start: undefined, end: undefined, price: undefined, ticketUrl: undefined, venueName: undefined, performers: undefined, minAge: undefined }
+        ? { ...fields, name, source: "manual" as const, sourceId, start: undefined, end: undefined, price: undefined, ticketUrl: undefined, venueName: undefined, performers: undefined }
         : { ...fields, name, source: "manual" as const, sourceId, hours: undefined, priceLevel: undefined, website: undefined, phone: undefined };
     const counts = await upsertRows(ctx, kind, [row], { ignoreFreeze: true });
     const outcome = (["inserted", "updated", "unchanged", "replaced", "duplicate", "dropped"] as const).find((key) => counts[key] > 0) ?? "dropped";

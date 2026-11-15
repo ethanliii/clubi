@@ -5,7 +5,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { PerformerCard } from "./lib/contract";
-import { ADULT_AGE, isUnder21 } from "./lib/discovery";
+import { isUnder21 } from "./lib/discovery";
 import {
   AFFINITY_NEUTRAL,
   ALERT_HORIZON_DAYS,
@@ -40,9 +40,6 @@ const SIMILAR_LIMIT = 8;
 const SIMILAR_MIN = 0.6;
 
 type Affinity = Doc<"affinities">;
-
-/** Under-21 users never get these, anywhere. The ingest stores every adults-only event as nightlife. */
-const adultsOnly = (event: Doc<"events">) => event.category === "nightlife" || (event.minAge ?? 0) >= ADULT_AGE;
 
 /** The performers of an event, headliner first (the order of `performerNames` on the event). */
 async function performersOf(ctx: QueryCtx, event: Doc<"events">): Promise<Doc<"performers">[]> {
@@ -144,7 +141,7 @@ async function alertFan(
   if (!shouldAlert({ ...input, homeCity: event.city })) return false;
   const user = await ctx.db.get(affinity.userId);
   if (!user) return false;
-  if (adultsOnly(event) && isUnder21(user.birthday, now)) return false;
+  if (event.category === "nightlife" && isUnder21(user.birthday, now)) return false;
   const alertsLastDay = await alertsInLastDay(ctx, affinity.userId, now);
   if (!shouldAlert({ ...input, homeCity: user.homeCity, alertsLastDay })) return false;
   // INTEGRATION (People): notify() is expected to drop this when the user's notifPrefs.artistAlerts
@@ -268,7 +265,7 @@ async function upcomingOf(ctx: QueryCtx, performerId: Id<"performers">, viewer: 
     if (upcoming.length >= limit) break;
     const event = await ctx.db.get(link.eventId);
     if (!event || event.start < viewer.now) continue;
-    if (viewer.under21 && adultsOnly(event)) continue;
+    if (viewer.under21 && event.category === "nightlife") continue;
     if (upcoming.some((e) => e.id === event._id)) continue;
     upcoming.push({ id: event._id, title: event.title, startsAt: event.start, venueName: event.venueName });
   }
@@ -320,7 +317,7 @@ export const forEvent = query({
     const viewer = await viewerOf(ctx);
     const event = viewer === null ? null : await ctx.db.get(eventId);
     if (viewer === null || event === null) return [];
-    if (viewer.under21 && adultsOnly(event)) return [];
+    if (viewer.under21 && event.category === "nightlife") return [];
     const performers = await performersOf(ctx, event);
     return await Promise.all(performers.map((performer) => cardOf(ctx, performer, viewer)));
   },
