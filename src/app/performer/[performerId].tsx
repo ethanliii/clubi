@@ -30,7 +30,7 @@ export default function PerformerScreen() {
   if (performer === undefined) {
     return (
       <Screen>
-        <ScreenTop title="" kicker="Artist" />
+        <ScreenTop title="" />
         <View style={styles.top}>
           <Skeleton width={96} height={96} round={48} />
           <View style={styles.topText}>
@@ -54,7 +54,7 @@ export default function PerformerScreen() {
 
   return (
     <Screen>
-      <ScreenTop title={performer.name} kicker="Artist" />
+      <ScreenTop title={performer.name} />
       <View style={styles.top}>
         <Avatar name={performer.name} uri={performer.imageUrl} size={96} />
         <View style={styles.topText}>

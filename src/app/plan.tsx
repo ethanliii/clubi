@@ -82,7 +82,7 @@ export default function PlanScreen() {
   return (
     <Screen>
       <View style={styles.top}>
-        <ScreenTop title="Plan my night" kicker="Itinerary" />
+        <ScreenTop title="Plan my night" />
         {tripId && trip ? <Text muted>{`Three stops for ${trip.name}`}</Text> : null}
       </View>
 
