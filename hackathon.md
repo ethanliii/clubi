@@ -129,3 +129,15 @@ Added the cron schedule: the Luma import now runs every 30 minutes and stops by
 itself while the ingest freeze flag in appConfig is set, so no outside calls
 happen during the demo after the data freeze. Convex features: crons
 (`convex/crons.ts`).
+
+### 2026-11-15 - 48a4577
+Added group planning: a query that returns three stops for the night (start,
+then, end) for the viewer and the accepted friends they pick. Each stop is
+chosen by a group score, half the average and half the least happy member, and
+anything a member would score under 4 is dropped. A vibe setting (chill,
+balanced, wild) sets the energy each stop aims for, each stop is picked close to
+the one before, and nightlife is left out when anyone in the group is under 21.
+Every stop carries each member's own score. The reason line now leads with what
+the place is strongest in, weighted by the viewer's taste. Convex features:
+queries, indexes (`convex/discover.ts`, `convex/lib/recs.ts`,
+`convex/lib/contract.ts`, `docs/CONTRACT.md`).
