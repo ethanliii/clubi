@@ -48,7 +48,6 @@ export default function TripsScreen() {
     <Screen>
       <ScreenTop
         title="Trips"
-        kicker="Plans with friends"
         right={
           // With no trips the one "New trip" button is in the middle of the screen.
           hasTrips ? (

@@ -304,7 +304,8 @@ const styles = StyleSheet.create({
   },
   scoreText: { flex: 1, gap: spacing.xs },
   card: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface },
-  barLabel: { width: 84 },
+  // Wide enough for the longest backend label ("Electronic music") at caption size.
+  barLabel: { width: 104 },
   bar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.raised, overflow: "hidden" },
   barFill: { height: "100%" },
   barValue: { width: 28, textAlign: "right" },
