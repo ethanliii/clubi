@@ -4,7 +4,7 @@ export type LatLng = { lat: number; lng: number };
 
 /**
  * The map itself. Two files draw it: `MapCanvas.native.tsx` (react-native-maps) and
- * `MapCanvas.web.tsx` (MapLibre GL). Both take exactly these props and draw the same three pins.
+ * `MapCanvas.web.tsx` (MapLibre GL). Both take exactly these props and draw the same pins (see pinLook.ts).
  */
 export type MapCanvasProps = {
   /** What the backend returned, already ranked. Pins follow this list as it changes. */
@@ -13,6 +13,8 @@ export type MapCanvasProps = {
   center: LatLng;
   /** The user's own position (never anyone else's). null until it is known. */
   user: LatLng | null;
+  /** True when `user` is the demo spot and not the device's own fix: it is drawn as a hollow ring, not the blue dot. */
+  userIsDemo?: boolean;
   /** The pin that is picked out, by item id. */
   selectedId: string | null;
   /** A pin was tapped (the item) or the bare map was tapped (null). */
