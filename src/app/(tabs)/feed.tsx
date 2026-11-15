@@ -1,11 +1,12 @@
 import { PlaceholderScreen } from "../../components";
+import { paths } from "../../lib/links";
 
 export default function FeedScreen() {
   return (
     <PlaceholderScreen
-      title="Friends"
-      description="Photo feed of what your friends rated, with reactions and settle-it callouts."
-      links={[{ label: "Friends & taste matches", href: "/friends" }, { label: "Alex Chen", href: { pathname: "/friend/[id]", params: { id: "0" } } }]}
+      title="Feed"
+      description="What your friends ranked, the moment they rank it, with likes and comments."
+      links={[{ label: "Find friends", href: paths.friends }]}
     />
   );
 }

@@ -2,73 +2,128 @@ import {
   useSignInWithUsernamePassword,
   useSignUpWithUsernamePassword,
 } from "@convex-dev/auth/methods/username-password/react";
-import { useConvexAuth } from "convex/react";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { StyleSheet, TextInput } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { useState } from "react";
+import { StyleSheet } from "react-native";
 import { api } from "../../convex/_generated/api";
-import { BackButton, Button, Screen, Text } from "../components";
+import { BackButton, Button, Screen, Text, TextField } from "../components";
 import { APP_NAME } from "../constants/brand";
-import { colors, radius, spacing } from "../theme";
+import { authErrorMessage } from "../lib/errors";
 
+type Mode = "signup" | "signin";
+
+/**
+ * Sign up or sign in. Nothing navigates from here: once the backend says we are signed in,
+ * the root layout swaps this screen for the quiz (new account) or the tabs.
+ */
 export default function SignIn() {
-  const { isAuthenticated } = useConvexAuth();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState<Mode>(params.mode === "signup" ? "signup" : "signin");
   const { signIn, pending: signingIn } = useSignInWithUsernamePassword(api.auth);
   const { signUp, pending: signingUp } = useSignUpWithUsernamePassword(api.auth);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [homeCity, setHomeCity] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isAuthenticated) router.replace("/");
-  }, [isAuthenticated]);
+  const pending = signingIn || signingUp;
+  const isSignUp = mode === "signup";
 
-  const submit = async (run: typeof signIn | typeof signUp) => {
+  const submit = async () => {
     setError(null);
-    const result = await run({ username, password });
-    if (result.status === "error") {
-      setError(result.userError.error);
+    const name = username.trim();
+    if (name === "" || password === "") {
+      setError("Enter a username and a password.");
+      return;
     }
+    if (isSignUp && birthday.trim() !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(birthday.trim())) {
+      setError("Birthday must look like 2004-10-23, or leave it empty.");
+      return;
+    }
+    // The three extra fields are optional and left out when empty; the backend rejects unknown ones only.
+    const account = {
+      username: name,
+      password,
+      ...(displayName.trim() !== "" ? { displayName: displayName.trim() } : {}),
+      ...(birthday.trim() !== "" ? { birthday: birthday.trim() } : {}),
+      ...(homeCity.trim() !== "" ? { homeCity: homeCity.trim() } : {}),
+    };
+    const result = isSignUp ? await signUp(account) : await signIn({ username: name, password });
+    if (result.status === "error") setError(authErrorMessage(result.userError));
   };
 
-  const pending = signingIn || signingUp;
   return (
     <Screen edges={["top", "bottom"]}>
       <BackButton />
-      <Text variant="heading">Sign in to {APP_NAME}</Text>
-      <TextInput
-        style={styles.input}
+      <Text variant="heading">{isSignUp ? `Join ${APP_NAME}` : `Sign in to ${APP_NAME}`}</Text>
+      <TextField
+        label="Username"
         placeholder="Username"
-        placeholderTextColor={colors.muted}
         autoCapitalize="none"
+        autoCorrect={false}
         autoComplete="username"
         value={username}
         onChangeText={setUsername}
       />
-      <TextInput
-        style={styles.input}
+      <TextField
+        label="Password"
         placeholder="Password"
-        placeholderTextColor={colors.muted}
         secureTextEntry
-        autoComplete="password"
+        autoCapitalize="none"
+        autoComplete={isSignUp ? "new-password" : "current-password"}
         value={password}
         onChangeText={setPassword}
+        onSubmitEditing={isSignUp ? undefined : () => void submit()}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Button title="Sign in" disabled={pending} onPress={() => submit(signIn)} />
-      <Button title="Create account" variant="ghost" disabled={pending} onPress={() => submit(signUp)} />
+      {isSignUp ? (
+        <>
+          <TextField
+            label="Display name"
+            placeholder="What friends see (optional)"
+            value={displayName}
+            onChangeText={setDisplayName}
+          />
+          <TextField
+            label="Birthday"
+            placeholder="YYYY-MM-DD (optional)"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={birthday}
+            onChangeText={setBirthday}
+          />
+          <TextField
+            label="Home city"
+            placeholder="Where you're a local (optional)"
+            value={homeCity}
+            onChangeText={setHomeCity}
+          />
+        </>
+      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Button
+        title={isSignUp ? "Sign up" : "Sign in"}
+        accessibilityLabel={isSignUp ? "Sign up" : "Sign in"}
+        disabled={pending}
+        onPress={() => void submit()}
+      />
+      <Button
+        title={isSignUp ? "Have an account? Sign in" : "New here? Sign up"}
+        accessibilityLabel={isSignUp ? "Have an account? Sign in" : "New here? Sign up"}
+        variant="link"
+        disabled={pending}
+        style={styles.switch}
+        onPress={() => {
+          setError(null);
+          setMode(isSignUp ? "signin" : "signup");
+        }}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  input: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    color: colors.fg,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-  },
   error: { color: "#ff6b6b" },
+  switch: { alignSelf: "center" },
 });

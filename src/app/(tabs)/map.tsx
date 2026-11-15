@@ -4,7 +4,7 @@ export default function MapScreen() {
   return (
     <PlaceholderScreen
       title="Map"
-      description="Match-colored pins around Stanford and downtown Palo Alto, with clusters when zoomed out."
+      description="Pins around you, ranked for your taste, with the seven filters, search and the list sheet."
     />
   );
 }
