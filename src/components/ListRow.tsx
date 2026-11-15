@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, fontWeight, spacing } from "../theme";
+import { fontWeight, palette, spacing } from "../theme";
 import { Text } from "./Text";
 
 export type ListRowProps = {
@@ -41,7 +41,7 @@ export function ListRow({
         {title}
       </Text>
       {subtitle ? (
-        <Text variant="caption" muted numberOfLines={2}>
+        <Text variant="caption" muted numberOfLines={2} style={styles.subtitle}>
           {subtitle}
         </Text>
       ) : null}
@@ -76,11 +76,12 @@ export function ListRow({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 56 },
-  divider: { borderBottomWidth: 1, borderBottomColor: colors.line },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64 },
+  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
   main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
-  pressed: { opacity: 0.6 },
+  pressed: { opacity: 0.55 },
   text: { flex: 1, gap: 2 },
-  title: { fontWeight: fontWeight.bold },
+  title: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, letterSpacing: -0.2 },
+  subtitle: { lineHeight: 18 },
   right: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });

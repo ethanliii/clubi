@@ -6,6 +6,7 @@ export * from "./ScoreBadge";
 export * from "./Screen";
 export * from "./Text";
 export * from "./VenuePhoto";
+export * from "./Photo";
 // Shared pieces for the functional screens (see docs/APP.md)
 export * from "./Avatar";
 export * from "./Chip";

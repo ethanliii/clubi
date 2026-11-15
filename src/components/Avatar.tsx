@@ -27,12 +27,16 @@ export function Avatar({ name, uri, size = 40, style }: AvatarProps) {
   return (
     <View
       accessibilityLabel={name}
-      style={[styles.base, shape, { backgroundColor: `hsl(${hueOf(name)}, 55%, 42%)` }, style]}
+      style={[styles.base, shape, { backgroundColor: `hsl(${hueOf(name)}, 30%, 26%)` }, style]}
     >
       {imageUri ? (
         <Image source={{ uri: imageUri }} style={styles.image} onError={() => setFailedUri(imageUri)} />
       ) : (
-        <Text style={[styles.initials, { fontSize: size * 0.38, lineHeight: size * 0.46 }]}>{initials(name)}</Text>
+        <Text
+          style={[styles.initials, { fontSize: size * 0.36, lineHeight: size * 0.46, color: `hsl(${hueOf(name)}, 70%, 84%)` }]}
+        >
+          {initials(name)}
+        </Text>
       )}
     </View>
   );
@@ -71,10 +75,10 @@ export function AvatarStack({ people, max = 3, size = 24 }: AvatarStackProps) {
 }
 
 const styles = StyleSheet.create({
-  // Bryan's avatar: a coloured disc with a 2px ring in the page colour.
-  base: { alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 2, borderColor: colors.bg },
+  // A photo, or initials on a deep tint of the person's own colour. Only stacks get a ring.
+  base: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
   image: { width: "100%", height: "100%" },
-  initials: { color: colors.white, fontWeight: fontWeight.bold },
+  initials: { fontWeight: fontWeight.semibold, letterSpacing: 0.2 },
   stack: { flexDirection: "row", alignItems: "center" },
   ring: { borderWidth: 2, borderColor: colors.bg },
   extra: { marginLeft: 4 },

@@ -1,25 +1,51 @@
-import { StyleSheet, View } from "react-native";
-import { colors, fontWeight, matchTier, radius, ratingColor } from "../theme";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { colors, matchTier, ratingColor } from "../theme";
 import { Text } from "./Text";
 
 type Size = "sm" | "md" | "lg";
 
-const SIZES: Record<Size, { fontSize: number; paddingVertical: number; paddingHorizontal: number }> = {
-  sm: { fontSize: 11, paddingVertical: 2, paddingHorizontal: 6 },
-  md: { fontSize: 15, paddingVertical: 3, paddingHorizontal: 8 },
-  lg: { fontSize: 22, paddingVertical: 6, paddingHorizontal: 12 },
+const SIZES: Record<Size, { fontSize: number; height: number; minWidth: number; paddingHorizontal: number; radius: number }> = {
+  sm: { fontSize: 12, height: 22, minWidth: 32, paddingHorizontal: 6, radius: 7 },
+  md: { fontSize: 15, height: 28, minWidth: 42, paddingHorizontal: 8, radius: 9 },
+  lg: { fontSize: 24, height: 42, minWidth: 62, paddingHorizontal: 12, radius: 13 },
 };
 
-export function ScoreBadge({ score, size = "md" }: { score: number; size?: Size }) {
-  const { fontSize, ...padding } = SIZES[size];
+export type ScoreBadgeProps = {
+  score: number;
+  size?: Size;
+  /**
+   * `solid` (default): the rating colour filled, for the score that leads a row or sits on a photo.
+   * `plain`: just the number in its rating colour, for secondary scores (a friend's, a list total).
+   */
+  variant?: "solid" | "plain";
+  style?: StyleProp<ViewStyle>;
+};
+
+/** A score out of ten in its rating colour. Same width for every score, so a column of them lines up. */
+export function ScoreBadge({ score, size = "md", variant = "solid", style }: ScoreBadgeProps) {
+  const spec = SIZES[size];
+  const tint = ratingColor(score);
+  const text = score.toFixed(1);
+  if (variant === "plain") {
+    return (
+      <Text
+        accessibilityLabel={`Score ${text}`}
+        style={[styles.text, { fontSize: spec.fontSize + 1, lineHeight: spec.height, color: tint }]}
+      >
+        {text}
+      </Text>
+    );
+  }
   return (
     <View
-      accessibilityLabel={`Score ${score.toFixed(1)}`}
-      style={[styles.badge, padding, { backgroundColor: ratingColor(score) }]}
+      accessibilityLabel={`Score ${text}`}
+      style={[
+        styles.badge,
+        { height: spec.height, minWidth: spec.minWidth, paddingHorizontal: spec.paddingHorizontal, borderRadius: spec.radius, backgroundColor: tint },
+        style,
+      ]}
     >
-      <Text style={[styles.text, { fontSize, lineHeight: fontSize * 1.25, color: "#111" }]}>
-        {score.toFixed(1)}
-      </Text>
+      <Text style={[styles.text, { fontSize: spec.fontSize, lineHeight: spec.height, color: "#0d0b10" }]}>{text}</Text>
     </View>
   );
 }
@@ -31,32 +57,22 @@ const TIER_STYLES = {
 } as const;
 
 export function MatchBadge({ match, size = "md" }: { match: number; size?: Size }) {
-  const { fontSize, ...padding } = SIZES[size];
+  const spec = SIZES[size];
   const tier = TIER_STYLES[matchTier(match)];
   return (
     <View
       accessibilityLabel={`${match}% match for you`}
       style={[
         styles.badge,
-        padding,
-        { backgroundColor: tier.backgroundColor },
-        matchTier(match) === "hi" && styles.glow,
+        { height: spec.height, minWidth: spec.minWidth, paddingHorizontal: spec.paddingHorizontal, borderRadius: spec.radius, backgroundColor: tier.backgroundColor },
       ]}
     >
-      <Text style={[styles.text, { fontSize, lineHeight: fontSize * 1.25, color: tier.color }]}>
-        {match}%
-      </Text>
+      <Text style={[styles.text, { fontSize: spec.fontSize, lineHeight: spec.height, color: tier.color }]}>{match}%</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  badge: { borderRadius: radius.md, alignSelf: "flex-start" },
-  text: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
-  glow: {
-    shadowColor: colors.accent,
-    shadowOpacity: 0.55,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 0 },
-  },
+  badge: { alignSelf: "flex-start", alignItems: "center", justifyContent: "center" },
+  text: { fontWeight: "800", fontVariant: ["tabular-nums"], letterSpacing: -0.3, textAlign: "center" },
 });

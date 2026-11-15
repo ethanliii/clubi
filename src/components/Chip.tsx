@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, fontWeight, radius, spacing } from "../theme";
+import { colors, fontWeight, palette, radius, spacing } from "../theme";
 import { Text } from "./Text";
 
 export type ChipProps = {
@@ -58,7 +58,7 @@ export function Chip({
       disabled={disabled}
       hitSlop={8}
       onPress={onPress}
-      style={({ pressed }) => [...box, (pressed || disabled) && styles.dimmed]}
+      style={({ pressed }) => [...box, pressed && styles.pressed, disabled && styles.dimmed]}
     >
       {content}
     </Pressable>
@@ -92,25 +92,25 @@ export function ChipRow({
 }
 
 const styles = StyleSheet.create({
+  // No outline: an unselected chip is a quiet fill, the selected one is the only bright thing in the row.
   chip: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs + 2,
-    minHeight: 31,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    minHeight: 36,
+    paddingVertical: 7,
+    paddingHorizontal: 15,
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
+    backgroundColor: palette.field,
   },
-  chipSm: { minHeight: 24, paddingVertical: 3, paddingHorizontal: spacing.sm + 2 },
-  selected: { backgroundColor: colors.fg, borderColor: colors.fg },
-  dimmed: { opacity: 0.6 },
-  label: { fontSize: 13, lineHeight: 17 },
-  labelSm: { fontSize: 12, lineHeight: 16 },
+  chipSm: { minHeight: 24, paddingVertical: 3, paddingHorizontal: spacing.sm + 2, backgroundColor: "rgba(255,255,255,0.06)" },
+  selected: { backgroundColor: colors.fg },
+  pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
+  dimmed: { opacity: 0.4 },
+  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.medium, color: palette.soft },
+  labelSm: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.regular },
   labelSelected: { color: colors.bg, fontWeight: fontWeight.semibold },
   scroller: { flexGrow: 0 },
-  row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   wrap: { flexWrap: "wrap" },
 });

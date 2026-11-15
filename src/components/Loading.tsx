@@ -46,8 +46,8 @@ export function Skeleton({
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.9, duration: 700, useNativeDriver: Platform.OS !== "web" }),
-        Animated.timing(pulse, { toValue: 0.5, duration: 700, useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(pulse, { toValue: 0.5, duration: 800, useNativeDriver: Platform.OS !== "web" }),
       ]),
     );
     loop.start();
@@ -57,17 +57,27 @@ export function Skeleton({
 }
 
 /** Placeholder list rows (a circle and two lines each) for any list that is still loading. */
-export function SkeletonRows({ count = 5, avatar = true }: { count?: number; avatar?: boolean }) {
+export function SkeletonRows({
+  count = 5,
+  avatar = true,
+  shape = "circle",
+}: {
+  count?: number;
+  avatar?: boolean;
+  /** `circle` for people (default), `square` for places: the shape of an `ItemCard` row's photo. */
+  shape?: "circle" | "square";
+}) {
+  const square = shape === "square";
   return (
     <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.rows}>
       {Array.from({ length: count }, (_, index) => (
-        <View key={index} style={styles.row}>
-          {avatar ? <Skeleton width={44} height={44} round={22} /> : null}
+        <View key={index} style={[styles.row, { opacity: 1 - index * 0.12 }]}>
+          {avatar ? <Skeleton width={square ? 64 : 44} height={square ? 64 : 44} round={square ? radius.lg : 22} /> : null}
           <View style={styles.lines}>
-            <Skeleton width="62%" height={14} />
-            <Skeleton width="38%" height={11} />
+            <Skeleton width={index % 2 === 0 ? "58%" : "44%"} height={14} round={7} />
+            <Skeleton width={index % 2 === 0 ? "36%" : "52%"} height={11} round={6} />
           </View>
-          <Skeleton width={38} height={24} />
+          <Skeleton width={42} height={28} round={9} />
         </View>
       ))}
     </View>
@@ -84,9 +94,9 @@ export function SkeletonCards({ count = 3, horizontal = true }: { count?: number
     >
       {Array.from({ length: count }, (_, index) => (
         <View key={index} style={[styles.card, horizontal ? styles.cardFixed : styles.cardWide]}>
-          <Skeleton height={horizontal ? 96 : 200} round={radius.xl} />
-          <Skeleton width="70%" height={14} />
-          <Skeleton width="45%" height={11} />
+          <Skeleton height={horizontal ? 200 : 220} round={radius.xl - 2} />
+          <Skeleton width="70%" height={14} round={7} />
+          <Skeleton width="45%" height={11} round={6} />
         </View>
       ))}
     </View>
@@ -96,12 +106,12 @@ export function SkeletonCards({ count = 3, horizontal = true }: { count?: number
 const styles = StyleSheet.create({
   loading: { flex: 1, minHeight: 160, alignItems: "center", justifyContent: "center", gap: spacing.sm },
   compact: { flex: 0, minHeight: 56 },
-  block: { backgroundColor: colors.surface },
-  rows: { gap: spacing.lg },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 56 },
+  block: { backgroundColor: "rgba(255,255,255,0.07)" },
+  rows: { gap: spacing.md },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64 },
   lines: { flex: 1, gap: spacing.sm },
   cardsRow: { flexDirection: "row", gap: spacing.md, overflow: "hidden" },
   card: { gap: spacing.sm },
-  cardFixed: { width: 170 },
+  cardFixed: { width: 220 },
   cardWide: { width: "100%" },
 });

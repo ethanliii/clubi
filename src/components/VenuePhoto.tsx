@@ -1,43 +1,34 @@
-import { LinearGradient } from "expo-linear-gradient";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import type { ReactNode } from "react";
+import type { StyleProp, ViewStyle } from "react-native";
+import type { Category } from "../../convex/lib/contract";
 import { radius } from "../theme";
+import { Photo } from "./Photo";
 
-export function VenuePhoto({ hue, height, style }: { hue: number; height: number; style?: StyleProp<ViewStyle> }) {
-  const glows = [0, 1, 2].map((k) => ({
-    left: `${15 + k * 28}%` as const,
-    top: `${10 + ((k * 37) % 40)}%` as const,
-    size: height * (0.35 - k * 0.05),
-    color: `hsla(${(hue + k * 30) % 360}, 90%, ${60 + k * 5}%, 0.55)`,
-  }));
+/**
+ * The picture of a place at a fixed height. Give it the photo (`uri`) and the `category` when you
+ * have them; with only a `hue` it draws the calm category panel. Same props as before, plus the
+ * optional ones. For other shapes (aspect ratios, overlays) use `Photo` directly.
+ */
+export function VenuePhoto({
+  hue,
+  height,
+  style,
+  uri,
+  category,
+  scrim,
+  children,
+}: {
+  hue: number;
+  height: number;
+  style?: StyleProp<ViewStyle>;
+  uri?: string | null;
+  category?: Category;
+  scrim?: boolean | "bottom" | "hero" | "top";
+  children?: ReactNode;
+}) {
   return (
-    <View style={[styles.photo, { height }, style]}>
-      <LinearGradient
-        colors={[`hsl(${hue}, 45%, 17%)`, `hsl(${(hue + 30) % 360}, 35%, 9%)`, "#07060a"]}
-        locations={[0, 0.7, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-      {glows.map((glow) => (
-        <View
-          key={glow.left}
-          style={[
-            styles.glow,
-            {
-              left: glow.left,
-              top: glow.top,
-              width: glow.size,
-              height: glow.size,
-              borderRadius: glow.size / 2,
-              backgroundColor: glow.color,
-              shadowColor: glow.color,
-            },
-          ]}
-        />
-      ))}
-    </View>
+    <Photo uri={uri} category={category} hue={hue} height={height} round={radius.xl} scrim={scrim} style={style}>
+      {children}
+    </Photo>
   );
 }
-
-const styles = StyleSheet.create({
-  photo: { borderRadius: radius.xl, overflow: "hidden", width: "100%" },
-  glow: { position: "absolute", opacity: 0.8, shadowOpacity: 1, shadowRadius: 24 },
-});
