@@ -201,7 +201,7 @@ export function SimilarSection({ items }: { items: NearbyItem[] | undefined }) {
       {items === undefined ? (
         <SkeletonCards />
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cards}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={styles.cards}>
           {items.map((item) => (
             <ItemCard key={`${item.kind}:${item.id}`} item={item} variant="card" width={220} />
           ))}
@@ -223,5 +223,7 @@ const styles = StyleSheet.create({
   distribution: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface },
   smallButton: { width: "auto", paddingVertical: spacing.sm, paddingHorizontal: 14 },
   friendPhoto: { width: "100%", height: 190, borderRadius: radius.lg, marginTop: spacing.xs, backgroundColor: colors.raised },
-  cards: { gap: spacing.md, paddingRight: spacing.lg },
+  // As on Home: the row runs to both edges of the screen, the first card lines up with the title.
+  bleed: { marginHorizontal: -spacing.lg, flexGrow: 0 },
+  cards: { gap: spacing.md, paddingHorizontal: spacing.lg },
 });

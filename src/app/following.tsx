@@ -20,7 +20,7 @@ export default function FollowingScreen() {
 
   return (
     <Screen>
-      <ScreenTop title="Following" kicker="Artists" />
+      <ScreenTop title="Following" />
       <TextField
         placeholder="Search artists"
         value={input}

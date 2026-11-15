@@ -185,7 +185,6 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
       <View style={styles.top}>
         <ScreenTop
           title={trip.name}
-          kicker="Trip"
           right={
             isIn ? (
               <IconButton icon="more" accessibilityLabel="Trip options" size={36} onPress={openMenu} />

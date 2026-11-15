@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Avatar, Button, Chip, ChipRow, Icon, IconButton, ScoreBadge, Skeleton, Text, type IconName } from "../../components";
+import { Avatar, Button, Chip, ChipRow, Icon, IconButton, Skeleton, Text, type IconName } from "../../components";
 import { api, type FeedItem, type Visibility } from "../../lib/api";
 import { formatRelativeTime, formatScore } from "../../lib/format";
 import { ratePath, userPath, venuePath } from "../../lib/links";
@@ -96,7 +96,12 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
             </Text>
           ) : null}
         </View>
-        {post.score > 0 ? <ScoreBadge score={post.score} /> : null}
+        {post.score > 0 ? (
+          // The score in a rating-coloured ring, as on Bryan's feed and on the profile's posts.
+          <View accessibilityLabel={`Score ${post.score.toFixed(1)}`} style={[styles.ring, { borderColor: ratingColor(post.score) }]}>
+            <Text style={[styles.bold, { color: ratingColor(post.score) }]}>{post.score.toFixed(1)}</Text>
+          </View>
+        ) : null}
         {mine && onMenu ? <IconButton icon="more" accessibilityLabel="Post options" size={36} onPress={onMenu} /> : null}
       </View>
 
@@ -201,7 +206,7 @@ export function PostSkeleton() {
           <Skeleton width="65%" height={14} />
           <Skeleton width="30%" height={11} />
         </View>
-        <Skeleton width={40} height={25} round={radius.md} />
+        <Skeleton width={44} height={44} round={22} />
       </View>
       <Skeleton height={190} round={radius.lg} />
       <Skeleton width="55%" height={12} />
@@ -227,6 +232,7 @@ const styles = StyleSheet.create({
   shrink: { flexShrink: 1, maxWidth: "100%" },
   bold: { fontWeight: fontWeight.bold },
   top: { flexDirection: "row", alignItems: "center", gap: 10 },
+  ring: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   sentence: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: spacing.xs },
   chips: { gap: 6 },
   rankToo: { width: "auto", paddingVertical: spacing.sm, paddingHorizontal: spacing.md + 2, borderRadius: radius.pill },
