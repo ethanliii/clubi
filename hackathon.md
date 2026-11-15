@@ -7,7 +7,7 @@
 - **Frontend:** not deployed
 - **Convex deployment:** https://famous-lion-37.convex.cloud
 - **Components:** @convex-dev/auth (auth, password, username)
-- **Convex features:** schema, tables, indexes, full-text search, queries, mutations, realtime queries
+- **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, scheduled functions, realtime queries
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
@@ -92,3 +92,17 @@ the winner simply had more strong features. Both helpers run inside the ranking
 mutation, so nearby lists re-sort through realtime queries with no training job.
 Convex features: mutations, realtime queries (`convex/scoring.ts`,
 `convex/lib/recs.ts`, `tests/recs.test.mjs`).
+
+### 2026-11-15 - 57a474f
+Added the catalog ingest. An internal upsert mutation writes places and events
+by source and source id, drops unnamed rows and past events, and skips a row
+with the same name within 50 m (or the same title starting within an hour)
+without ever touching hand-seeded rows. A keyword featurizer turns category,
+tags and text into the 13-feature venue vector. An OpenStreetMap import action
+pulls named bars, restaurants, cafes, museums, theatres and parks around a point
+from Overpass, and a public ensureArea mutation snaps a location to a grid cell
+and schedules that import the first time anyone opens the map there. Ran it on
+the dev deployment for the demo area: 1,374 OpenStreetMap places beside the 33
+seeded ones, none duplicated. Map data (c) OpenStreetMap contributors. Convex
+features: mutations, queries, actions, scheduled functions, indexes
+(`convex/ingest.ts`, `convex/imports/osm.ts`).
