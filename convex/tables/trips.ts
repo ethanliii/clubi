@@ -34,5 +34,6 @@ export const tripsTables = {
     createdAt: v.number(),
   })
     .index("by_trip", ["tripId"])
-    .index("by_trip_user", ["tripId", "userId"]),
+    .index("by_trip_user", ["tripId", "userId"])
+    .index("by_user", ["userId"]),
 };

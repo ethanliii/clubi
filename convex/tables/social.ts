@@ -48,7 +48,9 @@ export const socialTables = {
     userId: v.id("users"),
     text: v.string(),
     createdAt: v.number(),
-  }).index("by_post", ["postId", "createdAt"]),
+  })
+    .index("by_post", ["postId", "createdAt"])
+    .index("by_user", ["userId"]),
 
   // "want" = saved for later, "going" = I'm going to this event
   saves: defineTable({

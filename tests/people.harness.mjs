@@ -232,6 +232,8 @@ class Database {
   }
 }
 
+const componentFunction = (ref) => String(ref?.[Symbol.for("toReferencePath")] ?? "");
+
 /**
  * One fake backend. `t.run(fn, userId, args)` calls a registered query or mutation as that user
  * (`null` = signed out); `t.db` is the database for setting things up and checking results.
@@ -240,13 +242,23 @@ export function backend() {
   const db = new Database();
   const deletedFiles = new Set();
   const scheduled = [];
+  const componentCalls = [];
   let uploads = 0;
   const ctxFor = (userId) => ({
     db,
     auth: { getUserIdentity: async () => (userId === null ? null : { subject: userId }) },
-    // getAuthUserId asks the auth component for the session; here the session id is the user id.
-    runQuery: async (_ref, args) => (args?.sessionId !== undefined ? { userId: args.sessionId } : null),
-    runMutation: async () => null,
+    // Calls into the auth components. getAuthUserId asks for the session; here the session id is the user id.
+    runQuery: async (ref, args) => {
+      const name = componentFunction(ref);
+      if (name.endsWith("/getSession")) return { userId: args.sessionId };
+      if (name.endsWith("/listSessions")) return [{ sessionId: args.userId }];
+      if (name.endsWith("/getUsername")) return db.table("users").get(args.userId)?.username ?? null;
+      return null;
+    },
+    runMutation: async (ref, args) => {
+      componentCalls.push({ name: componentFunction(ref), args });
+      return null;
+    },
     scheduler: { runAfter: async (delay, ref, args) => void scheduled.push({ delay, ref, args }) },
     storage: {
       generateUploadUrl: async () => `https://upload.test/${(uploads += 1)}`,
@@ -258,6 +270,7 @@ export function backend() {
     db,
     deletedFiles,
     scheduled,
+    componentCalls,
     ctx: ctxFor,
     run: (fn, userId, args = {}) => fn._handler(ctxFor(userId), args),
     all: (table) => [...db.table(table).values()].map((row) => structuredClone(row)),
