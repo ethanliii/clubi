@@ -117,12 +117,7 @@ export function userLoader(ctx: QueryCtx): UserLoader {
   };
 }
 
-export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
-  const userId = await getAuthUserId(ctx);
-  const user = userId === null ? null : await ctx.db.get(userId);
-  if (userId === null || user === null) {
-    return { userId: null, taste: NEUTRAL_TASTE, under21: false, friendIds: new Set(), knownRankings: new Map() };
-  }
+export async function friendIdsOf(ctx: QueryCtx, userId: Id<"users">): Promise<Set<Id<"users">>> {
   const asA = await ctx.db
     .query("friendships")
     .withIndex("by_userA", (q) => q.eq("userA", userId).eq("status", "accepted"))
@@ -131,7 +126,16 @@ export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
     .query("friendships")
     .withIndex("by_userB", (q) => q.eq("userB", userId).eq("status", "accepted"))
     .collect();
-  const friendIds = new Set([...asA.map((f) => f.userB), ...asB.map((f) => f.userA)]);
+  return new Set([...asA.map((f) => f.userB), ...asB.map((f) => f.userA)]);
+}
+
+export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
+  const userId = await getAuthUserId(ctx);
+  const user = userId === null ? null : await ctx.db.get(userId);
+  if (userId === null || user === null) {
+    return { userId: null, taste: NEUTRAL_TASTE, under21: false, friendIds: new Set(), knownRankings: new Map() };
+  }
+  const friendIds = await friendIdsOf(ctx, userId);
   const knownRankings = new Map<string, Doc<"rankings">[]>();
   for (const id of [userId, ...[...friendIds].slice(0, MAX_FRIENDS_LOADED)]) {
     const rows = await ctx.db
