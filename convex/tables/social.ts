@@ -19,7 +19,9 @@ export const socialTables = {
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_target", ["targetId"])
-    .index("by_ranking", ["rankingId"]),
+    .index("by_ranking", ["rankingId"])
+    // The feed pages through every post, newest first.
+    .index("by_createdAt", ["createdAt"]),
 
   friendships: defineTable({
     userA: v.id("users"),
@@ -27,7 +29,9 @@ export const socialTables = {
     status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined")),
   })
     .index("by_userA", ["userA", "status"])
-    .index("by_userB", ["userB", "status"]),
+    .index("by_userB", ["userB", "status"])
+    // One row per pair: look it up as (a, b) and as (b, a).
+    .index("by_pair", ["userA", "userB"]),
 
   reactions: defineTable({
     postId: v.id("posts"),
@@ -44,7 +48,9 @@ export const socialTables = {
     userId: v.id("users"),
     text: v.string(),
     createdAt: v.number(),
-  }).index("by_post", ["postId", "createdAt"]),
+  })
+    .index("by_post", ["postId", "createdAt"])
+    .index("by_user", ["userId"]),
 
   // "want" = saved for later, "going" = I'm going to this event
   saves: defineTable({

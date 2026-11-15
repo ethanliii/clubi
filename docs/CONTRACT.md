@@ -54,7 +54,7 @@ After `rankings.rank` succeeds, the app asks 3–4 quick multiple-choice questio
 | Function | Kind | Args → Returns | |
 | --- | --- | --- | --- |
 | `api.auth.signUpWithUsernamePassword`, `signInWithUsernamePassword`, `signOut`, `changePassword` | Convex Auth | see `App.tsx` for the working calls | ✅ |
-| `api.users.me` | query | `{}` → `{userId, username, displayName, avatarUrl?, homeCity?, onboarded, tasteSummary: {label, pct}[]} \| null` | ✅ |
+| `api.users.me` | query | `{}` → `{userId, username, displayName, avatarUrl?, homeCity?, onboarded, tasteSummary: {label, pct}[], bio?, unreadCount?} \| null` | ✅ |
 | `api.users.saveQuiz` | mutation | `{answers: number[][]}` → `{tasteSummary}` | ✅ |
 | `api.settings.get` | query | `{}` → `SettingsResult \| null` | 🆕 |
 | `api.settings.update` | mutation | `{displayName?, bio?, homeCity?, birthday?, defaultVisibility?, discoverable?, notifPrefs?}` → `SettingsResult` (only the fields you pass change) | 🆕 |
