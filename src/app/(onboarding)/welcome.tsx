@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, Text } from "../../components";
+import { Button, SocialButton, Text } from "../../components";
 import { APP_NAME, TAGLINE } from "../../constants/brand";
 import { VideoBackground } from "../../features/onboarding/VideoBackground";
 import { colors, spacing } from "../../theme";
@@ -53,12 +53,10 @@ export default function Welcome() {
           <Button
             title="Create account"
             variant="light"
-            onPress={() => router.push({ pathname: "/sign-in", params: { mode: "signup" } })}
+            onPress={() => router.push("/create-account")}
           />
-          <View style={styles.social}>
-            <Button title="Continue with Apple" variant="ghost" style={styles.socialButton} onPress={socialSoon} />
-            <Button title="Continue with Google" variant="ghost" style={styles.socialButton} onPress={socialSoon} />
-          </View>
+          <SocialButton provider="google" onPress={socialSoon} />
+          <SocialButton provider="apple" onPress={socialSoon} />
           <Button
             title="Sign in"
             variant="link"
@@ -81,6 +79,4 @@ const styles = StyleSheet.create({
   bottom: { paddingHorizontal: 22, paddingBottom: 22, gap: 14, alignItems: "center" },
   terms: { color: "#e6e0ee", lineHeight: 17 },
   underline: { color: "#e6e0ee", textDecorationLine: "underline" },
-  social: { flexDirection: "row", gap: 10, width: "100%" },
-  socialButton: { flex: 1, width: "auto", backgroundColor: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.25)" },
 });

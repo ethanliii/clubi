@@ -43,6 +43,11 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 | E12 | Public / private accounts: `isPublic` setting, `follows` (follow / unfollow, follower counts), `ProfileResult.user.isPublic`, `canSee` true for public | Q20 |
 | — | Vibe filter on `discover.tonight` / `forGroup` (Vibe chips pass to Plan my night for now) | Search |
 
+## Pass 5 (Hinge sign-up + "You're in")
+- **Create account (`(onboarding)/create-account.tsx`), Hinge-style, one question per screen:** name → "An easier way to sign back in" (Google / Apple, No thanks) → username → password → birthday + "You're 19" confirm card → home city → Create account (`signUp`, then `settings.update`) → quiz. `sign-in.tsx` stays for signing back in.
+- **"You're in" (`(onboarding)/youre-in.tsx`) replaces the taste card + Find friends:** persona line, Sync contacts (stub), People you may know / Similar taste (`friends.suggestions`, split by mutual friends, order kept), Picked for you tonight (`discover.tonight`), Let's go.
+- **Needs backend:** phone / email verification codes (Hinge asks for both) need an SMS / email provider; contact sync needs `expo-contacts` + a hashed-number lookup.
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 

@@ -208,7 +208,7 @@ export default function Quiz() {
         v.bucket === "skip" ? [] : [{ kind: v.kind, id: id as Id<"places"> | Id<"events">, bucket: v.bucket }],
       );
       await Promise.allSettled([saveExtended({ answers: a }), seeds.length ? seedRatings({ items: seeds }) : null]);
-      router.push("/taste-card");
+      router.push("/youre-in");
     } catch (e) {
       Alert.alert("Couldn't save", e instanceof Error ? e.message : "Something went wrong");
     } finally {
