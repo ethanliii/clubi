@@ -31,7 +31,7 @@ export function CardRow({ title, items, cardWidth = 250 }: { title: string; item
 }
 
 const styles = StyleSheet.create({
-  section: { gap: spacing.md },
+  section: { gap: spacing.sm },
   // The row runs to both edges of the screen; the first card still lines up with the title.
   bleed: { marginHorizontal: -spacing.lg, flexGrow: 0 },
   row: { paddingHorizontal: spacing.lg, gap: spacing.md },

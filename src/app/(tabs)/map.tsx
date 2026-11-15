@@ -92,7 +92,7 @@ export default function MapScreen() {
       />
 
       <LinearGradient
-        colors={["rgba(11,10,15,0.92)", "rgba(11,10,15,0.6)", "rgba(11,10,15,0)"]}
+        colors={["rgba(20,17,25,0.92)", "rgba(20,17,25,0.6)", "rgba(20,17,25,0)"]}
         locations={[0, 0.6, 1]}
         style={[styles.scrim, { height: top + spacing.xl }]}
       />
@@ -114,7 +114,7 @@ export default function MapScreen() {
                 accessibilityLabel={`Filter: ${option.label}`}
                 selected={filter === option.filter}
                 onPress={() => chooseFilter(option.filter)}
-                style={filter === option.filter ? undefined : styles.chip}
+                style={styles.chip}
               />
             ))}
           </ChipRow>
@@ -125,7 +125,7 @@ export default function MapScreen() {
         <View style={styles.controls}>
           <View style={styles.controlsLeft}>
             <View style={styles.pill}>
-              <Text aria-hidden style={styles.pillText}>
+              <Text aria-hidden variant="caption" muted>
                 Demo location
               </Text>
               <Switch
@@ -158,7 +158,9 @@ export default function MapScreen() {
             style={({ pressed }) => [styles.pill, styles.recenter, pressed && styles.pressed]}
           >
             <Icon name="locate" size={18} color={colors.fg} />
-            <Text style={styles.pillText}>Recenter</Text>
+            <Text variant="caption" style={styles.pillText}>
+              Recenter
+            </Text>
           </Pressable>
         </View>
 
@@ -225,7 +227,7 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.page, overflow: "hidden" },
+  screen: { flex: 1, backgroundColor: colors.bg, overflow: "hidden" },
   flex: { flex: 1 },
   pressed: { opacity: 0.7 },
   scrim: { position: "absolute", top: 0, left: 0, right: 0, pointerEvents: "none" },
@@ -235,7 +237,8 @@ const styles = StyleSheet.create({
   topSearching: { zIndex: 2, elevation: 12 },
   gutter: { paddingHorizontal: spacing.md },
   chips: { paddingHorizontal: spacing.md },
-  chip: { backgroundColor: "rgba(30,26,38,0.94)" },
+  // His chips are 30 tall with 14 at the sides; the shared chip is 40.
+  chip: { minHeight: 32, paddingHorizontal: 14 },
 
   bottom: { position: "absolute", left: 0, right: 0, bottom: 0, pointerEvents: "box-none" },
   controls: {
@@ -252,18 +255,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    minHeight: 44,
+    minHeight: 42,
     paddingLeft: spacing.md + 2,
     paddingRight: spacing.sm,
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: "rgba(30,26,38,0.96)",
+    backgroundColor: colors.surface,
     shadowColor: colors.black,
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   recenter: { paddingLeft: spacing.md, paddingRight: spacing.md + 2 },
   pillText: { fontWeight: fontWeight.semibold },
@@ -271,9 +272,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderRadius: radius.sm,
-    backgroundColor: "rgba(11,10,15,0.78)",
+    backgroundColor: "rgba(20,17,25,0.82)",
   },
-  attributionText: { color: colors.fg, fontSize: 11, lineHeight: 14 },
+  attributionText: { color: colors.muted, fontSize: 11, lineHeight: 14 },
 
   sheetHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 28 },
   link: { color: colors.accent, fontWeight: fontWeight.semibold },
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
   picked: {
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.accent,
     backgroundColor: colors.accentSoft,

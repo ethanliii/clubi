@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
-    minHeight: 52,
+    minHeight: 48,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,

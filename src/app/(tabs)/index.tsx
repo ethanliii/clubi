@@ -39,6 +39,7 @@ export default function Home() {
         </View>
         <IconButton
           icon="bell"
+          size={36}
           accessibilityLabel="Notifications"
           badge={badge}
           onPress={() => router.push(paths.notifications)}
@@ -88,7 +89,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md },
-  flex: { flex: 1, gap: 2 },
+  flex: { flex: 1 },
   pressed: { opacity: 0.8 },
   banner: {
     flexDirection: "row",
