@@ -1,18 +1,21 @@
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { router } from "expo-router";
-import { ActivityIndicator, Alert, FlatList, Image, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Image, Pressable, Share, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../../convex/_generated/api";
 import type { FeedItem } from "../../../convex/lib/contract";
 import {
-  Avatar, Button, Chip, EmptyState, Icon, Photo, ScoreBadge, Skeleton, Text, openVenue, timeAgo,
+  Avatar, Button, Chip, CommentsSheet, EmptyState, Icon, Skeleton, Text, openVenue, timeAgo,
 } from "../../components";
-import { colors, radius, spacing } from "../../theme";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { useState } from "react";
+import { colors, radius, ratingColor, spacing } from "../../theme";
 
 /** Home tab = the friend feed (decision D2). UI-SPEC §7. New posts appear on their own. */
 export default function Home() {
   const { results, status, loadMore } = usePaginatedQuery(api.posts.feed, {}, { initialNumItems: 15 });
   const unread = useQuery(api.notifications.unreadCount, {});
+  const [commentsFor, setCommentsFor] = useState<Id<"posts"> | null>(null);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -63,72 +66,128 @@ export default function Home() {
             <Text center muted variant="caption">{"You're all caught up"}</Text>
           ) : undefined
         }
-        renderItem={({ item }) => <Post post={item} />}
+        renderItem={({ item, index }) => {
+          const prev = results[index - 1];
+          const showDay = !prev || dayLabel(prev.createdAt) !== dayLabel(item.createdAt);
+          return (
+            <View style={{ gap: spacing.md }}>
+              {showDay && <Text variant="label">{dayLabel(item.createdAt)}</Text>}
+              <Post post={item} onComments={() => setCommentsFor(item.postId)} />
+            </View>
+          );
+        }}
       />
+      <CommentsSheet postId={commentsFor} onClose={() => setCommentsFor(null)} />
     </SafeAreaView>
   );
 }
 
-function Post({ post }: { post: FeedItem }) {
+function Post({ post, onComments }: { post: FeedItem; onComments: () => void }) {
   const react = useMutation(api.posts.react);
+  const toggleSave = useMutation(api.saves.toggle);
+  const [saved, setSaved] = useState<boolean | null>(null);
   const like = () =>
     react({ postId: post.postId }).catch((e: unknown) => Alert.alert("Couldn't like", e instanceof Error ? e.message : "Try again"));
+  // Save = "want to go" on the place in the post (saves.toggle), so it shows up in Saved.
+  const save = () =>
+    toggleSave({ kind: post.target.kind, id: post.target.id, type: "want" }).then(
+      (r) => setSaved(r.saved),
+      (e: unknown) => Alert.alert("Couldn't save", e instanceof Error ? e.message : "Try again"),
+    );
   const chips = [...post.tags, ...(post.insightChips ?? [])];
   const open = () => openVenue(post.target);
 
+  const share = () =>
+    Share.share({ message: `${post.author.displayName} ranked ${post.target.name} ${post.score.toFixed(1)} on Clubi` }).catch(() => undefined);
+  const rankToo = () => router.push({ pathname: "/rate", params: { kind: post.target.kind, id: String(post.target.id) } });
+
+  // Beli-style card: who ranked what + score ring, photos (only when there are some), notes, actions.
   return (
     <View style={styles.post}>
       <View style={styles.row}>
-        <Pressable onPress={() => router.push({ pathname: "/friend/[id]", params: { id: String(post.author.userId) } })}>
-          <Avatar name={post.author.displayName} url={post.author.avatarUrl} size={36} />
+        <Pressable onPress={() => router.push({ pathname: "/user/[userId]", params: { userId: String(post.author.userId) } })}>
+          <Avatar name={post.author.displayName} url={post.author.avatarUrl} size={40} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text>
             <Text style={{ fontWeight: "700" }}>{post.author.displayName}</Text> ranked{" "}
             <Text style={{ fontWeight: "700" }} onPress={open}>{post.target.name}</Text>
           </Text>
-          <Text variant="caption" muted>{post.label} · {timeAgo(post.createdAt)}</Text>
+          <Text variant="caption" muted>{post.label}</Text>
         </View>
-        <ScoreBadge score={post.score} />
+        <ScoreRing score={post.score} />
       </View>
 
-      <Pressable onPress={open} style={styles.photo}>
-        {post.photoUrls[0] ? (
-          <Image source={{ uri: post.photoUrls[0] }} style={{ width: "100%", height: 260 }} />
-        ) : (
-          <Photo item={{ category: post.target.category }} height={200} />
-        )}
-      </Pressable>
+      {post.photoUrls.length > 0 && (
+        <Pressable onPress={open} style={styles.photos}>
+          {post.photoUrls.slice(0, 2).map((url) => (
+            <Image key={url} source={{ uri: url }} style={[styles.photo, post.photoUrls.length === 1 && { flex: 0, width: "70%" }]} />
+          ))}
+        </Pressable>
+      )}
 
-      {post.caption ? <Text>{`"${post.caption}"`}</Text> : null}
+      {post.caption ? (
+        <Text>
+          <Text style={{ fontWeight: "700" }}>Notes: </Text>
+          {post.caption}
+        </Text>
+      ) : null}
       {chips.length > 0 && (
         <View style={styles.chips}>
           {chips.slice(0, 5).map((c) => <Chip key={c} label={c} />)}
         </View>
       )}
-
-      {post.myScoreForIt !== undefined ? (
-        <View style={styles.callout}>
-          <Text variant="caption">You gave it <Text variant="caption" style={{ fontWeight: "700" }}>{post.myScoreForIt.toFixed(1)}</Text></Text>
-        </View>
-      ) : (
-        <Pressable onPress={() => router.push({ pathname: "/rate", params: { kind: post.target.kind, id: String(post.target.id) } })}>
-          <Text variant="caption" style={{ color: colors.accent, fontWeight: "600" }}>Rank it too →</Text>
-        </Pressable>
+      {post.myScoreForIt !== undefined && (
+        <Text variant="caption" muted>
+          You gave it <Text variant="caption" style={{ fontWeight: "700", color: ratingColor(post.myScoreForIt) }}>{post.myScoreForIt.toFixed(1)}</Text>
+        </Text>
       )}
 
       <View style={styles.row}>
         <Pressable accessibilityRole="button" accessibilityLabel="Like" onPress={like} style={styles.action}>
-          <Icon name="heart" size={18} color={post.myReaction ? colors.accent : colors.muted} />
-          <Text variant="caption" muted>{post.reactionCount ?? 0}</Text>
+          <Icon name="heart" size={20} color={post.myReaction ? colors.accent : colors.fg} />
+          {!!post.reactionCount && <Text variant="caption">{post.reactionCount}</Text>}
         </Pressable>
-        <View style={styles.action} accessibilityLabel="Comments">
-          <Icon name="comment" size={18} color={colors.muted} />
-          <Text variant="caption" muted>{post.commentCount ?? 0}</Text>
-        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Comments" onPress={onComments} style={styles.action}>
+          <Icon name="comment" size={20} color={colors.fg} />
+          {!!post.commentCount && <Text variant="caption">{post.commentCount}</Text>}
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Share" onPress={share} style={styles.action}>
+          <Icon name="share" size={20} color={colors.fg} />
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        {post.myScoreForIt === undefined && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Rank it too" onPress={rankToo} style={styles.action}>
+            <Icon name="plusCircle" size={22} color={colors.fg} />
+          </Pressable>
+        )}
+        <Pressable accessibilityRole="button" accessibilityLabel={saved ? "Saved" : "Save"} onPress={save} style={styles.action}>
+          <Icon name="bookmark" size={20} color={saved ? colors.accent : colors.fg} />
+        </Pressable>
       </View>
+      <Text variant="caption" muted>{timeAgo(post.createdAt)}</Text>
     </View>
   );
+}
+
+/** Score in a colored ring, Beli-style. The number is the backend's; the color is the rating scale. */
+function ScoreRing({ score }: { score: number }) {
+  return (
+    <View style={[styles.ring, { borderColor: ratingColor(score) }]} accessibilityLabel={`Score ${score.toFixed(1)}`}>
+      <Text style={{ fontWeight: "700", color: ratingColor(score) }}>{score.toFixed(1)}</Text>
+    </View>
+  );
+}
+
+/** "Today" / "Yesterday" / "Nov 12" divider when the day changes between posts (formatting only). */
+function dayLabel(ms: number): string {
+  const d = new Date(ms);
+  const today = new Date();
+  const y = new Date();
+  y.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === y.toDateString()) return "Yesterday";
+  return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 const styles = StyleSheet.create({
@@ -139,8 +198,9 @@ const styles = StyleSheet.create({
   iconButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute", top: -4, right: -6, backgroundColor: colors.accent, color: colors.white, fontSize: 10, lineHeight: 14, paddingHorizontal: 5, borderRadius: 8, overflow: "hidden" },
   post: { gap: 10, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
-  photo: { borderRadius: radius.xl, overflow: "hidden" },
+  photos: { flexDirection: "row", gap: 6 },
+  photo: { flex: 1, height: 190, borderRadius: radius.lg },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  callout: { backgroundColor: colors.raised, borderRadius: radius.md, padding: 10 },
-  action: { flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 12 },
+  action: { flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 14 },
+  ring: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: "center", justifyContent: "center" },
 });

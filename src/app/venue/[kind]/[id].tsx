@@ -112,7 +112,7 @@ export default function Venue() {
         ) : (
           venue.friendRankings.map((f) => (
             <Pressable key={String(f.userId)} style={styles.review}
-              onPress={() => router.push({ pathname: "/friend/[id]", params: { id: String(f.userId) } })}>
+              onPress={() => router.push({ pathname: "/user/[userId]", params: { userId: String(f.userId) } })}>
               <Avatar name={f.displayName} url={f.avatarUrl} size={34} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: "600" }}>{f.displayName}{f.isLocal ? " · Local" : ""}</Text>

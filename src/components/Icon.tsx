@@ -2,7 +2,7 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 export type IconName =
   | "back" | "bell" | "home" | "map" | "plus" | "feed" | "user" | "spark"
-  | "search" | "heart" | "comment" | "check";
+  | "search" | "heart" | "comment" | "check" | "bookmark" | "share" | "plusCircle" | "undo";
 
 export function Icon({ name, size = 22, color }: { name: IconName; size?: number; color: string }) {
   const stroke = { stroke: color, strokeWidth: 2, fill: "none" } as const;
@@ -46,6 +46,15 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
         <Path d="M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z" {...stroke} />
       )}
       {name === "comment" && <Path d="M4 5h16v11H9l-5 4z" {...stroke} strokeLinejoin="round" />}
+      {name === "share" && <Path d="M21 3L10 14M21 3l-7 18-4-7-7-4z" {...stroke} strokeLinejoin="round" />}
+      {name === "plusCircle" && (
+        <>
+          <Circle cx={12} cy={12} r={9} {...stroke} />
+          <Path d="M12 8v8M8 12h8" {...stroke} strokeLinecap="round" />
+        </>
+      )}
+      {name === "undo" && <Path d="M9 7L4 12l5 5M4 12h11a5 5 0 010 10h-2" {...stroke} strokeLinecap="round" />}
+      {name === "bookmark" && <Path d="M6 4h12v16l-6-4-6 4z" {...stroke} strokeLinejoin="round" />}
       {name === "check" && <Path d="M5 12l5 5 9-10" {...stroke} strokeWidth={2.6} strokeLinecap="round" />}
     </Svg>
   );

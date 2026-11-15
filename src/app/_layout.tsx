@@ -60,8 +60,8 @@ function RootStack() {
         <Stack.Screen name="rankings" />
         <Stack.Screen name="plan" />
         <Stack.Screen name="friends" />
-        <Stack.Screen name="friend/[id]" />
-        <Stack.Screen name="compare" />
+        <Stack.Screen name="user/[userId]" />
+        <Stack.Screen name="compare/[userId]" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="moments" />
       </Stack.Protected>

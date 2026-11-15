@@ -12,8 +12,19 @@ Branch `bryan-ui-input`, merged up to `main` first. Decisions come from the merg
 - **Root gating:** signed out → welcome · signed in and not onboarded → quiz · otherwise tabs (`users.me.onboarded`).
 - No scores, orders or "why" lines are computed in the UI. Friend scores show side by side, never averaged.
 
-## Not done yet (next pass)
-Map pins by tier with Bryan's bubble style · rank flow (3 buckets + binary search + quick questions) · profile/rankings/friends/friend/compare/plan/notifications screens still placeholders · `friend/[id]` → `user/[userId]` rename · light/dark toggle.
+## Pass 2 (decisions Q7, Q8, Q16, Q18, Q20)
+- **Feed (Q18):** like (`posts.react`), save the place (`saves.toggle`, "want"), comments sheet (`posts.comments` / `addComment` / long-press to delete).
+- **Rank flow (Q16):** pick spot → 🔥 Loved it / 😐 It was fine / 💀 Didn't like it → "Which was better?" binary search (≤4 rounds, "Too close to call") → tags, caption, Who sees it (Friends / Public / Only me) → Post (`rankings.rank`) → result → quick questions (`insights.questionsFor` / `submit`). Photo step not added yet.
+- **Social (Q20):** `friends.tsx` (search, requests, suggestions with reason, friends, sent), `user/[userId]` (profile + friend button by status), `compare/[userId]`, my Profile tab from `profile.get`. Replaces `friend/[id]` and `compare.tsx`.
+- **Q7:** "Been here?" stays; needs backend E6 to save. **Q8:** taste card = backend meters + local persona.
+
+## Pass 3 (reference recordings: Beli feed + rank flow, Letterboxd, Instagram, TikTok)
+- **Feed card (Beli):** "Name ranked Place" + colored score ring, up to 2 photos side by side (no placeholder when there are none), "Notes:", tags, "You gave it X", heart · comment · share on the left, ⊕ Rank it too + bookmark on the right, Today / Yesterday dividers.
+- **Rank flow (Beli):** "Add to my list of …", "How was it?" as three colored circles, "Which do you prefer?" with OR, and Undo · Too tough · Skip (Skip compares against the next place instead).
+- **Later, needs backend:** a "For You" full-screen mode (Instagram/TikTok) needs a public feed; "ranked with Nicole, Leanna…" needs tagged friends on a post; visit count needs a visits field. Letterboxd-style quick sheet (Been / Save / Going + share to stories) can be added to the venue page.
+
+## Not done yet
+Map pins by tier with Bryan's bubble style · rankings / plan / notifications / settings / saved / trips / performer screens · photo upload in the rank flow · light/dark toggle · public accounts + Follow (backend ask below).
 
 ## Backend asks (optional fields only)
 | # | Ask | For |
@@ -23,4 +34,5 @@ Map pins by tier with Bryan's bubble style · rank flow (3 buckets + binary sear
 | E5 | `friendsAvg` on `NearbyItem` | Map badges |
 | E6 | Bulk seed ratings from "Been here?" (answers kept on device for now) | Quiz |
 | E11 | Apple + Google OAuth providers in `convex/auth.ts` | Welcome |
+| E12 | Public / private accounts: `isPublic` setting, `follows` (follow / unfollow, follower counts), `ProfileResult.user.isPublic`, `canSee` true for public | Q20 |
 | — | Vibe filter on `discover.tonight` / `forGroup` (Vibe chips pass to Plan my night for now) | Search |
