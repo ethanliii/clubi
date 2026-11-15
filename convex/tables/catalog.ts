@@ -82,6 +82,8 @@ export const catalogTables = {
     performerNames: v.optional(v.array(v.string())),
     createdAt: v.optional(v.number()),
     learnedVector: v.optional(v.array(v.number())),
+    // v2 (Data): the same event's pages on other sources ("also on Eventbrite"), when two sources list it
+    otherUrls: v.optional(v.array(v.string())),
   })
     .index("by_source", ["source", "sourceId"])
     .index("by_category", ["category"])

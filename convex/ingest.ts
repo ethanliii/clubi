@@ -9,7 +9,15 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { DEFAULT_RADIUS_METERS } from "./lib/discovery";
-import { genresToVector, MAX_PERFORMERS, nameKeys, normalizePerformerName, parsePerformers } from "./lib/performers";
+import {
+  blendVectors,
+  genresToVector,
+  hasKnownGenre,
+  MAX_PERFORMERS,
+  nameKeys,
+  normalizePerformerName,
+  parsePerformers,
+} from "./lib/performers";
 import { type Feature, FEATURES } from "./lib/recs";
 import { notifyPerformerFans } from "./performers";
 import { categoryValidator, sourceValidator } from "./tables/catalog";
@@ -51,6 +59,12 @@ const KEYWORD_RULES: { match: RegExp; set: Weights }[] = [
   { match: /rooftop|patio|outdoor seating|beer garden|biergarten/, set: { outdoors: 0.6 } },
   { match: /festival|block party|street fair|parade/, set: { energy: 0.8, loudness: 0.7, outdoors: 0.7 } },
   { match: /restaurant|\bfood\b|cuisine|dinner|brunch|tasting|supper|pizza|taco|ramen|sushi|bbq|barbecue|burger|bakery|\bcafe\b|coffee|dim sum|noodle/, set: { food: 0.9 } },
+  // Cuisine (OpenStreetMap `cuisine`, Eventbrite food events): what kind of meal it is.
+  { match: /\b(french|italian|japanese|sushi|omakase|steak ?house|seafood|oyster|tapas|kaiseki|fine dining)\b/, set: { price: 0.65, loudness: 0.35 } },
+  { match: /\b(burger|pizza|tacos?|mexican|burrito|sandwich|hot ?dog|fried chicken|wings|donut|bagel|deli|diner|fast food|food truck)\b/, set: { price: 0.25, energy: 0.5 } },
+  { match: /\b(coffee shop|tea|bubble tea|ice cream|dessert|bakery|pastry|juice)\b/, set: { energy: 0.25, loudness: 0.2, price: 0.25, dancing: 0.05 } },
+  { match: /\b(korean bbq|hot ?pot|izakaya|dim sum|beer garden|gastropub|bar food)\b/, set: { energy: 0.65, loudness: 0.6 } },
+  { match: /craft beer|\bbeers? on tap\b/, set: { loudness: 0.55, price: 0.4 } },
   { match: /21\s?\+|college|student|university|\bfrat/, set: { crowdAge: 0.85 } },
   { match: /classical|symphony|opera|wine tasting|senior/, set: { crowdAge: 0.2 } },
   { match: /\${3,}|fine dining|upscale|michelin|omakase|tasting menu/, set: { price: 0.85 } },
@@ -58,6 +72,18 @@ const KEYWORD_RULES: { match: RegExp; set: Weights }[] = [
   { match: /tea ?house|book ?(store|shop)|library|meditat|\byoga\b|\bquiet\b|\bcozy\b/, set: { energy: 0.15, loudness: 0.1 } },
   { match: /\b(nba|nfl|nhl|mlb|mls|basketball|football|hockey|baseball|soccer|sports)\b/, set: { energy: 0.85, loudness: 0.85, liveMusic: 0.1 } },
   { match: /networking|meetup|founders?\b|startup|hackathon|\bpanel\b|workshop|fireside|demo day/, set: { culture: 0.6, energy: 0.35, loudness: 0.25, dancing: 0.05 } },
+  // Event words: what kind of night the title promises.
+  { match: /\b(house|techno|disco|amapiano|afro ?house|garage|jungle) (night|party|set|sets|music|djs?|sessions?|brunch)\b|\bopen decks\b|\bvinyl (night|set|only)\b|\bb2b\b/, set: { electronic: 0.9, dancing: 0.85, energy: 0.8, loudness: 0.8 } },
+  { match: /\b(funk|soul|motown|boogie|swing|lindy hop)\b/, set: { dancing: 0.75, energy: 0.7, liveMusic: 0.6 } },
+  { match: /\b(trivia|bingo|quiz night|game night|board games?)\b/, set: { energy: 0.5, loudness: 0.5, culture: 0.5, dancing: 0.05, liveMusic: 0.15 } },
+  { match: /\bdrag (show|brunch|bingo|night|queen|king)|\bburlesque\b|\bcabaret\b/, set: { culture: 0.7, energy: 0.75, pop: 0.7, liveMusic: 0.5 } },
+  { match: /gallery opening|opening reception|art walk|first friday|open studios?|\bvernissage\b/, set: { culture: 0.95, energy: 0.5, loudness: 0.35, price: 0.2 } },
+  { match: /\brun club\b|\b5k\b|\bfun run\b|\bhike\b|\bbike ride\b|pickleball/, set: { outdoors: 0.9, energy: 0.6, loudness: 0.2, dancing: 0.05, price: 0.15 } },
+  { match: /\bbrunch\b|\bbottomless\b/, set: { food: 0.85, energy: 0.6, crowdAge: 0.6 } },
+  { match: /\bwine (tasting|night|club|walk)|\bnatural wine\b|\bsommelier\b/, set: { price: 0.7, loudness: 0.3, food: 0.6, crowdAge: 0.35 } },
+  { match: /\bsilent disco\b|\bday ?party\b|\bdance party\b|\bday rave\b/, set: { dancing: 0.9, energy: 0.85, crowdAge: 0.7 } },
+  { match: /\bspeed dating\b|\bsingles\b|\bmixer\b/, set: { crowdAge: 0.6, energy: 0.5, loudness: 0.45 } },
+  { match: /sound bath|sound healing|breathwork|\bmeditation\b/, set: { energy: 0.1, loudness: 0.1, dancing: 0.05 } },
 ];
 
 const priceFeature = (price: number | string | undefined) => {
@@ -111,10 +137,19 @@ const PLACE_DEDUPE_METERS = 50;
 const METERS_PER_DEGREE = 111_320;
 const PLACE_DEDUPE_DEGREES = PLACE_DEDUPE_METERS / METERS_PER_DEGREE;
 const EVENT_DEDUPE_MS = 60 * 60 * 1000;
+// Two sources' rows are one event when they start within the hour, within 200 m of each other,
+// and have the same title or the same headliner.
+const EVENT_DEDUPE_METERS = 200;
+// Partiful and guests-only Luma events give a point rounded to about a kilometre.
+const APPROXIMATE_DEDUPE_METERS = 1500;
+const APPROXIMATE_TAG = "approximate location";
+const MAX_OTHER_URLS = 4;
 const VENUE_MATCH_METERS = 150;
 const VENUE_MATCH_DEGREES = VENUE_MATCH_METERS / METERS_PER_DEGREE;
 const VENUE_BAND_LIMIT = 400;
 const EVENT_LINK_LIMIT = 20;
+/** Share of an event's vector that comes from its performers' genres, when we know them. */
+const PERFORMER_VECTOR_WEIGHT = 0.4;
 const ASSUMED_EVENT_MS = 3 * 60 * 60 * 1000;
 // Hand-set rows are never overwritten or replaced by an import.
 const PROTECTED_SOURCES = ["seed", "manual"] as const;
@@ -268,7 +303,7 @@ async function upsertPlace(ctx: MutationCtx, row: IngestRow, nameKey: string): P
     await ctx.db.insert("places", { ...fields, elo: 0, nComparisons: 0 });
     return "inserted";
   }
-  if (isProtected(duplicate.source) || richness(duplicate) >= richness(fields)) return "duplicate";
+  if (isProtected(duplicate.source) || (!isProtected(row.source) && richness(duplicate) >= richness(fields))) return "duplicate";
   await ctx.db.patch(duplicate._id, {
     ...fields,
     address: fields.address ?? duplicate.address,
@@ -378,6 +413,19 @@ async function linkLineup(ctx: MutationCtx, eventId: Id<"events">, start: number
   }
 }
 
+/** A performer's genre vector, or null when we know no genre for them (a neutral vector would only blur the event). */
+function lineupVector({ existing, input }: LineupEntry): number[] | null {
+  const genres = existing?.genres?.length ? existing.genres : (input?.genres ?? []);
+  if (!hasKnownGenre(genres)) return null;
+  return existing?.genres?.length && existing.vector?.length === FEATURES.length ? existing.vector : genresToVector(genres);
+}
+
+/** `otherUrls` with one more page added, or null when there is nothing new to add. */
+function withOtherUrl(event: { sourceUrl?: string; otherUrls?: string[] }, url: string | undefined): string[] | null {
+  if (!url || url === event.sourceUrl || event.otherUrls?.includes(url)) return null;
+  return [...(event.otherUrls ?? []), url].slice(-MAX_OTHER_URLS);
+}
+
 type VenueCache = Map<string, Id<"places"> | null>;
 
 /** The catalog place an event is at: same normalised name as `venueName` within 150 m. */
@@ -423,8 +471,12 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     blurb: row.blurb,
     venueName: row.venueName?.trim() || undefined,
     performerNames: lineup.length ? lineup.map((entry) => entry.name) : undefined,
-    venueVector:
+    // Who is playing says more about the night than the title: blend their genre vectors in.
+    venueVector: blendVectors(
       row.venueVector ?? featurize({ ...row, title: row.name, description: row.blurb }),
+      lineup.map(lineupVector).filter((vector): vector is number[] => vector !== null),
+      PERFORMER_VECTOR_WEIGHT,
+    ),
   };
   // After a write to an event that already existed. Fans hear about an event once, when it is
   // first stored with a line-up: a later update never notifies again.
@@ -466,7 +518,14 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
       q.gte("start", start - EVENT_DEDUPE_MS).lte("start", start + EVENT_DEDUPE_MS),
     )
     .collect();
-  const duplicate = window.find((e) => normalizeName(e.title) === nameKey);
+  const headliner = lineup[0] ? normalizePerformerName(lineup[0].name) : undefined;
+  const approximate = (tags: string[] | undefined) => tags?.includes(APPROXIMATE_TAG) ?? false;
+  const duplicate = window.find(
+    (e) =>
+      haversineMeters(e, row) <= (approximate(e.tags) || approximate(row.tags) ? APPROXIMATE_DEDUPE_METERS : EVENT_DEDUPE_METERS) &&
+      (normalizeName(e.title) === nameKey ||
+        (headliner !== undefined && e.performerNames?.[0] !== undefined && normalizePerformerName(e.performerNames[0]) === headliner)),
+  );
   if (!duplicate) {
     const placeId = (await findVenuePlace(ctx, row, venues)) ?? undefined;
     const eventId = await ctx.db.insert("events", { ...fields, placeId, createdAt: Date.now(), elo: 0, nComparisons: 0 });
@@ -474,8 +533,11 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     if (lineup.length) await notifyPerformerFans(ctx, eventId);
     return "inserted";
   }
-  if (isProtected(duplicate.source) || richness(duplicate) >= richness(fields)) {
-    // The other source's row stays, but a line-up it did not have is worth keeping.
+  if (isProtected(duplicate.source) || (!isProtected(row.source) && richness(duplicate) >= richness(fields))) {
+    // The other source's row stays; this source's page is remembered next to it.
+    const otherUrls = withOtherUrl(duplicate, row.sourceUrl);
+    if (otherUrls) await ctx.db.patch(duplicate._id, { otherUrls });
+    // A line-up the kept row did not have is worth keeping too.
     if (lineup.length && !duplicate.performerNames?.length) {
       await ctx.db.patch(duplicate._id, { performerNames: fields.performerNames });
       await linkLineup(ctx, duplicate._id, duplicate.start, lineup, row.source);
@@ -492,15 +554,54 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     blurb: fields.blurb ?? duplicate.blurb,
     venueName: fields.venueName ?? duplicate.venueName,
     performerNames: fields.performerNames ?? duplicate.performerNames,
+    // The row now belongs to the richer source: keep the page it had before.
+    otherUrls: withOtherUrl({ ...duplicate, sourceUrl: fields.sourceUrl }, duplicate.sourceUrl) ?? duplicate.otherUrls,
   });
   if (lineup.length) await afterUpdate(duplicate);
   return "replaced";
 }
 
+type Counts = { inserted: number; updated: number; unchanged: number; replaced: number; duplicate: number; dropped: number; frozen: boolean };
+
+/**
+ * The work of `upsertBatch`, for mutations that write catalog rows themselves (convex/catalog.ts).
+ * `ignoreFreeze` is for rows a person adds by hand: the freeze is about imports.
+ */
+export async function upsertRows(
+  ctx: MutationCtx,
+  kind: "place" | "event",
+  rows: IngestRow[],
+  options: { ignoreFreeze?: boolean } = {},
+): Promise<Counts> {
+  if (rows.length > MAX_BATCH) throw new Error("upsertBatch takes at most " + MAX_BATCH + " rows");
+  const counts: Counts = { inserted: 0, updated: 0, unchanged: 0, replaced: 0, duplicate: 0, dropped: 0, frozen: false };
+  if (kind === "event" && !options.ignoreFreeze && (await readFrozen(ctx))) return { ...counts, frozen: true };
+  const now = Date.now();
+  const venues: VenueCache = new Map();
+  for (const row of rows) {
+    const nameKey = normalizeName(row.name);
+    const located = Number.isFinite(row.lat) && Number.isFinite(row.lng);
+    const past =
+      kind === "event" &&
+      (row.start === undefined || (row.end ?? row.start + ASSUMED_EVENT_MS) < now);
+    if (!nameKey || !located || past) {
+      counts.dropped++;
+      continue;
+    }
+    counts[
+      kind === "place"
+        ? await upsertPlace(ctx, row, nameKey)
+        : await upsertEvent(ctx, row, nameKey, row.start!, venues)
+    ]++;
+  }
+  return counts;
+}
+
 /**
  * Upsert up to MAX_BATCH places or events by source + sourceId. A row with the
- * same name within 50 m (places) or the same title starting within 1 h
- * (events) is a duplicate: the richer row is kept, and hand-set rows always
+ * same name within 50 m (places), or the same title or headliner starting
+ * within 1 h and within 200 m (events), is a duplicate: the richer row is
+ * kept, the other source's page goes into `otherUrls`, and hand-set rows always
  * win. Unnamed rows and past events are dropped. Events also get their
  * performers stored and linked, a `placeId` when the venue is a catalog place,
  * and, the first time they are stored with a line-up, the artist alert. Event batches write nothing
@@ -511,30 +612,7 @@ export const upsertBatch = internalMutation({
     kind: v.union(v.literal("place"), v.literal("event")),
     rows: v.array(ingestRow),
   },
-  handler: async (ctx, { kind, rows }) => {
-    if (rows.length > MAX_BATCH) throw new Error("upsertBatch takes at most " + MAX_BATCH + " rows");
-    const counts = { inserted: 0, updated: 0, unchanged: 0, replaced: 0, duplicate: 0, dropped: 0, frozen: false };
-    if (kind === "event" && (await readFrozen(ctx))) return { ...counts, frozen: true };
-    const now = Date.now();
-    const venues: VenueCache = new Map();
-    for (const row of rows) {
-      const nameKey = normalizeName(row.name);
-      const located = Number.isFinite(row.lat) && Number.isFinite(row.lng);
-      const past =
-        kind === "event" &&
-        (row.start === undefined || (row.end ?? row.start + ASSUMED_EVENT_MS) < now);
-      if (!nameKey || !located || past) {
-        counts.dropped++;
-        continue;
-      }
-      counts[
-        kind === "place"
-          ? await upsertPlace(ctx, row, nameKey)
-          : await upsertEvent(ctx, row, nameKey, row.start!, venues)
-      ]++;
-    }
-    return counts;
-  },
+  handler: (ctx, { kind, rows }) => upsertRows(ctx, kind, rows),
 });
 
 const MAX_KNOWN_IDS = 300;

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { featurize } from "../ingest";
-import { blendVectors, genresToVector, hasKnownGenre, MAX_PERFORMERS } from "../lib/performers";
+import { MAX_PERFORMERS } from "../lib/performers";
 import { zonedToEpoch } from "./eventbrite";
 
 // Ticketmaster Discovery API v2 (developer.ticketmaster.com, documented; 5 requests a second and
@@ -28,7 +28,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // When Ticketmaster knows the day but not the time.
 const DEFAULT_SHOW_TIME = "20:00";
 const IMAGE_TARGET_WIDTH = 1024;
-const PERFORMER_VECTOR_WEIGHT = 0.4;
 
 type Image = { ratio?: string; url?: string; width?: number; height?: number; fallback?: boolean };
 type Named = { name?: string } | null;
@@ -159,8 +158,6 @@ export function ticketmasterToRow(event: TicketmasterEvent, now: number) {
     });
   }
 
-  const base = featurize({ category: "live", subcategory, tags, title: name, price });
-  const performerVectors = performers.filter((p) => p.genres && hasKnownGenre(p.genres)).map((p) => genresToVector(p.genres!));
   return {
     source: "ticketmaster" as const,
     sourceId: event.id,
@@ -180,7 +177,8 @@ export function ticketmasterToRow(event: TicketmasterEvent, now: number) {
     blurb: [segment, ...genres].filter(Boolean).join(" · ") || undefined,
     venueName: venue.name?.trim() || undefined,
     performers: performers.length ? performers : undefined,
-    venueVector: blendVectors(base, performerVectors, PERFORMER_VECTOR_WEIGHT),
+    // The ingest blends the performers' genre vectors into this.
+    venueVector: featurize({ category: "live", subcategory, tags, title: name, price }),
   };
 }
 

@@ -1,0 +1,222 @@
+{
+ "version": 0.6,
+ "osm3s": {
+  "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+ },
+ "elements": [
+  {
+   "type": "node",
+   "id": 418513730,
+   "lat": 37.7648614,
+   "lon": -122.4210768,
+   "tags": {
+    "addr:housenumber": "3071",
+    "addr:street": "16th Street",
+    "amenity": "restaurant",
+    "check_date": "2026-05-02",
+    "check_date:opening_hours": "2025-04-29",
+    "cuisine": "mexican",
+    "internet_access": "no",
+    "level": "0",
+    "name": "Pancho Villa",
+    "opening_hours": "Mo-Su 10:00-22:00",
+    "payment:cash": "yes",
+    "payment:credit_cards": "yes",
+    "payment:debit_cards": "yes",
+    "phone": "+1-415-864-8840",
+    "website": "https://sfpanchovilla.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 540452285,
+   "lat": 37.7614146,
+   "lon": -122.424342,
+   "tags": {
+    "addr:city": "San Francisco",
+    "addr:housenumber": "3621",
+    "addr:postcode": "94110",
+    "addr:state": "CA",
+    "addr:street": "18th Street",
+    "amenity": "restaurant",
+    "check_date:opening_hours": "2026-07-09",
+    "cuisine": "italian;pizza",
+    "delivery": "no",
+    "name": "Delfina",
+    "opening_hours": "Mo-Sa 16:30-22:00; Su 16:30-21:00",
+    "outdoor_seating": "yes",
+    "phone": "+1 415 552 4055",
+    "smoking": "no",
+    "takeaway": "yes",
+    "website": "https://www.delfinasf.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 1424879519,
+   "lat": 37.7625463,
+   "lon": -122.4215367,
+   "tags": {
+    "addr:city": "San Francisco",
+    "addr:housenumber": "647",
+    "addr:postcode": "94110",
+    "addr:state": "CA",
+    "addr:street": "Valencia Street",
+    "amenity": "nightclub",
+    "contact:yelp": "https://www.yelp.com/biz/the-valencia-room-san-francisco-2",
+    "live_music": "yes",
+    "name": "The Valencia Room",
+    "note": "Also a bar",
+    "old_name": "Elbo Room",
+    "opening_hours": "Mo-Fr 17:00-26:00; Sa-Su 14:00-26:00",
+    "opening_hours:url": "https://www.thevalenciaroom.com/",
+    "outdoor_seating": "no",
+    "phone": "+1 415 5988862",
+    "smoking": "no",
+    "was:website": "https://www.elbo.com/",
+    "website": "https://www.thevalenciaroom.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 2657930588,
+   "lat": 37.7617297,
+   "lon": -122.422948,
+   "tags": {
+    "addr:city": "San Francisco",
+    "addr:housenumber": "3560",
+    "addr:postcode": "94110",
+    "addr:state": "CA",
+    "addr:street": "18th Street",
+    "amenity": "restaurant",
+    "check_date": "2025-05-25",
+    "cocktails": "yes",
+    "cuisine": "hawaiian;asian;american",
+    "diet:gluten_free": "yes",
+    "diet:meat": "yes",
+    "diet:organic": "yes",
+    "diet:pescetarian": "yes",
+    "diet:vegetarian": "yes",
+    "dog": "no",
+    "drink:wine": "yes",
+    "indoor_seating": "yes",
+    "name": "Good Good Culture Club",
+    "old_name": "Liholiho Yacht Club",
+    "opening_hours": "Tu-Sa 17:30-21:30",
+    "opening_hours:url": "https://goodgoodcultureclub.com/pages/good-info",
+    "outdoor_seating": "yes",
+    "reservation": "yes",
+    "reservation:url": "https://goodgoodcultureclub.com/pages/reservations",
+    "website": "https://goodgoodcultureclub.com/",
+    "wheelchair": "yes"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4163759705,
+   "lat": 37.761816,
+   "lon": -122.4214482,
+   "tags": {
+    "addr:city": "San Francisco",
+    "addr:housenumber": "699",
+    "addr:state": "CA",
+    "addr:street": "Valencia Street",
+    "amenity": "restaurant",
+    "check_date": "2026-05-10",
+    "cuisine": "mexican",
+    "diet:vegetarian": "yes",
+    "microbrewery": "no",
+    "name": "Taqueria El Buen Sabor",
+    "opening_hours": "Su-Th 10:00-21:30; Fr-Sa 10:00-22:00",
+    "outdoor_seating": "no",
+    "payment:mastercard": "yes",
+    "phone": "+1 415 552 8816",
+    "smoking": "no",
+    "website": "https://www.taqueriaelbuensabor.com",
+    "wheelchair": "yes"
+   }
+  },
+  {
+   "type": "node",
+   "id": 9403976636,
+   "lat": 37.7594191,
+   "lon": -122.4215245,
+   "tags": {
+    "addr:housenumber": "842",
+    "addr:street": "Valencia Street",
+    "amenity": "bar",
+    "check_date": "2026-05-10",
+    "cocktails": "yes",
+    "food": "yes",
+    "name": "The Beehive",
+    "opening_hours": "Tu-Th 16:00-24:00, Fr 16:00-02:00, Sa 14:00-02:00, Su 14:00-22:00",
+    "opening_hours:url": "https://www.thebeehivesf.com/",
+    "website": "https://www.thebeehivesf.com/",
+    "website:menu": "https://docs.wixstatic.com/ugd/fc5156_2c0b5e2c2e3e490c96b1ea3fe131e57d.pdf"
+   }
+  },
+  {
+   "type": "node",
+   "id": 10555829843,
+   "lat": 37.7648164,
+   "lon": -122.4213338,
+   "tags": {
+    "addr:city": "San Francisco",
+    "addr:housenumber": "3079",
+    "addr:postcode": "94103",
+    "addr:state": "CA",
+    "addr:street": "16th Street",
+    "amenity": "bar",
+    "check_date": "2024-09-07",
+    "lgbtq": "primary",
+    "lgbtq:women": "primary",
+    "name": "Mother",
+    "opening_hours": "Mo-We 16:00-24:00; Th-Fr 16:00-02:00; Sa 14:00-02:00; Su 14:00-24:00; PH closed",
+    "website": "https://www.mothersf.com/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 10609477671,
+   "lat": 37.7603692,
+   "lon": -122.4186233,
+   "tags": {
+    "addr:housenumber": "3368;3370",
+    "addr:street": "19th Street",
+    "amenity": "bar",
+    "brewery": "no",
+    "check_date": "2023-02-05",
+    "description": "Wine beer and vermouth cocktails as well as snacks.",
+    "name": "Royal Cuckoo Market",
+    "opening_hours": "Mo-We 14:00-22:00; Th-Sa 11:00-23:00; Su off",
+    "outdoor_seating": "yes",
+    "payment:mastercard": "yes",
+    "payment:visa": "yes",
+    "phone": "+1 415-550-6903",
+    "website": "http://www.royalcuckoomarket.com/",
+    "wheelchair": "limited"
+   }
+  },
+  {
+   "type": "way",
+   "id": 23871270,
+   "center": {
+    "lat": 37.7597615,
+    "lon": -122.4271323
+   },
+   "tags": {
+    "addr:postcode": "94114",
+    "alt_name": "Dolores Park",
+    "check_date": "2026-05-18",
+    "check_date:opening_hours": "2026-05-18",
+    "emergency": "assembly_point",
+    "leisure": "park",
+    "name": "Mission Dolores Park",
+    "opening_hours": "Mo-Su 06:00-22:00",
+    "website": "https://sfrecpark.org/destination/mission-dolores-park/",
+    "wikidata": "Q11519",
+    "wikipedia": "en:Mission Dolores Park"
+   }
+  }
+ ]
+}

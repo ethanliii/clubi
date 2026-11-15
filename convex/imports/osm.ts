@@ -81,6 +81,18 @@ function classify(tags: Record<string, string>, cuisines: string[]) {
   return null;
 }
 
+/** A venue's own site as an https/http URL, or undefined ("www.example.com" gets a scheme, anything else odd is dropped). */
+export function webAddress(value: string | undefined): string | undefined {
+  const text = value?.split(";")[0].trim();
+  if (!text || text.length > 300 || /\s/.test(text)) return undefined;
+  const url = /^https?:\/\//i.test(text) ? text : /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/|$)/i.test(text) ? "https://" + text : undefined;
+  try {
+    return url && new URL(url).hostname.includes(".") ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Map one Overpass element to an ingest row, or null when it is unnamed, unlocated, or not a kind we show. */
 export function osmToRow(element: OsmElement) {
   const tags = element.tags ?? {};
@@ -102,6 +114,10 @@ export function osmToRow(element: OsmElement) {
     tags.live_music === "yes" ? "live music" : null,
     tags.lgbtq === "primary" || tags.lgbtq === "only" ? "lgbtq" : null,
     tags.microbrewery === "yes" || tags.craft === "brewery" ? "brewery" : null,
+    // On a bar, `brewery=*` names the beers on tap: a place that lists them cares about its beer.
+    tags.brewery && tags.brewery !== "no" && tags.microbrewery !== "yes" ? "craft beer" : null,
+    tags.cocktails === "yes" || tags["drink:cocktail"] === "yes" ? "cocktails" : null,
+    tags["drink:wine"] === "yes" || tags["drink:wine"] === "served" ? "wine" : null,
     tags.karaoke === "yes" ? "karaoke" : null,
     tags["diet:vegan"] === "only" || tags["diet:vegan"] === "yes" ? "vegan options" : null,
     tags.amenity === "restaurant" && tags.bar === "yes" ? "full bar" : null,
@@ -110,10 +126,15 @@ export function osmToRow(element: OsmElement) {
   ].filter((flag): flag is string => flag !== null);
   const rowTags = [...new Set([...cuisines, ...flags])];
 
-  const address =
+  const street =
     tags["addr:housenumber"] && tags["addr:street"]
-      ? `${tags["addr:housenumber"]} ${tags["addr:street"]}`
+      ? `${tags["addr:housenumber"]} ${tags["addr:street"]}${tags["addr:unit"] ? " #" + tags["addr:unit"] : ""}`
       : undefined;
+  const address = street
+    ? [street, tags["addr:city"], [tags["addr:state"], tags["addr:postcode"]].filter(Boolean).join(" ")]
+        .filter(Boolean)
+        .join(", ")
+    : undefined;
   const blurb = (
     tags.description ??
     (flags.length ? [capitalize(kind.subcategory), ...flags.slice(0, 2)].join(" · ") : undefined)
@@ -128,6 +149,8 @@ export function osmToRow(element: OsmElement) {
     lng,
     address,
     hours: tags.opening_hours?.slice(0, 200),
+    website: webAddress(tags.website ?? tags["contact:website"] ?? tags.url),
+    phone: (tags.phone ?? tags["contact:phone"])?.split(";")[0].trim().slice(0, 40) || undefined,
     tags: rowTags,
     sourceUrl: `https://www.openstreetmap.org/${sourceId}`,
     blurb,

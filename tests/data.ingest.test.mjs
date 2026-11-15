@@ -258,3 +258,89 @@ test("a later, thinner read of the same event keeps the price and image it had",
     ["eb-9"],
   );
 });
+
+test("the same event from two sources is one row that remembers both pages", async () => {
+  const ctx = fakeCtx();
+  const luma = { source: "luma", sourceId: "evt-1", name: "Calvin Harris at The Midway", category: "live", ...MIDWAY, start: soon(20), sourceUrl: "https://lu.ma/calvin" };
+  await events(ctx, [luma]);
+  // Ticketmaster's row is richer (venue, price, image, performers): it takes the row over.
+  const tm = show({ start: soon(20) + 30 * 60 * 1000, lat: MIDWAY.lat + 0.001, price: 80, imageUrl: "https://img.example/ch.jpg", sourceUrl: "https://www.ticketmaster.com/event/1", ticketUrl: "https://www.ticketmaster.com/event/1", name: "Calvin Harris at The Midway" });
+  assert.equal((await events(ctx, [tm])).replaced, 1);
+  let [event, ...rest] = ctx.all("events");
+  assert.equal(rest.length, 0);
+  assert.deepEqual([event.source, event.sourceUrl, event.otherUrls], ["ticketmaster", "https://www.ticketmaster.com/event/1", ["https://lu.ma/calvin"]]);
+  assert.deepEqual(event.performerNames, ["Calvin Harris"]);
+
+  // Eventbrite words the title differently, but it is the same headliner, hour and block.
+  const eb = { source: "eventbrite", sourceId: "eb-1", name: "CALVIN HARRIS: Live in San Francisco", category: "live", ...MIDWAY, start: soon(20), sourceUrl: "https://www.eventbrite.com/e/1", performers: [{ name: "Calvin Harris" }] };
+  assert.equal((await events(ctx, [eb])).duplicate, 1);
+  assert.equal((await events(ctx, [eb])).duplicate, 1);
+  [event, ...rest] = ctx.all("events");
+  assert.equal(rest.length, 0);
+  assert.deepEqual(event.otherUrls, ["https://lu.ma/calvin", "https://www.eventbrite.com/e/1"]);
+  assert.equal(ctx.all("eventPerformers").length, 1);
+});
+
+test("the same title in another part of town, or at another hour, is a different event", async () => {
+  const ctx = fakeCtx();
+  const trivia = { source: "luma", sourceId: "t1", name: "Trivia Night", category: "popup", ...MIDWAY, start: soon(2) };
+  await events(ctx, [trivia]);
+  const counts = await events(ctx, [
+    { ...trivia, source: "eventbrite", sourceId: "t2", lat: MIDWAY.lat + 0.02 },
+    { ...trivia, source: "eventbrite", sourceId: "t3", start: soon(2) + 2 * 60 * 60 * 1000 },
+    { ...trivia, source: "eventbrite", sourceId: "t4", lat: MIDWAY.lat + 0.001 },
+  ]);
+  assert.deepEqual([counts.inserted, counts.duplicate], [2, 1]);
+  assert.equal(ctx.all("events").length, 3);
+});
+
+test("a rounded map point still matches the precise one for the same event", async () => {
+  const ctx = fakeCtx();
+  const precise = { source: "luma", sourceId: "p1", name: "Cookie Picnic", category: "popup", lat: 37.7843, lng: -122.4313, start: soon(1), sourceUrl: "https://lu.ma/cookie", address: "1469 Webster St", imageUrl: "https://x/c.jpg" };
+  await events(ctx, [precise]);
+  const rounded = { source: "partiful", sourceId: "p2", name: "Cookie Picnic", category: "popup", lat: 37.78, lng: -122.43, start: soon(1), tags: ["approximate location"], sourceUrl: "https://partiful.com/e/p2" };
+  assert.equal((await events(ctx, [rounded])).duplicate, 1);
+  const [event] = ctx.all("events");
+  assert.deepEqual([event.lat, event.source, event.otherUrls], [37.7843, "luma", ["https://partiful.com/e/p2"]]);
+});
+
+test("every importer's rows pass the ingest validators and the schema, straight from the real fixtures", async () => {
+  const { fixture, jsonFixture } = await import("./fixtures/load.mjs");
+  const now = Date.parse("2026-11-15T20:00:00Z");
+  const eventbrite = await load("imports/eventbrite");
+  const partiful = await load("imports/partiful");
+  const luma = await load("imports/luma");
+  const ticketmaster = await load("imports/ticketmaster");
+  const osm = await load("imports/osm");
+  const eventRows = [
+    ...eventbrite.listingEvents(fixture("eventbrite-listing.html")).map((e) => eventbrite.eventbriteToRow(e, now)),
+    ...eventbrite.listingEvents(fixture("eventbrite-browse.html")).map((e) => eventbrite.eventbriteToRow(e, now)),
+    eventbrite.eventbriteDetailToRow(jsonFixture("eventbrite-detail.json"), now),
+    ...partiful.pageProps(fixture("partiful-explore.html")).trendingSections.SF.items.map((i) => partiful.partifulToRow(i.event, now)),
+    ...jsonFixture("luma-discover.json").entries.map((e) => luma.lumaToRow(e, now)),
+    ...jsonFixture("ticketmaster-events.json")._embedded.events.map((e) => ticketmaster.ticketmasterToRow(e, now)),
+  ].filter(Boolean);
+  const placeRows = jsonFixture("osm-overpass.json").elements.map(osm.osmToRow).filter(Boolean);
+  assert.ok(eventRows.length >= 18 && placeRows.length >= 9);
+
+  const realNow = Date.now;
+  Date.now = () => now;
+  try {
+    const ctx = fakeCtx();
+    const places = await run(upsertBatch, ctx, { kind: "place", rows: placeRows });
+    assert.equal(places.inserted, placeRows.length);
+    const counts = await events(ctx, eventRows);
+    assert.equal(counts.dropped, 0);
+    assert.equal(counts.inserted + counts.duplicate + counts.updated + counts.unchanged + counts.replaced, eventRows.length);
+    assert.ok(counts.inserted >= 15);
+    const sources = new Set(ctx.all("events").map((e) => e.source));
+    assert.deepEqual([...sources].sort(), ["eventbrite", "luma", "partiful", "ticketmaster"]);
+    assert.ok(ctx.all("performers").length >= 8);
+    // A second run of everything changes nothing.
+    const again = await events(ctx, eventRows);
+    assert.equal(again.inserted + again.updated + again.replaced, 0);
+    assert.equal((await run(upsertBatch, ctx, { kind: "place", rows: placeRows })).unchanged, placeRows.length);
+  } finally {
+    Date.now = realNow;
+  }
+});

@@ -1,0 +1,187 @@
+{
+ "entries": [
+  {
+   "start_at": "2026-11-15T20:30:00.000Z",
+   "event": {
+    "api_id": "evt-lTxiCjVB9CE03KF",
+    "name": "Fairway Social at Baylands: Beginner + Intermediate Golf Clinic & Social 🍂",
+    "url": "o3misl6z",
+    "start_at": "2026-11-15T20:30:00.000Z",
+    "end_at": "2026-11-15T23:00:00.000Z",
+    "cover_url": "https://images.lumacdn.com/uploads/c1/0df0b0aa-8a5e-483f-8856-a8b19b7fb6c9.png",
+    "visibility": "public",
+    "location_type": "offline",
+    "geo_address_visibility": "public",
+    "coordinate": {
+     "longitude": -122.11600159999999,
+     "latitude": 37.453680299999995
+    },
+    "geo_address_info": {
+     "address": "Baylands Golf Links",
+     "short_address": "1875 Embarcadero Rd, Palo Alto",
+     "city": "Palo Alto",
+     "sublocality": null
+    }
+   },
+   "ticket_info": {
+    "is_free": false,
+    "price": {
+     "cents": 18500,
+     "currency": "usd",
+     "is_flexible": false
+    }
+   }
+  },
+  {
+   "start_at": "2026-11-15T21:00:00.000Z",
+   "event": {
+    "api_id": "evt-N4omfRBttCn6U0m",
+    "name": "The SF Tea-Rave",
+    "url": "sftearave",
+    "start_at": "2026-11-15T21:00:00.000Z",
+    "end_at": "2026-11-16T01:00:00.000Z",
+    "cover_url": "https://images.lumacdn.com/uploads/fk/b0f9a755-c19c-47b0-84bd-0a3bde1d06a8.png",
+    "visibility": "public",
+    "location_type": "offline",
+    "geo_address_visibility": "public",
+    "coordinate": {
+     "longitude": -122.41301369999998,
+     "latitude": 37.7723519
+    },
+    "geo_address_info": {
+     "address": "The Foundry SF",
+     "short_address": "1425 Folsom St, San Francisco",
+     "city": "San Francisco",
+     "sublocality": "SoMa"
+    }
+   },
+   "ticket_info": {
+    "is_free": false,
+    "price": {
+     "cents": 2888,
+     "currency": "usd",
+     "is_flexible": false
+    }
+   }
+  },
+  {
+   "start_at": "2026-11-16T02:00:00.000Z",
+   "event": {
+    "api_id": "evt-mPNrRPNePAVJZHB",
+    "name": "Slow Burn Social: A Vinyl Listening Ritual - Destiny Muhammad Trio: Volume 1 + Live Performance",
+    "url": "l9fw9jp2",
+    "start_at": "2026-11-16T02:00:00.000Z",
+    "end_at": "2026-11-16T06:00:00.000Z",
+    "cover_url": "https://images.lumacdn.com/uploads/iy/303f7559-e4ca-4af0-83e7-74f9faa8097a.png",
+    "visibility": "public",
+    "location_type": "offline",
+    "geo_address_visibility": "guests-only",
+    "coordinate": {
+     "latitude": 37.860520737361725,
+     "longitude": -122.25585026005679
+    },
+    "geo_address_info": {
+     "city": "Berkeley",
+     "sublocality": "Elmwood"
+    }
+   },
+   "ticket_info": {
+    "is_free": false,
+    "price": {
+     "cents": 1500,
+     "currency": "usd",
+     "min_cents": 0,
+     "is_flexible": true
+    }
+   }
+  },
+  {
+   "start_at": "2026-11-16T03:30:00.000Z",
+   "event": {
+    "api_id": "evt-GxIldt1JnYEehDR",
+    "name": "Bits (mostly) Queer Comedy - Starring Lady Bushra!",
+    "url": "mimifgp9",
+    "start_at": "2026-11-16T03:30:00.000Z",
+    "end_at": "2026-11-16T05:00:00.000Z",
+    "cover_url": "https://images.lumacdn.com/uploads/vz/3e61af4d-8388-442a-8875-b916d0e7a383.jpg",
+    "visibility": "public",
+    "location_type": "offline",
+    "geo_address_visibility": "guests-only",
+    "coordinate": {
+     "latitude": 37.76670051725071,
+     "longitude": -122.43300876496696
+    },
+    "geo_address_info": {
+     "city": "San Francisco",
+     "sublocality": "Duboce Triangle"
+    }
+   },
+   "ticket_info": {
+    "is_free": false,
+    "price": {
+     "cents": 2000,
+     "currency": "usd",
+     "is_flexible": false
+    }
+   }
+  },
+  {
+   "start_at": "2026-11-17T01:30:00.000Z",
+   "event": {
+    "api_id": "evt-VugVzABYMkqe8vr",
+    "name": "Agentic Web #02 — The Browser as an Agent Runtime",
+    "url": "agentic-web-browser-runtime-nov16-2026",
+    "start_at": "2026-11-17T01:30:00.000Z",
+    "end_at": "2026-11-17T04:30:00.000Z",
+    "cover_url": "https://images.lumacdn.com/uploads/0a/62a9da5d-9ffb-45fc-9281-e37838e2bed6.png",
+    "visibility": "public",
+    "location_type": "offline",
+    "geo_address_visibility": "public",
+    "coordinate": {
+     "longitude": -122.3908867,
+     "latitude": 37.7816889
+    },
+    "geo_address_info": {
+     "address": "625 2nd St",
+     "short_address": "625 2nd St, San Francisco",
+     "city": "San Francisco",
+     "sublocality": "South Beach"
+    }
+   },
+   "ticket_info": {
+    "is_free": true,
+    "price": null
+   }
+  },
+  {
+   "start_at": "2026-11-17T02:00:00.000Z",
+   "event": {
+    "api_id": "evt-tWYBUzzcW1FIf4d",
+    "name": "Who's Watching the Agents?",
+    "url": "cbpgjghx",
+    "start_at": "2026-11-17T02:00:00.000Z",
+    "end_at": "2026-11-17T05:30:00.000Z",
+    "cover_url": "https://images.lumacdn.com/uploads/ni/3a26f7e4-8436-4e74-b05e-c9f4a55cf79f.png",
+    "visibility": "public",
+    "location_type": "offline",
+    "geo_address_visibility": "public",
+    "coordinate": {
+     "longitude": -122.41429289999999,
+     "latitude": 37.8033528
+    },
+    "geo_address_info": {
+     "address": "The Lost Church",
+     "short_address": "988 Columbus Ave, San Francisco",
+     "city": "San Francisco",
+     "sublocality": "North Beach"
+    }
+   },
+   "ticket_info": {
+    "is_free": true,
+    "price": null
+   }
+  }
+ ],
+ "has_more": true,
+ "next_cursor": "fixture-cursor"
+}

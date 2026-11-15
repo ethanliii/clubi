@@ -66,6 +66,8 @@ const affinityFor = (ctx: QueryCtx, userId: Id<"users">, performerId: Id<"perfor
     .withIndex("by_user_performer", (q) => q.eq("userId", userId).eq("performerId", performerId))
     .first();
 
+// INTEGRATION (People): rankings.rank must call `recordPerformerAffinity(ctx, { userId, eventId, score })`
+// after it stores a ranking whose target is an event. On main it does not call it yet.
 /** Called by rankings.rank after a user ranks an event: moves their affinity for each performer toward `score` (0–10). */
 export async function recordPerformerAffinity(
   ctx: MutationCtx,
@@ -142,6 +144,8 @@ async function alertFan(
   if (event.category === "nightlife" && isUnder21(user.birthday, now)) return false;
   const alertsLastDay = await alertsInLastDay(ctx, affinity.userId, now);
   if (!shouldAlert({ ...input, homeCity: user.homeCity, alertsLastDay })) return false;
+  // INTEGRATION (People): notify() is expected to drop this when the user's notifPrefs.artistAlerts
+  // is off. On main it does not read notifPrefs yet; nothing here duplicates that check.
   await notify(ctx, {
     userId: affinity.userId,
     type: "artist_event",
@@ -232,6 +236,11 @@ export const alertRecentFans = internalMutation({
 
 // ───────────────────────────── public ─────────────────────────────
 
+// INTEGRATION (Brain): events carry `performerNames` (for NearbyItem.performers) and `venueName`;
+// VenueDetail.performerCards can come from `forEvent` below; the performer term of the event score
+// is `performerBoost(effectiveAffinity(...))` in convex/lib/performers.ts, read from `affinities`
+// by `by_user_performer`; `otherUrls` on an event lists the same event's pages on other sources;
+// places now carry `website` and `phone` for VenueDetail.
 type Viewer = { userId: Id<"users">; under21: boolean; now: number };
 
 async function viewerOf(ctx: QueryCtx): Promise<Viewer | null> {

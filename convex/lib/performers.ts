@@ -81,7 +81,7 @@ const GENERIC_WORDS = new Set(
     "course bootcamp hackathon demo game games tournament league bingo quiz crawl cruise picnic potluck bbq " +
     "beginner beginners intro introduction every bar pub lounge rooftop patio jam cypher battle competition contest " +
     "awards ceremony recital residency takeover special various artists lineup djs bands silent disco " +
-    "day evening morning afternoon sunset sunrise midnight headline " +
+    "day evening morning afternoon sunset sunrise midnight headline comedy standup " +
     // words of a sentence, not of a name: "Love Is a Place", "Finding Your Voice"
     "is are your my our we you this that it its for to how why what who"
   ).split(" "),
@@ -96,7 +96,7 @@ const GENRE_LEADS = new Set(
 const GENERIC_PHRASES = /^(special guests?|and more|many more|more tba|friends|guests|support|tba|tbd|local support|surprise guests?|open decks)$/;
 
 const BRACKETS = /\s*[([{][^)\]}]*[)\]}]\s*/g;
-const PRESENTS = /^(.*?)\bpresents?\b:?\s+(.+)$/i;
+const PRESENTS = /^(.*?)\b(?:presents?|starring)\b:?\s+(.+)$/i;
 const VENUE_CUT = /\s+(?:at|@)\s+|\s*@\s*|\s+[|—–-]\s+|\s*[|:]\s+|\s+live in\s+|\s+in concert\b/i;
 const TRAILERS =
   /[\s,.:!-]+(?:live!?|headline show|tour|world tour|north american tour|us tour|album release|sold out|21\s?\+|18\s?\+|all ages|(?:19|20)\d\d|dj set|live set|& friends|and friends|\+ friends)$/i;
@@ -190,7 +190,7 @@ export const extractPerformerNames = parsePerformers;
 
 /** True when the title itself says who is on: " at ", "@", "b2b", "presents" (ALGORITHM.md 4.3: when a performer may be created from a title). */
 export const titleNamesLineup = (title: string) =>
-  /\s(?:at|@|b2b|w\/|feat\.?|ft\.?|featuring)\s|\bpresents?\b/i.test(title);
+  /\s(?:at|@|b2b|w\/|feat\.?|ft\.?|featuring)\s|\b(?:presents?|starring)\b/i.test(title);
 
 // ───────────────────────────── genre vectors ─────────────────────────────
 
