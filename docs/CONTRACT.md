@@ -38,6 +38,14 @@ The single list of what the app can ask the backend. Screens call these with `us
 
 `Filter` = `tonight` \| `bars` \| `food` \| `events` \| `popups` \| `outdoors` \| `all`. `tier`: `top` = top 5 (big ringed pin), `good` = labeled pin, `other` = dot.
 
+### Images
+
+Every shape that names a place or event carries an optional `imageUrl`: `NearbyItem` (and so `VenueDetail`, `PlanStop`, `GroupItem`, `places.search`, `discover.similar`), `FeedItem.target`, `RankedListItem`, `SavedItem`, `TripShortlistItem`, `CompareResult.shared[]` and the `rankings.listInBucket` rows. It is a plain `https` URL that needs no key. Still draw a placeholder when it is missing: not every place has a picture.
+
+- **Places:** a Google Places photo, 800 px wide, copied into Convex file storage (`convex/imports/google.ts`, `enrichPhotos`). `NearbyItem.imageAttribution` ("Photo: Ana Lopez") is set for these: show it as small text on or under the picture wherever the picture is shown large (the venue page).
+- **Events:** the image their source (Luma, Eventbrite, Partiful, Ticketmaster) gave them.
+- A post's own photos are `FeedItem.photoUrls`; `target.imageUrl` is the place's picture, for a post without one.
+
 ## Venue insights: the questions after a ranking (Brain)
 
 After `rankings.rank` succeeds, the app asks 3–4 quick multiple-choice questions about the visit. Answers are stored per person, but only totals ever leave the backend.
@@ -66,7 +74,7 @@ After `rankings.rank` succeeds, the app asks 3–4 quick multiple-choice questio
 
 | Function | Kind | Args → Returns | |
 | --- | --- | --- | --- |
-| `api.rankings.listInBucket` | query | `{category, bucket}` → `{id, kind, name, score, position}[]`, best first. The rank flow binary-searches this list. | ✅ |
+| `api.rankings.listInBucket` | query | `{category, bucket}` → `{id, kind, name, score, position, imageUrl?}[]`, best first. The rank flow binary-searches this list. | ✅ |
 | `api.rankings.rank` | mutation | `{kind, id, bucket, position, comparisons: {winnerId, loserId}[], tags, caption?, photoStorageId?, visibility?, groupSize?}` → `RankResult`. Also creates the post, teaches the taste model, and notifies friends. | ✅ (`visibility`, `groupSize` 🆕) |
 | `api.rankings.mine` | query | `{category?}` → `RankedListItem[]`, best first | 🆕 |
 | `api.rankings.remove` | mutation | `{rankingId}` → `null` (also removes its post) | 🆕 |

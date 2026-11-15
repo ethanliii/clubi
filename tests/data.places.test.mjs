@@ -128,6 +128,7 @@ test("similarNames: equal, a typo, or one name inside the other, but not a short
   assert.ok(similarNames("El Rio", "El Rio SF"));
   assert.ok(similarNames("Tartine Bakery", "Tartine Bakery & Cafe"));
   assert.ok(similarNames("Zeitgeistt", "Zeitgeist"));
+  assert.ok(similarNames("Building 12 at Pier 70", "Pier 70 Building 12"), "the same words in another order");
   assert.ok(!similarNames("Bar", "Bar Agricole"));
   assert.ok(!similarNames("Mission Bar", "Mission Chinese Food"));
   assert.ok(!similarNames("", "Zeitgeist"));
@@ -181,4 +182,83 @@ test("without GOOGLE_MAPS_KEY the enrichment skips and says so", async () => {
   } finally {
     if (saved !== undefined) process.env.GOOGLE_MAPS_KEY = saved;
   }
+});
+
+const shot = (id, widthPx, heightPx, ...authors) => ({
+  name: `places/g1/photos/${id}`, widthPx, heightPx, authorAttributions: authors.map((displayName) => ({ displayName })),
+});
+
+test("bestPhoto takes the first wide landscape photo of the leading five, else the first; the credit names its authors", () => {
+  const { bestPhoto, photoAttribution, photoMediaUrl } = google;
+  const portrait = shot("a", 3000, 4000, "Ana Lopez");
+  const small = shot("b", 640, 480);
+  const wide = shot("c", 4000, 3000, "Bo Chen", " ", "Cy Diaz", "Di Eze");
+  assert.equal(bestPhoto([portrait, small, wide]), wide);
+  assert.equal(bestPhoto([portrait, small]), portrait, "nothing wide: Google's first");
+  assert.equal(bestPhoto([portrait, small, small, small, small, wide]), portrait, "only the leading five are considered");
+  assert.equal(bestPhoto([{ name: "https://evil.example/x" }, { widthPx: 900, heightPx: 600 }]), null, "a photo needs a Places photo name");
+  assert.equal(bestPhoto(undefined), null);
+  assert.equal(photoAttribution(portrait), "Photo: Ana Lopez");
+  assert.equal(photoAttribution(wide), "Photo: Bo Chen, Cy Diaz");
+  assert.equal(photoAttribution(small), undefined);
+  assert.equal(photoMediaUrl(wide.name), "https://places.googleapis.com/v1/places/g1/photos/c/media?maxWidthPx=800");
+});
+
+test("photoOrder merges the lists best first, each list weighted by how much of it people see", () => {
+  const { photoOrder, PHOTO_LISTS } = google;
+  assert.deepEqual(PHOTO_LISTS, { all: 60, bars: 40, food: 40, tonight: 30, outdoors: 20 });
+  // An event (null) holds its position; a place in two lists takes its earlier turn.
+  assert.deepEqual(photoOrder({ all: [null, "a", "b", "c"], bars: ["b", "d"], outdoors: ["e"] }), ["b", "a", "d", "e", "c"]);
+  const ids = (prefix, n) => Array.from({ length: n }, (_, i) => prefix + i);
+  const order = photoOrder({ all: ids("all", 200), bars: ids("bar", 200), food: ids("food", 200) });
+  const first140 = order.slice(0, 140);
+  assert.deepEqual(["all", "bar", "food"].map((p) => first140.filter((id) => id.startsWith(p)).length), [60, 40, 40]);
+  assert.deepEqual(photoOrder({}), []);
+});
+
+test("photo candidates: seeded places first, then the plan; never one with an image, a demo pop-up, or one already checked", async () => {
+  const ctx = fakeCtx();
+  ctx.storage = { deleted: [], delete: async (id) => void ctx.storage.deleted.push(id) };
+  const place = (over) => ctx.db.insert("places", { name: "P", category: "food", lat: 37.76, lng: -122.39, source: "osm", ...over });
+  const planned = await place({ name: "Planned" });
+  const matched = await place({ name: "Has a Google id", googlePlaceId: "g7" });
+  const handSet = await place({ name: "Hand-set image", imageUrl: "https://hand.example/a.jpg" });
+  const searchedBefore = await place({ name: "Searched before, no match" });
+  const seeded = await place({ name: "Seeded", source: "seed" });
+  await place({ name: "Pop-up (demo pop-up)", source: "seed", tags: ["demo", "party"] });
+  await place({ name: "Not in the plan" });
+  await run(google.applyEnrichment, ctx, { patches: [], checked: [searchedBefore] });
+  const ids = [planned, matched, handSet, searchedBefore];
+  const first = await run(google.photoCandidates, ctx, { ids, limit: 2 });
+  assert.deepEqual([first.places.map((c) => c.name), first.waiting], [["Seeded", "Planned"], 3]);
+  assert.equal((await run(google.photoCandidates, ctx, { ids, limit: 10 })).places[2].googlePlaceId, "g7");
+
+  const photo = (n) => ({ storageId: `_storage:${n}`, url: `https://files.test/${n}`, attribution: "Photo: Ana Lopez" });
+  assert.deepEqual(await run(google.savePhotoResult, ctx, { placeId: planned, searched: true, settled: true, found: { googlePlaceId: "g1", hours: "24/7" }, photo: photo(1) }), { patched: true, stored: true });
+  const after = await ctx.db.get(planned);
+  assert.deepEqual([after.imageUrl, after.imageStorageId, after.imageAttribution, after.hours, after.googlePlaceId], ["https://files.test/1", "_storage:1", "Photo: Ana Lopez", "24/7", "g1"]);
+  // A hand-set image is never replaced: the downloaded file is thrown away.
+  assert.deepEqual(await run(google.savePhotoResult, ctx, { placeId: handSet, searched: false, settled: true, photo: photo(2) }), { patched: false, stored: false });
+  assert.equal((await ctx.db.get(handSet)).imageUrl, "https://hand.example/a.jpg");
+  assert.deepEqual(ctx.storage.deleted, ["_storage:2"]);
+  // No photo on Google: settled, so not asked again. A failed download (not settled) is tried again.
+  await run(google.savePhotoResult, ctx, { placeId: seeded, searched: true, settled: true });
+  await run(google.savePhotoResult, ctx, { placeId: matched, searched: false, settled: false });
+  assert.deepEqual((await run(google.photoCandidates, ctx, { ids, limit: 10 })).places.map((c) => c.name), ["Has a Google id"]);
+});
+
+test("the photo budget counts each request before it is made and refuses at the cap", async () => {
+  const ctx = fakeCtx();
+  const { MAX_PHOTO_LOOKUPS, MAX_PHOTO_FETCHES } = google;
+  assert.deepEqual([MAX_PHOTO_LOOKUPS, MAX_PHOTO_FETCHES], [250, 250]);
+  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 0, photos: 0, maxLookups: 250, maxPhotos: 250 });
+  assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "lookup" }), { ok: true });
+  assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
+  assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
+  const row = ctx.all("appConfig").find((c) => c.key === "googlePhotoBudget");
+  await ctx.db.patch(row._id, { value: { lookups: 250, photos: 249 } });
+  assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "lookup" }), { ok: false });
+  assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
+  assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: false });
+  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 250, photos: 250, maxLookups: 250, maxPhotos: 250 });
 });

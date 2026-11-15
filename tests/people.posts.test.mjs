@@ -32,7 +32,10 @@ test("a friend's post is in my feed the moment it is written, with the whole Fee
   assert.equal(isDone, true);
   assert.deepEqual(items.map((item) => [item.author.displayName, item.target.name]), [["Bryan", "Zeitgeist"], ["Bryan", "Sightglass"], ["ethan", "Zeitgeist"]]);
   const top = items[0];
-  assert.deepEqual(top.target, { kind: "place", id: bar, name: "Zeitgeist", category: "nightlife" });
+  assert.deepEqual(top.target, { kind: "place", id: bar, name: "Zeitgeist", category: "nightlife", imageUrl: undefined });
+  // The place's picture travels with the post, for a post without a photo of its own.
+  await t.db.patch(bar, { imageUrl: "https://files.test/zeitgeist.jpg" });
+  assert.equal((await page(me)).page[0].target.imageUrl, "https://files.test/zeitgeist.jpg");
   assert.deepEqual([top.score, top.position, top.label], [8.4, 1, "#1 of their bars · 8.4"]);
   assert.deepEqual([top.caption, top.tags, top.photoUrls], ["the patio", ["patio", "dive"], ["https://files.test/_storage|1"]]);
   assert.deepEqual([top.myScoreForIt, top.reactionCount, top.myReaction, top.commentCount, top.visibility], [5.1, 0, undefined, 0, "friends"]);
