@@ -1,6 +1,6 @@
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   SkeletonRows,
   Text,
 } from "../../components";
+import { citySpot } from "../../features/trips/city";
 import { InviteSheet } from "../../features/trips/InviteSheet";
 import { TripForm } from "../../features/trips/TripForm";
 import { GroupPicks, MemberList, Shortlist, type OnVote } from "../../features/trips/TripSections";
@@ -26,6 +27,10 @@ import { paths, planPath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { useMe } from "../../state/session";
 import { colors, radius, spacing } from "../../theme";
+
+/** Same grid as `useNearby`: one "import places here" request per cell while the app is open. */
+const AREA_DEGREES = 0.02;
+const requestedAreas = new Set<string>();
 
 export default function TripScreen() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
@@ -81,12 +86,38 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
   // answered it. Anything on the shortlist is read from the trip itself.
   const [votedHere, setVotedHere] = useState<Record<string, Vote | undefined>>({});
 
-  // Picks are found around the trip's own spot when it has one, otherwise around me.
+  // Picks are found around the trip's own spot when it has one, then around its city when the
+  // backend knows that city, otherwise around me.
   const here = useDemoLocation();
-  const hasSpot = trip.lat !== undefined && trip.lng !== undefined;
-  const lat = trip.lat ?? here.lat;
-  const lng = trip.lng ?? here.lng;
-  const group = useQuery(api.discover.forGroup, isIn && (hasSpot || here.ready) ? { tripId, lat, lng } : "skip");
+  const spot = trip.lat !== undefined && trip.lng !== undefined ? { lat: trip.lat, lng: trip.lng } : citySpot(trip.city);
+  const hasSpot = spot !== undefined;
+  const lat = spot?.lat ?? here.lat;
+  const lng = spot?.lng ?? here.lng;
+  const canPick = isIn && (hasSpot || here.ready);
+  const group = useQuery(api.discover.forGroup, canPick ? { tripId, lat, lng } : "skip");
+  // A city nobody has opened on the map has no places yet. Ask for them once; the picks above
+  // are live and fill in when the import lands.
+  const ensureArea = useMutation(api.ingest.ensureArea);
+  const [importing, setImporting] = useState(false);
+  const area = `${Math.floor(lat / AREA_DEGREES)}:${Math.floor(lng / AREA_DEGREES)}`;
+  useEffect(() => {
+    if (!canPick || requestedAreas.has(area)) return;
+    requestedAreas.add(area);
+    ensureArea({ lat, lng }).then(
+      ({ status }) => {
+        if (status === "throttled") requestedAreas.delete(area);
+        setImporting(status === "scheduled" || status === "importing");
+      },
+      () => {
+        requestedAreas.delete(area);
+      },
+    );
+  }, [canPick, area, lat, lng, ensureArea]);
+  // Said under "Picks for the group" when the trip names a city we cannot put on the map.
+  const picksNote =
+    trip.city && citySpot(trip.city) === undefined
+      ? `We can't place ${trip.city} on the map yet, so these picks are from nearby instead.`
+      : undefined;
 
   const respond = useMutationToast(api.trips.respond);
   const vote = useMutationToast(api.trips.vote);
@@ -195,7 +226,16 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
         />
       ) : null}
 
-      {isIn ? <GroupPicks group={group} meId={me?.userId} voteOf={myVoteOf} onVote={onVote} /> : null}
+      {isIn ? (
+        <GroupPicks
+          group={group}
+          meId={me?.userId}
+          voteOf={myVoteOf}
+          onVote={onVote}
+          note={picksNote}
+          importing={importing}
+        />
+      ) : null}
 
       <Shortlist items={trip.shortlist} canVote={isIn} onVote={onVote} />
 
