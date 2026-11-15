@@ -14,21 +14,42 @@ export type HeaderProps = {
   right?: ReactNode;
 };
 
-/** The top row of a screen: back button, title, and actions on the right. First child of `Screen`. */
+/**
+ * The top of a screen, laid out the way Bryan does it. First child of `Screen`.
+ * With a back button: the round back button and the actions share a row, and the title sits
+ * under them as the big heading. Without (tab screens): the heading with the actions beside it.
+ */
 export function Header({ title, back = true, onBack, right }: HeaderProps) {
+  const actions = right ? <View style={styles.right}>{right}</View> : null;
+  if (!back) {
+    return (
+      <View style={styles.row}>
+        <Text variant="heading" accessibilityRole="header" numberOfLines={1} style={styles.title}>
+          {title ?? ""}
+        </Text>
+        {actions}
+      </View>
+    );
+  }
   return (
-    <View style={styles.row}>
-      {back ? <BackButton onPress={onBack} /> : null}
-      <Text variant={back ? "title" : "heading"} accessibilityRole="header" numberOfLines={1} style={styles.title}>
-        {title ?? ""}
-      </Text>
-      {right ? <View style={styles.right}>{right}</View> : null}
+    <View style={styles.stack}>
+      <View style={styles.row}>
+        <BackButton onPress={onBack} />
+        <View style={styles.title} />
+        {actions}
+      </View>
+      {title ? (
+        <Text variant="heading" accessibilityRole="header" numberOfLines={2}>
+          {title}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 40 },
+  stack: { gap: spacing.lg },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 36 },
   title: { flex: 1 },
   right: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });

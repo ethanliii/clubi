@@ -52,14 +52,14 @@ export function TextField({
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs + 2, width: "100%" },
   input: {
-    minHeight: 48,
+    minHeight: 46,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.surface,
     color: colors.fg,
     borderRadius: radius.lg,
-    paddingHorizontal: spacing.md + 2,
-    paddingVertical: spacing.md,
+    padding: spacing.md,
+    // 16 keeps iOS Safari from zooming the page when the box is focused.
     fontSize: fontSize.bodyLg,
   },
   multiline: { minHeight: 96, textAlignVertical: "top" },

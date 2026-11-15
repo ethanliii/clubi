@@ -17,7 +17,7 @@ export function Splash() {
   return (
     <View accessibilityRole="progressbar" accessibilityLabel={`${APP_NAME} is loading`} style={styles.wrap}>
       <Text variant="display">{APP_NAME}</Text>
-      <ActivityIndicator color={colors.accent} />
+      <ActivityIndicator color={colors.muted} />
       {slow ? (
         <Text muted center>
           Still connecting. Check your internet connection.

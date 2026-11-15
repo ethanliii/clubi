@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.lg,
-    backgroundColor: colors.raised,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     shadowColor: colors.black,
@@ -162,5 +162,5 @@ const styles = StyleSheet.create({
   },
   error: { borderColor: "#ff6b6b", backgroundColor: "#3a1a22" },
   success: { borderColor: colors.ok },
-  text: { fontWeight: fontWeight.medium, textAlign: "center" },
+  text: { fontWeight: fontWeight.semibold, textAlign: "center" },
 });

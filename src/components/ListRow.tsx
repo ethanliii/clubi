@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, spacing } from "../theme";
+import { colors, fontWeight, spacing } from "../theme";
 import { Text } from "./Text";
 
 export type ListRowProps = {
@@ -77,10 +77,10 @@ export function ListRow({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 56 },
-  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
-  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm + 2 },
+  divider: { borderBottomWidth: 1, borderBottomColor: colors.line },
+  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
   pressed: { opacity: 0.6 },
   text: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: "600" },
+  title: { fontWeight: fontWeight.bold },
   right: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });

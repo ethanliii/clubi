@@ -1,5 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import { colors, spacing } from "../theme";
+import { colors, fontWeight, radius, spacing } from "../theme";
 import { Text } from "./Text";
 
 export type MeterProps = {
@@ -20,8 +20,10 @@ export function Meter({ label, value, max = 100, valueLabel, color = colors.acce
   return (
     <View accessibilityLabel={`${label} ${shown}`} style={styles.wrap}>
       <View style={styles.labels}>
-        <Text variant="caption">{label}</Text>
         <Text variant="caption" muted>
+          {label}
+        </Text>
+        <Text variant="caption" style={styles.value}>
           {shown}
         </Text>
       </View>
@@ -35,6 +37,7 @@ export function Meter({ label, value, max = 100, valueLabel, color = colors.acce
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
   labels: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
-  track: { height: 8, borderRadius: 8, backgroundColor: colors.raised, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 8 },
+  value: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
+  track: { height: 6, borderRadius: radius.pill, backgroundColor: colors.surface, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: radius.pill },
 });

@@ -30,9 +30,9 @@ export function Avatar({ name, uri, size = 40, style }: AvatarProps) {
       style={[styles.base, shape, { backgroundColor: `hsl(${hueOf(name)}, 55%, 42%)` }, style]}
     >
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={shape} onError={() => setFailedUri(imageUri)} />
+        <Image source={{ uri: imageUri }} style={styles.image} onError={() => setFailedUri(imageUri)} />
       ) : (
-        <Text style={[styles.initials, { fontSize: size * 0.38, lineHeight: size * 0.5 }]}>{initials(name)}</Text>
+        <Text style={[styles.initials, { fontSize: size * 0.38, lineHeight: size * 0.46 }]}>{initials(name)}</Text>
       )}
     </View>
   );
@@ -58,7 +58,7 @@ export function AvatarStack({ people, max = 3, size = 24 }: AvatarStackProps) {
           name={person.displayName}
           uri={person.avatarUrl}
           size={size}
-          style={[styles.ring, index > 0 && { marginLeft: -size * 0.3 }]}
+          style={[styles.ring, index > 0 && { marginLeft: -size / 3 }]}
         />
       ))}
       {extra > 0 ? (
@@ -71,9 +71,11 @@ export function AvatarStack({ people, max = 3, size = 24 }: AvatarStackProps) {
 }
 
 const styles = StyleSheet.create({
-  base: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  initials: { color: colors.white, fontWeight: fontWeight.semibold },
+  // Bryan's avatar: a coloured disc with a 2px ring in the page colour.
+  base: { alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 2, borderColor: colors.bg },
+  image: { width: "100%", height: "100%" },
+  initials: { color: colors.white, fontWeight: fontWeight.bold },
   stack: { flexDirection: "row", alignItems: "center" },
-  ring: { borderWidth: 2, borderColor: colors.surface },
+  ring: { borderWidth: 2, borderColor: colors.bg },
   extra: { marginLeft: 4 },
 });
