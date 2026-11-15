@@ -170,13 +170,13 @@ const richness = (row: Record<string, unknown>) =>
 const isProtected = (source: string | undefined) =>
   (PROTECTED_SOURCES as readonly string[]).includes(source ?? "");
 
-const readConfig = (ctx: QueryCtx, key: string) =>
+export const readConfig = (ctx: QueryCtx, key: string) =>
   ctx.db
     .query("appConfig")
     .withIndex("by_key", (q) => q.eq("key", key))
     .unique();
 
-async function writeConfig(ctx: MutationCtx, key: string, value: unknown) {
+export async function writeConfig(ctx: MutationCtx, key: string, value: unknown) {
   const row = await readConfig(ctx, key);
   if (row) await ctx.db.patch(row._id, { value });
   else await ctx.db.insert("appConfig", { key, value });

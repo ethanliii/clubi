@@ -6,6 +6,7 @@ import { internal } from "./_generated/api";
 const crons = cronJobs();
 
 crons.interval("luma import", { minutes: 30 }, internal.imports.luma.importLuma, {});
+crons.interval("partiful import", { minutes: 30 }, internal.imports.partiful.importPartiful, {});
 crons.interval("event tonight notifications", { minutes: 30 }, internal.notificationsCron.eventTonight, {});
 
 export default crons;
