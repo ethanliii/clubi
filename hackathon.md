@@ -11,7 +11,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:08:02Z
+- **Last updated:** 2026-11-15T20:14:24Z
 
 ## Log
 
@@ -38,3 +38,13 @@ location and the nearby list. Pushed to the Convex dev deployment. Convex
 features: schema, indexes, full-text search, queries, mutations, realtime queries
 (`convex/tables/`, `convex/lib/recs.ts`, `convex/discover.ts`,
 `convex/places.ts`, `convex/seedPlaces.ts`, `src/lib/useNearby.ts`).
+
+### 2026-11-15 - 8bc543a
+Sign-up now takes an optional display name, birthday and home city next to the
+username and password, and stores them on the user with the username. Added the
+signed-in profile query and the taste quiz mutation, which saves the answers,
+sets the user's taste vector and prior from them, and returns four taste meters.
+Ranking and notification functions exist as stubs with the contract shapes so
+screens can wire up. Pushed to the Convex dev deployment. Convex features:
+queries, mutations, Convex Auth components (`convex/auth.ts`, `convex/users.ts`,
+`convex/rankings.ts`, `convex/notifications.ts`).
