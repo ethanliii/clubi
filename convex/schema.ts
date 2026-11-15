@@ -1,10 +1,10 @@
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineSchema } from "convex/server";
+import { catalogTables } from "./tables/catalog";
+import { peopleTables } from "./tables/people";
+import { socialTables } from "./tables/social";
 
 export default defineSchema({
-  users: defineTable({}),
-  moments: defineTable({
-    authorId: v.id("users"),
-    text: v.string(),
-  }).index("by_author", ["authorId"]),
+  ...peopleTables,
+  ...catalogTables,
+  ...socialTables,
 });

@@ -1,17 +1,17 @@
 # Hackathon log
 
 - **Project:** clubi
-- **What it does:** Mobile app where people sign in with a username and password and post moments to their own feed.
+- **What it does:** Mobile app that ranks places and events near you for your taste, with a one-line reason for every score.
 - **Live app:** not deployed
 - **Repo:** private
 - **Frontend:** not deployed
 - **Convex deployment:** https://famous-lion-37.convex.cloud
 - **Components:** @convex-dev/auth (auth, password, username)
-- **Convex features:** schema, tables, indexes, queries, mutations, realtime queries
+- **Convex features:** schema, tables, indexes, full-text search, queries, mutations, realtime queries
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T18:49:41Z
+- **Last updated:** 2026-11-15T20:08:02Z
 
 ## Log
 
@@ -26,3 +26,15 @@ moments and see their own list, newest first, from the `by_author` index. Pushed
 to the Convex dev deployment. Convex features: schema, indexes, query,
 mutation, realtime queries, Convex Auth components (`convex/schema.ts`,
 `convex/moments.ts`, `convex/auth.ts`, `convex/convex.config.ts`, `App.tsx`).
+
+### 2026-11-15 - c03cf03
+Added the team docs and the shared API contract types, and split the schema into
+per-owner table files with the places, events, rankings, comparisons,
+notifications, posts and friendships tables. Seeded 33 demo places with hand-set
+13-feature vectors and shipped the first discovery queries: nearby and tonight
+lists scored by taste-to-venue cosine with a reason on every item, venue detail
+with a score breakdown, and name search. Two client hooks read the device
+location and the nearby list. Pushed to the Convex dev deployment. Convex
+features: schema, indexes, full-text search, queries, mutations, realtime queries
+(`convex/tables/`, `convex/lib/recs.ts`, `convex/discover.ts`,
+`convex/places.ts`, `convex/seedPlaces.ts`, `src/lib/useNearby.ts`).
