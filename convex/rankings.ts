@@ -5,6 +5,7 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Bucket, Category, RankResult } from "./lib/contract";
 import { displayNameOf } from "./lib/discovery";
 import { notify } from "./notifications";
+import { applyBucket, applyComparison } from "./scoring";
 import { categoryValidator } from "./tables/catalog";
 import { bucketValidator } from "./tables/people";
 
@@ -242,8 +243,10 @@ export const rank = mutation({
       });
     }
 
-    // LIVE LEARNING (P5): Captain 1's applyComparison per saved comparison and
-    // one applyBucket go here, after the ranking and comparisons are saved.
+    for (const { winnerId, loserId } of comparisons) {
+      await applyComparison(ctx, userId, winnerId, loserId);
+    }
+    await applyBucket(ctx, userId, id, bucket);
 
     const post = {
       photos: args.photoStorageId === undefined ? [] : [args.photoStorageId],
