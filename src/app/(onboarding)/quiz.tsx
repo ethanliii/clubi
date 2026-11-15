@@ -30,7 +30,7 @@ export default function Quiz() {
       <View style={styles.progress}>
         <View style={[styles.progressFill, { width: `${((step + 1) / quiz.length) * 100}%` }]} />
       </View>
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <ScrollView key={question.id} style={styles.body} contentContainerStyle={styles.bodyContent}>
         <View style={styles.intro}>
           <Text variant="heading">{question.question}</Text>
           <Text muted>Pick as many as you want.</Text>
