@@ -52,6 +52,15 @@ export const socialTables = {
     .index("by_post", ["postId", "createdAt"])
     .index("by_user", ["userId"]),
 
+  // `blockerId` blocked `blockedId`: neither sees the other in search, suggestions, the feed or a profile.
+  blocks: defineTable({
+    blockerId: v.id("users"),
+    blockedId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_blocker", ["blockerId", "blockedId"])
+    .index("by_blocked", ["blockedId"]),
+
   // "want" = saved for later, "going" = I'm going to this event
   saves: defineTable({
     userId: v.id("users"),

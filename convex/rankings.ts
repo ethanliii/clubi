@@ -516,6 +516,9 @@ export const remove = mutation({
       await deletePostCascade(ctx, post);
     }
     await ctx.db.delete("rankings", rankingId);
+    // INTEGRATION (Brain): answers to the venue questions for this visit (visitAnswers by_ranking) and
+    // what the model learned from it (comparisons, Elo, taste) are left as they are. If removing a
+    // ranking should also take its answers out of venueStats, that belongs in convex/insights.ts.
     // Close the gap: the rest of the category is numbered and scored again by the code `rank` uses.
     const rest = await rankingsOf(ctx, userId, ranking.category);
     await writePlacement(

@@ -65,6 +65,10 @@ export const get = query({
     }
     const isMe = userId === viewer.userId;
     const { status, requestId } = await statusWith(ctx, viewer.userId, userId);
+    // Someone who blocked me, or whom I blocked, reads as a profile that doesn't exist.
+    if (viewer.blockedIds.has(userId)) {
+      return null;
+    }
     const visible = isMe || status === "friends" || user.defaultVisibility === "public";
     const posts = await postsOf(ctx, userId);
     const ranked = await ctx.db

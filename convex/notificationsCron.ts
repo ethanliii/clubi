@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import {
+  friendIdsOf,
   isUnder21,
   scoreCandidate,
   tasteOf,
@@ -16,6 +17,10 @@ const MAX_EVENTS = 40;
 const MAX_USERS = 50;
 const MAX_PER_USER_PER_RUN = 1;
 const MAX_PER_USER_PER_DAY = 3;
+/** Users read per run to find MAX_USERS who took the quiz and want these alerts. */
+const USER_SCAN = 400;
+/** A user's notifications from the last day that we read to apply the per-day cap. */
+const RECENT_SCAN = 200;
 
 export const eventTonight = internalMutation({
   args: {},
@@ -31,8 +36,13 @@ export const eventTonight = internalMutation({
     if (events.length === 0) {
       return null;
     }
-    const users = (await ctx.db.query("users").collect())
-      .filter((user) => user.tasteVector !== undefined)
+    // Skip people who switched "events tonight" off before any scoring is done for them (notify
+    // would drop the notification anyway, after the work).
+    const users = (await ctx.db.query("users").take(USER_SCAN))
+      .filter(
+        (user) =>
+          user.tasteVector !== undefined && user.notifPrefs?.eventsTonight !== false,
+      )
       .slice(0, MAX_USERS);
     const getUser = userLoader(ctx);
 
@@ -42,7 +52,8 @@ export const eventTonight = internalMutation({
         .withIndex("by_user_createdAt", (q) =>
           q.eq("userId", user._id).gt("createdAt", now - DEDUPE_MS),
         )
-        .collect();
+        .order("desc")
+        .take(RECENT_SCAN);
       const sent = recent.filter((row) => row.type === "event_tonight");
       const quota = Math.min(
         MAX_PER_USER_PER_RUN,
@@ -52,27 +63,12 @@ export const eventTonight = internalMutation({
         continue;
       }
       const alreadySent = new Set(sent.map((row) => row.link));
-      const asA = await ctx.db
-        .query("friendships")
-        .withIndex("by_userA", (q) =>
-          q.eq("userA", user._id).eq("status", "accepted"),
-        )
-        .collect();
-      const asB = await ctx.db
-        .query("friendships")
-        .withIndex("by_userB", (q) =>
-          q.eq("userB", user._id).eq("status", "accepted"),
-        )
-        .collect();
       const viewer: Viewer = {
         userId: user._id,
         taste: tasteOf(user),
         homeCity: user.homeCity,
         under21: isUnder21(user.birthday, now),
-        friendIds: new Set([
-          ...asA.map((friendship) => friendship.userB),
-          ...asB.map((friendship) => friendship.userA),
-        ]),
+        friendIds: await friendIdsOf(ctx, user._id),
         knownRankings: new Map(),
       };
 

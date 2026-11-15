@@ -43,6 +43,7 @@ const CO_RANK_CANDIDATES = 20;
 const CO_RANK_RANKINGS = 100;
 const MY_RANKINGS_FOR_CO_RANK = 300;
 const MAX_MY_FRIENDSHIP_ROWS = 600;
+const MAX_BLOCKS = 300;
 
 export const cardOf = (user: Doc<"users">): UserCard => ({
   userId: user._id,
@@ -99,6 +100,22 @@ export async function statusWith(
         ? row._id
         : undefined,
   };
+}
+
+/**
+ * Everyone this user has blocked and everyone who has blocked them. A block works both ways: neither
+ * side gets the other in search, suggestions, the feed or a profile.
+ */
+export async function blockedIdsOf(ctx: QueryCtx, userId: Id<"users">): Promise<Set<Id<"users">>> {
+  const byMe = await ctx.db
+    .query("blocks")
+    .withIndex("by_blocker", (q) => q.eq("blockerId", userId))
+    .take(MAX_BLOCKS);
+  const ofMe = await ctx.db
+    .query("blocks")
+    .withIndex("by_blocked", (q) => q.eq("blockedId", userId))
+    .take(MAX_BLOCKS);
+  return new Set([...byMe.map((row) => row.blockedId), ...ofMe.map((row) => row.blockerId)]);
 }
 
 /** Accepted friends of a user, capped. */
@@ -228,12 +245,13 @@ export const search = query({
     const myFriends = new Set(
       (await friendList(ctx, userId, MAX_FRIENDS_LISTED)).map((friend) => friend.userId),
     );
+    const blocked = await blockedIdsOf(ctx, userId);
     const results: UserSearchResult[] = [];
     for (const user of found.values()) {
       if (results.length >= SEARCH_LIMIT) {
         break;
       }
-      if (user._id === userId) {
+      if (user._id === userId || blocked.has(user._id)) {
         continue;
       }
       const { status, requestId } = await statusWith(ctx, userId, user._id);
@@ -279,6 +297,16 @@ export const request = mutation({
     }
     if (other._id === userId) {
       throw new Error("You can't add yourself");
+    }
+    const iBlocked = await ctx.db
+      .query("blocks")
+      .withIndex("by_blocker", (q) => q.eq("blockerId", userId).eq("blockedId", other._id))
+      .first();
+    if (iBlocked !== null) {
+      throw new Error("You blocked this person. Unblock them first");
+    }
+    if ((await blockedIdsOf(ctx, userId)).has(other._id)) {
+      throw new Error("We couldn't find that person");
     }
     const me = await ctx.db.get("users", userId);
     const myName = me === null ? "Someone" : displayNameOf(me);
@@ -397,6 +425,76 @@ export const remove = mutation({
   },
 });
 
+export const block = mutation({
+  args: { userId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not signed in");
+    }
+    if (args.userId === userId) {
+      throw new Error("You can't block yourself");
+    }
+    const existing = await ctx.db
+      .query("blocks")
+      .withIndex("by_blocker", (q) => q.eq("blockerId", userId).eq("blockedId", args.userId))
+      .first();
+    if (existing === null) {
+      await ctx.db.insert("blocks", { blockerId: userId, blockedId: args.userId, createdAt: Date.now() });
+    }
+    // Blocking also ends the friendship or any request between the two, without telling anyone.
+    const row = await friendshipBetween(ctx, userId, args.userId);
+    if (row !== null) {
+      await ctx.db.delete("friendships", row._id);
+    }
+    return null;
+  },
+});
+
+export const unblock = mutation({
+  args: { userId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not signed in");
+    }
+    const rows = await ctx.db
+      .query("blocks")
+      .withIndex("by_blocker", (q) => q.eq("blockerId", userId).eq("blockedId", args.userId))
+      .take(MAX_BLOCKS);
+    for (const row of rows) {
+      await ctx.db.delete("blocks", row._id);
+    }
+    return null;
+  },
+});
+
+/** The people I blocked (not the people who blocked me), newest first, so a screen can offer "unblock". */
+export const blocked = query({
+  args: {},
+  handler: async (ctx): Promise<UserCard[]> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      return [];
+    }
+    const rows = await ctx.db
+      .query("blocks")
+      .withIndex("by_blocker", (q) => q.eq("blockerId", userId))
+      .take(MAX_BLOCKS);
+    rows.sort((a, b) => b.createdAt - a.createdAt);
+    const cards: UserCard[] = [];
+    for (const row of rows) {
+      const user = await ctx.db.get("users", row.blockedId);
+      if (user !== null) {
+        cards.push(cardOf(user));
+      }
+    }
+    return cards;
+  },
+});
+
 export const suggestions = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args): Promise<FriendSuggestion[]> => {
@@ -422,7 +520,7 @@ export const suggestions = query({
         .withIndex("by_userB", (q) => q.eq("userB", userId))
         .take(MAX_MY_FRIENDSHIP_ROWS)),
     ];
-    const excluded = new Set<Id<"users">>([userId]);
+    const excluded = new Set<Id<"users">>([userId, ...(await blockedIdsOf(ctx, userId))]);
     const myFriends: Id<"users">[] = [];
     for (const row of rows) {
       const other = row.userA === userId ? row.userB : row.userA;
