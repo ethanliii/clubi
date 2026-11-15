@@ -6,9 +6,10 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../../convex/_generated/api";
 import { Icon, SocialButton, Text } from "../../components";
+import { onboardingColors } from "../../theme";
 
 // Hinge-style sign-up: one question per screen, cream background, serif question, black round arrow.
-const Q = { bg: "#f5f3ee", card: "#ffffff", line: "#dedbd3", fg: "#16151a", muted: "#7a7680" };
+const Q = onboardingColors;
 const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, serif" });
 const soon = () => Alert.alert("Coming soon", "Apple and Google sign-in need the backend set up first.");
 
@@ -123,7 +124,7 @@ export default function CreateAccount() {
                 <Text style={styles.muted}>Make sure your age is correct before moving on.</Text>
                 <View style={styles.row}>
                   <Pressable onPress={() => setConfirmAge(false)} style={[styles.pill, { backgroundColor: Q.card }]}><Text style={styles.strong}>Edit</Text></Pressable>
-                  <Pressable onPress={() => { setConfirmAge(false); setI(i + 1); }} style={[styles.pill, { backgroundColor: Q.fg }]}><Text style={{ color: "#fff", fontWeight: "700" }}>Confirm</Text></Pressable>
+                  <Pressable onPress={() => { setConfirmAge(false); setI(i + 1); }} style={[styles.pill, { backgroundColor: Q.fg }]}><Text style={{ color: Q.onFg, fontWeight: "700" }}>Confirm</Text></Pressable>
                 </View>
               </View>
             )}
@@ -134,13 +135,13 @@ export default function CreateAccount() {
             <Field label="Home city" value={home} onChangeText={setHome} autoCapitalize="words" autoFocus />
           </Ask>
         )}
-        {error && <Text style={{ color: "#c0392b", marginTop: 10 }}>{error}</Text>}
+        {error && <Text style={{ color: "#ff6b6b", marginTop: 10 }}>{error}</Text>}
         <View style={{ flex: 1 }} />
         {step !== "social" && !(step === "birthday" && confirmAge) && (
           <Pressable accessibilityRole="button" accessibilityLabel={step === "home" ? "Create account" : "Continue"}
             disabled={!ok[step] || pending} onPress={next}
-            style={[styles.next, (!ok[step] || pending) && { backgroundColor: "#c4c1b9" }]}>
-            <Text style={{ color: "#fff", fontWeight: "700" }}>{step === "home" ? "Create account" : "Continue"}</Text>
+            style={[styles.next, (!ok[step] || pending) && { backgroundColor: Q.off }]}>
+            <Text style={{ color: Q.onFg, fontWeight: "700" }}>{step === "home" ? "Create account" : "Continue"}</Text>
           </Pressable>
         )}
       </KeyboardAvoidingView>
@@ -169,7 +170,7 @@ function Field({ label, style, ...props }: React.ComponentProps<typeof TextInput
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Q.bg },
-  progress: { height: 3, backgroundColor: "#ecebe6" },
+  progress: { height: 3, backgroundColor: Q.raised },
   fill: { height: "100%", backgroundColor: Q.fg },
   header: { paddingHorizontal: 18, paddingVertical: 8 },
   body: { flex: 1, paddingHorizontal: 22, paddingBottom: 18 },

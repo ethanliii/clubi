@@ -50,8 +50,17 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 
 ## Pass 6 (Home spotlight)
 - **Home:** "Last night" / "All friends" toggle. Last night = one big photo card per friend (their newest post, feed order), swipe or "Next friend →", dots, "See all friends' posts". All friends = the full feed.
+- **Photo shape:** edge-to-edge 4:5 portrait, square corners (Instagram), one friend per screen width. Only the friend (avatar, name, time) sits on the photo.
+- **Under the photo:** heart · comment · bookmark (with counts), score pill on the right with the post's `label` in tiny text under it, then the place name and the caption.
 - **Quick actions on each spotlight card (Instagram-style):** double-tap the photo to like (`posts.react`), hold to save (`saves.toggle` "want"). Small action row under the photo: heart · comment (opens `CommentsSheet`) on the left, bookmark on the right. Tap the place name to open the venue.
 - **Needs backend (E14):** "closest friend first" ordering (e.g. by interactions or taste match) and a "went out last night" window on `posts.feed`; the UI keeps the backend's order.
+
+## Pass 7 (profile = photos first)
+- **Profile (`ProfileView`):** taste meters and the highlight circles removed (taste stays on Compare). New **Favorites** row: up to 3 big photos from `onboarding.pins` (pin order); before anyone pins, their newest photo posts. Hold a photo in your own grid to pin / unpin (`onboarding.setPins`). New **Top spots**: the #1 of each list (backend order, max 3) with photo, name, score. Photos tab is first.
+- **Needs deploy:** `onboarding.pins` / `setPins` are on this branch only, so Favorites works after the merge + deploy from `main`.
+
+## Pass 8 (dark onboarding)
+- Create account + taste quiz now use the app's dark palette (`src/theme/onboarding.ts`, `onboardingColors`), so the whole app is dark like the rest (app.json is dark-only). The cream Hinge palette is kept there as `ONBOARDING_LIGHT` for a future light theme. "You're in" already used the dark theme.
 
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.

@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Icon, Text, VenuePhoto } from "../../components";
+import { onboardingColors } from "../../theme";
 import {
   AGREE, BUDGET, DAYS, DEALBREAKERS, DRINKING, INTERESTS, SCENARIOS, SONGS, SQUAD, TAKES,
   THIS_OR_THAT, TRANSPORT, nightCaption, toBackendCards, type QuizAnswers, type Stars,
@@ -15,7 +16,7 @@ import { useNearby } from "../../lib/useNearby";
 import { useOnboarding } from "../../state/onboarding";
 
 // Hinge-style onboarding look: cream background, serif questions, black accents.
-const Q = { bg: "#f5f3ee", card: "#ffffff", line: "#dedbd3", fg: "#16151a", muted: "#7a7680", raised: "#ecebe6" };
+const Q = onboardingColors;
 const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, serif" });
 
 type Step = { title: string; sub: string; note?: string; done: (a: QuizAnswers) => boolean; body: () => ReactNode };
@@ -233,8 +234,8 @@ export default function Quiz() {
         <Text variant="caption" style={[styles.muted, styles.flex]}>{s.note ?? "Shapes your matches, not your profile"}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={last ? "See my taste" : "Next"}
           disabled={!s.done(a) || saving} onPress={next}
-          style={[styles.nextBtn, (!s.done(a) || saving) && { backgroundColor: "#c4c1b9" }]}>
-          <Icon name="back" color="#fff" size={20} />
+          style={[styles.nextBtn, (!s.done(a) || saving) && { backgroundColor: Q.off }]}>
+          <Icon name="back" color={Q.onFg} size={20} />
         </Pressable>
       </View>
     </SafeAreaView>
@@ -278,7 +279,7 @@ function Option({ label, on, onPress }: { label: string; on: boolean; onPress: (
 function Pill({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ selected: on }} onPress={onPress} style={[styles.pill, on && styles.pillOn]}>
-      <Text variant="caption" style={{ color: on ? "#fff" : Q.fg }}>{label}</Text>
+      <Text variant="caption" style={{ color: on ? Q.onFg : Q.fg }}>{label}</Text>
     </Pressable>
   );
 }
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Q.card, borderWidth: 1, borderColor: Q.line, borderRadius: 14, padding: 8 },
   cover: { width: 44, borderRadius: 8 },
   stars: { flexDirection: "row" },
-  star: { fontSize: 20, lineHeight: 24, color: "#d6d2c9", paddingHorizontal: 1 },
+  star: { fontSize: 20, lineHeight: 24, color: Q.starOff, paddingHorizontal: 1 },
   starOn: { color: "#f5b301" },
   ttLabel: { position: "absolute", left: 14, bottom: 12, color: "#fff", fontSize: 20, fontWeight: "700" },
   days: { flexDirection: "row", justifyContent: "space-between" },

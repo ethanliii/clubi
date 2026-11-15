@@ -3,8 +3,9 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { Alert, Image, Pressable, Share, StyleSheet, Switch, View } from "react-native";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import type { ProfileResult } from "../../convex/lib/contract";
-import { colors, radius, spacing } from "../theme";
+import { colors, spacing } from "../theme";
 import { Avatar } from "./Bits";
 import { Button } from "./Button";
 import { FriendButton } from "./FriendButton";
@@ -15,14 +16,23 @@ import { Photo, openVenue } from "./VenueCard";
 
 /**
  * Instagram-style profile, shared by mine and someone else's (UI-SPEC §8, §9):
- * counts row, bio, Edit/Share or Add friend/Compare, "memories" highlight circles, photo grid / ranked lists.
- * Pinned favorite photos need a backend field (ask E13); highlights use the top place of each list for now.
+ * counts row, bio, Edit/Share or Add friend/Compare, Favorites (pinned photos), Top spots, photo grid / ranked lists.
+ * Kept light on purpose: no taste meters or night-out stats here (those live on Compare).
  */
 export function ProfileView({ profile }: { profile: ProfileResult }) {
   const { user, counts } = profile;
   const [tab, setTab] = useState<"photos" | "lists">("photos");
+  const pins = useQuery(api.onboarding.pins, { userId: user.userId });
+  const setPins = useMutation(api.onboarding.setPins);
+  // Hold a photo in your grid to pin / unpin it as a favorite (max 6, backend enforces).
+  const togglePin = (postId: Id<"posts">) => {
+    const cur = pins ?? [];
+    const next = cur.includes(postId) ? cur.filter((x) => x !== postId) : [...cur, postId];
+    setPins({ postIds: next }).catch((e: unknown) => Alert.alert("Couldn't pin", e instanceof Error ? e.message : "Try again"));
+  };
   const share = () => Share.share({ message: `Find me on Clubi: @${user.username}` }).catch(() => undefined);
-  const highlights = profile.lists.map((l) => ({ list: l, item: l.items[0] })).filter((h) => h.item);
+  // Top spots = the #1 of each of their lists, in the backend's list order (no re-ranking here).
+  const topSpots = profile.lists.map((l) => ({ list: l, item: l.items[0] })).filter((h) => h.item).slice(0, 3);
 
   return (
     <View style={{ gap: spacing.lg }}>
@@ -58,34 +68,23 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
 
       <FollowBar userId={user.userId} isMe={user.isMe} />
 
-      {profile.tasteSummary.length > 0 && (
-        <View style={styles.meters}>
-          {profile.tasteSummary.map((m) => (
-            <View key={m.label} style={styles.meterRow}>
-              <Text variant="caption" style={{ width: 96 }}>{m.label}</Text>
-              <View style={styles.meter}><View style={[styles.meterFill, { width: `${m.pct}%` }]} /></View>
-              <Text variant="caption" style={{ width: 36, textAlign: "right" }}>{m.pct}%</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      {profile.canSee && <Favorites profile={profile} />}
 
-      {profile.canSee && (
-        <View style={styles.highlights}>
-          {user.isMe && (
-            <Pressable onPress={() => router.push("/rate")} style={styles.hl}>
-              <View style={[styles.hlCircle, styles.hlNew]}><Icon name="plus" size={26} color={colors.fg} /></View>
-              <Text variant="caption">New</Text>
-            </Pressable>
-          )}
-          {highlights.map(({ list, item }) => (
-            <Pressable key={list.category} onPress={() => openVenue(item!)} style={styles.hl}>
-              <View style={styles.hlCircle}>
-                {item!.imageUrl ? <Image source={{ uri: item!.imageUrl }} style={styles.hlImg} /> : <Photo item={{ category: list.category }} height={66} />}
-              </View>
-              <Text variant="caption" numberOfLines={1} style={{ textTransform: "capitalize", maxWidth: 76 }}>{list.noun}</Text>
-            </Pressable>
-          ))}
+      {profile.canSee && topSpots.length > 0 && (
+        <View style={{ gap: 8 }}>
+          <Text variant="label">Top spots</Text>
+          <View style={styles.row}>
+            {topSpots.map(({ list, item }) => (
+              <Pressable key={list.category} onPress={() => openVenue(item!)} style={styles.spot}>
+                <View style={styles.spotImg}>
+                  {item!.imageUrl ? <Image source={{ uri: item!.imageUrl }} style={StyleSheet.absoluteFill} /> : <Photo item={{ category: list.category }} height={110} />}
+                  <View style={styles.cellTag}><Text style={styles.cellText}>{item!.score.toFixed(1)}</Text></View>
+                </View>
+                <Text style={{ fontWeight: "700" }} numberOfLines={1}>{item!.name}</Text>
+                <Text variant="caption" muted numberOfLines={1}>#1 {list.noun}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       )}
 
@@ -108,7 +107,7 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
             ) : (
               <View style={styles.grid}>
                 {profile.recentPosts.map((p) => (
-                  <Pressable key={String(p.postId)} onPress={() => openVenue(p.target)} style={styles.cell}>
+                  <Pressable key={String(p.postId)} onPress={() => openVenue(p.target)} onLongPress={user.isMe ? () => togglePin(p.postId) : undefined} style={styles.cell}>
                     {p.photoUrls[0] ? <Image source={{ uri: p.photoUrls[0] }} style={StyleSheet.absoluteFill} /> : <Photo item={{ category: p.target.category }} height={140} />}
                     <View style={styles.cellTag}><Text style={styles.cellText}>{p.score.toFixed(1)}</Text></View>
                   </Pressable>
@@ -140,6 +139,35 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
           )}
         </>
       )}
+    </View>
+  );
+}
+
+/**
+ * Favorites: big photos up top. Pinned posts (onboarding.pins) in pin order; until someone pins,
+ * their newest photo posts (backend order). Hold a grid photo on your own profile to pin.
+ */
+function Favorites({ profile }: { profile: ProfileResult }) {
+  const pins = useQuery(api.onboarding.pins, { userId: profile.user.userId });
+  if (pins === undefined) return null;
+  const withPhoto = profile.recentPosts.filter((p) => p.photoUrls[0]);
+  const pinned = pins.map((id) => withPhoto.find((p) => p.postId === id)).filter((p) => p !== undefined);
+  const shown = (pinned.length ? pinned : withPhoto).slice(0, 3);
+  if (shown.length === 0) return null;
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={styles.between}>
+        <Text variant="label">Favorites</Text>
+        {profile.user.isMe && <Text variant="caption" muted>{pinned.length ? "Hold a photo below to change" : "Hold a photo below to pin"}</Text>}
+      </View>
+      <View style={styles.favs}>
+        {shown.map((p, i) => (
+          <Pressable key={String(p.postId)} onPress={() => openVenue(p.target)} style={[styles.fav, i === 0 && shown.length === 3 && styles.favBig]}>
+            <Image source={{ uri: p.photoUrls[0] }} style={StyleSheet.absoluteFill} />
+            <View style={styles.favCap}><Text style={styles.cellText} numberOfLines={1}>{p.target.name}</Text></View>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
@@ -187,15 +215,12 @@ const styles = StyleSheet.create({
   counts: { flexDirection: "row" },
   half: { flex: 1, width: "auto" },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  meters: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, gap: 8 },
-  meterRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  meter: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.raised, overflow: "hidden" },
-  meterFill: { height: "100%", backgroundColor: colors.accent },
-  highlights: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
-  hl: { alignItems: "center", gap: 4 },
-  hlCircle: { width: 66, height: 66, borderRadius: 33, overflow: "hidden", borderWidth: 2, borderColor: colors.line },
-  hlNew: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
-  hlImg: { width: "100%", height: "100%" },
+  favs: { flexDirection: "row", gap: 4, height: 220 },
+  fav: { flex: 1, overflow: "hidden", backgroundColor: colors.surface, borderRadius: 4 },
+  favBig: { flex: 1.6 },
+  favCap: { position: "absolute", left: 6, right: 6, bottom: 6 },
+  spot: { flex: 1, gap: 3 },
+  spotImg: { height: 110, overflow: "hidden", borderRadius: 4, backgroundColor: colors.surface },
   tabs: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.line },
   tab: { flex: 1, alignItems: "center", paddingVertical: 10 },
   tabOn: { borderBottomWidth: 2, borderBottomColor: colors.fg },

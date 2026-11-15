@@ -37,7 +37,9 @@ export function Spotlight({ posts, onSeeAll, onComments }: { posts: FeedItem[]; 
     }
   };
   const { width } = useWindowDimensions();
-  const cardW = width - spacing.lg * 2;
+  // Full-bleed 4:5 portrait with square corners (Instagram), one friend per screen width.
+  const cardW = width;
+  const cardH = Math.round(cardW * 1.25);
   const list = useRef<FlatList<FeedItem>>(null);
   const [index, setIndex] = useState(0);
 
@@ -64,21 +66,21 @@ export function Spotlight({ posts, onSeeAll, onComments }: { posts: FeedItem[]; 
         data={perFriend}
         horizontal
         pagingEnabled
-        snapToInterval={cardW + spacing.md}
+        snapToInterval={cardW}
+        style={{ marginHorizontal: -spacing.lg }}
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         keyExtractor={(p) => String(p.postId)}
-        ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
-        getItemLayout={(_, i) => ({ length: cardW + spacing.md, offset: (cardW + spacing.md) * i, index: i })}
-        onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / (cardW + spacing.md)))}
+        getItemLayout={(_, i) => ({ length: cardW, offset: cardW * i, index: i })}
+        onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / cardW))}
         renderItem={({ item }) => (
-          <View style={{ width: cardW, gap: 8 }}>
+          <View style={{ width: cardW, gap: 10 }}>
           <Pressable onPress={() => tapPhoto(item)} onLongPress={() => { if (!saved[String(item.postId)]) void save(item); }} delayLongPress={450}
-            accessibilityHint="Double-tap to like, hold to save" style={styles.card}>
+            accessibilityHint="Double-tap to like, hold to save" style={[styles.card, { height: cardH }]}>
             {item.photoUrls[0] ? (
               <Image source={{ uri: item.photoUrls[0] }} style={StyleSheet.absoluteFill} />
             ) : (
-              <View style={StyleSheet.absoluteFill}><Photo item={{ category: item.target.category }} height={460} /></View>
+              <View style={StyleSheet.absoluteFill}><Photo item={{ category: item.target.category }} height={cardH} /></View>
             )}
             <View style={styles.shade} />
             <Pressable style={styles.who} onPress={() => router.push({ pathname: "/user/[userId]", params: { userId: String(item.author.userId) } })}>
@@ -88,29 +90,32 @@ export function Spotlight({ posts, onSeeAll, onComments }: { posts: FeedItem[]; 
                 <Text variant="caption" style={styles.dim}>{timeAgo(item.createdAt)} ago</Text>
               </View>
             </Pressable>
-            <View style={styles.bottom}>
-              <Pressable style={{ flex: 1 }} onPress={() => openVenue(item.target)}>
-                <Text variant="title" style={styles.white} numberOfLines={1}>{item.target.name} ›</Text>
-                <Text variant="caption" style={styles.dim} numberOfLines={2}>{item.caption ? `"${item.caption}"` : item.label}</Text>
+          </Pressable>
+          {/* Under the photo (Instagram): like · comment · save, score on the right with a tiny line under it, then title + description. */}
+          <View style={styles.under}>
+            <View style={styles.actions}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Like" onPress={() => like(item)} style={styles.action} hitSlop={8}>
+                <Icon name="heart" size={24} color={item.myReaction ? colors.accent : colors.fg} />
+                {!!item.reactionCount && <Text style={styles.count}>{item.reactionCount}</Text>}
               </Pressable>
-              <View style={[styles.ring, { borderColor: ratingColor(item.score) }]}>
-                <Text style={{ color: colors.white, fontWeight: "700" }}>{item.score.toFixed(1)}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Comments" onPress={() => onComments(item)} style={styles.action} hitSlop={8}>
+                <Icon name="comment" size={24} color={colors.fg} />
+                {!!item.commentCount && <Text style={styles.count}>{item.commentCount}</Text>}
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={saved[String(item.postId)] ? "Saved" : "Save"} onPress={() => save(item)} style={styles.action} hitSlop={8}>
+                <Icon name="bookmark" size={24} color={saved[String(item.postId)] ? colors.accent : colors.fg} />
+              </Pressable>
+              <View style={{ flex: 1 }} />
+              <View style={styles.scoreCol} accessibilityLabel={`Score ${item.score.toFixed(1)}`}>
+                <View style={[styles.scorePill, { backgroundColor: ratingColor(item.score) }]}>
+                  <Text style={styles.scoreText}>{item.score.toFixed(1)}</Text>
+                </View>
+                <Text style={styles.tiny} numberOfLines={1}>{item.label}</Text>
               </View>
             </View>
-          </Pressable>
-          {/* Instagram-style small action row under the photo: like · comment on the left, save on the right. */}
-          <View style={styles.actions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Like" onPress={() => like(item)} style={styles.action} hitSlop={8}>
-              <Icon name="heart" size={22} color={item.myReaction ? colors.accent : colors.fg} />
-              {!!item.reactionCount && <Text variant="caption" style={{ fontWeight: "600" }}>{item.reactionCount}</Text>}
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Comments" onPress={() => onComments(item)} style={styles.action} hitSlop={8}>
-              <Icon name="comment" size={22} color={colors.fg} />
-              {!!item.commentCount && <Text variant="caption" style={{ fontWeight: "600" }}>{item.commentCount}</Text>}
-            </Pressable>
-            <View style={{ flex: 1 }} />
-            <Pressable accessibilityRole="button" accessibilityLabel={saved[String(item.postId)] ? "Saved" : "Save"} onPress={() => save(item)} hitSlop={8}>
-              <Icon name="bookmark" size={22} color={saved[String(item.postId)] ? colors.accent : colors.fg} />
+            <Pressable onPress={() => openVenue(item.target)} style={{ gap: 2 }}>
+              <Text style={styles.title} numberOfLines={1}>{item.target.name}</Text>
+              {!!item.caption && <Text style={styles.desc} numberOfLines={2}>{item.caption}</Text>}
             </Pressable>
           </View>
           </View>
@@ -134,15 +139,21 @@ export function Spotlight({ posts, onSeeAll, onComments }: { posts: FeedItem[]; 
 }
 
 const styles = StyleSheet.create({
-  card: { height: 430, borderRadius: radius.xxl, overflow: "hidden", backgroundColor: colors.surface, justifyContent: "space-between" },
-  shade: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.25)" },
+  card: { overflow: "hidden", backgroundColor: colors.surface, justifyContent: "space-between" },
+  shade: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.12)" },
   who: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
-  bottom: { flexDirection: "row", alignItems: "flex-end", gap: 10, padding: 16 },
-  actions: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 4 },
-  action: { flexDirection: "row", alignItems: "center", gap: 4 },
+  under: { paddingHorizontal: spacing.lg, gap: 8 },
+  actions: { flexDirection: "row", alignItems: "flex-start", gap: 16 },
+  action: { flexDirection: "row", alignItems: "center", gap: 5, height: 28 },
+  count: { fontSize: 14, fontWeight: "600", color: colors.fg },
+  scoreCol: { alignItems: "flex-end", gap: 3, maxWidth: 140 },
+  scorePill: { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3 },
+  scoreText: { color: colors.white, fontWeight: "800", fontSize: 14 },
+  tiny: { fontSize: 10.5, color: colors.muted },
+  title: { fontSize: 17, fontWeight: "700", color: colors.fg },
+  desc: { fontSize: 14, lineHeight: 19, color: colors.muted },
   white: { color: colors.white, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 6 },
   dim: { color: "rgba(255,255,255,0.85)" },
-  ring: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.35)" },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   dots: { flexDirection: "row", gap: 5 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.line },
