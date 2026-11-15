@@ -18,8 +18,8 @@ export function SocialButton({ provider, onPress }: { provider: "google" | "appl
 }
 
 const styles = StyleSheet.create({
-  button: { width: "100%", backgroundColor: "#ffffff", borderRadius: 999, borderWidth: 1, borderColor: "#d5d5dc", paddingVertical: 14 },
-  inner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 },
-  mark: { width: 22, height: 22 },
-  label: { color: "#111111", fontSize: 16, lineHeight: 20, fontWeight: "700" },
+  button: { width: "100%", backgroundColor: "#ffffff", borderRadius: 999, borderWidth: 1, borderColor: "#d5d5dc", paddingVertical: 10 },
+  inner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  mark: { width: 16, height: 16 },
+  label: { color: "#111111", fontSize: 14, lineHeight: 18, fontWeight: "600" },
 });

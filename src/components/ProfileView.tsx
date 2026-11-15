@@ -5,6 +5,7 @@ import { Alert, Image, Pressable, Share, StyleSheet, Switch, View } from "react-
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { ProfileResult } from "../../convex/lib/contract";
+import { paths, postPath } from "../lib/links";
 import { colors, spacing } from "../theme";
 import { Avatar } from "./Bits";
 import { Button } from "./Button";
@@ -55,7 +56,7 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
       {user.isMe ? (
         <View style={styles.row}>
           <Button title="Edit profile" variant="ghost" style={styles.half}
-            onPress={() => Alert.alert("Coming soon", "Profile editing lives in Settings, which is next on the list.")} />
+            accessibilityLabel="Edit profile" onPress={() => router.push(paths.settings)} />
           <Button title="Share profile" variant="ghost" style={styles.half} onPress={share} />
         </View>
       ) : (
@@ -64,6 +65,9 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
           <Button title="Compare tastes" variant="ghost" style={styles.half}
             onPress={() => router.push({ pathname: "/compare/[userId]", params: { userId: String(user.userId) } })} />
         </View>
+      )}
+      {!user.isMe && user.status === "friends" && (
+        <Button title={`Invite ${user.displayName.split(" ")[0]} to a trip`} variant="ghost" onPress={() => router.push(paths.trips)} />
       )}
 
       <FollowBar userId={user.userId} isMe={user.isMe} />
@@ -107,7 +111,7 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
             ) : (
               <View style={styles.grid}>
                 {profile.recentPosts.map((p) => (
-                  <Pressable key={String(p.postId)} onPress={() => openVenue(p.target)} onLongPress={user.isMe ? () => togglePin(p.postId) : undefined} style={styles.cell}>
+                  <Pressable key={String(p.postId)} onPress={() => router.push(postPath(String(p.postId)))} onLongPress={user.isMe ? () => togglePin(p.postId) : undefined} style={styles.cell}>
                     {p.photoUrls[0] ? <Image source={{ uri: p.photoUrls[0] }} style={StyleSheet.absoluteFill} /> : <Photo item={{ category: p.target.category }} height={140} />}
                     <View style={styles.cellTag}><Text style={styles.cellText}>{p.score.toFixed(1)}</Text></View>
                   </Pressable>

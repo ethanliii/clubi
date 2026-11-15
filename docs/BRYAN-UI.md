@@ -62,6 +62,11 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 ## Pass 8 (dark onboarding)
 - Create account + taste quiz now use the app's dark palette (`src/theme/onboarding.ts`, `onboardingColors`), so the whole app is dark like the rest (app.json is dark-only). The cream Hinge palette is kept there as `ONBOARDING_LIGHT` for a future light theme. "You're in" already used the dark theme.
 
+## Pass 9 (entry points for main's screens, branding)
+- **`src/lib/links.ts` copied byte-for-byte from `main`** so the merge has nothing to resolve there. New buttons use its `paths` / `postPath`.
+- **Buttons for main's screens (same labels as main):** Profile tab → gear "Settings", links Friends · Saved · Following · Trips · My rankings · Notifications; "Edit profile" → `/settings`; friend profile → "Invite <name> to a trip" (→ `/trips`); Search → Trips · Saved under Plan my night; feed card → "View post" (`/post/<id>`); profile grid photo → `/post/<id>`. These routes (`trips`, `trip/[tripId]`, `saved`, `settings`, `following`, `post/[postId]`, `performer/[performerId]`) come from `main` on merge.
+- **Brand:** name "clubi", tagline "Go where your friends go.", `DESCRIPTION` in `src/constants/brand.ts` + `app.json` description. Google / Apple buttons smaller (16 px mark, 14 px label).
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 

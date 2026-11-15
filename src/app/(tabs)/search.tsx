@@ -8,6 +8,7 @@ import type { NearbyItem } from "../../../convex/lib/contract";
 import {
   Avatar, AvatarStack, Button, Chip, EmptyState, Icon, Screen, Skeleton, Text, VenueCard, openVenue,
 } from "../../components";
+import { paths } from "../../lib/links";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { colors, radius, spacing } from "../../theme";
 
@@ -126,6 +127,15 @@ export default function Search() {
               <Icon name="spark" size={18} color={colors.white} />
             </View>
           </Pressable>
+          {/* Same quick links as main's old Home: Trips + Saved. */}
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {([["Trips", "calendar", paths.trips], ["Saved", "bookmark", paths.saved]] as const).map(([label, icon, href]) => (
+              <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} onPress={() => router.push(href)} style={[styles.banner, { flex: 1, paddingVertical: 12, backgroundColor: colors.surface }]}>
+                <Icon name={icon} size={18} color={colors.fg} />
+                <Text style={{ fontWeight: "600", flex: 1 }}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
 
           {!group.length && tonight && (
             <>

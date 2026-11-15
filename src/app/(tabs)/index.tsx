@@ -10,6 +10,7 @@ import {
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useState } from "react";
 import { Spotlight } from "../../features/feed/Spotlight";
+import { postPath } from "../../lib/links";
 import { colors, radius, ratingColor, spacing } from "../../theme";
 
 /** Home tab = the friend feed (decision D2). UI-SPEC §7. New posts appear on their own. */
@@ -181,7 +182,9 @@ function Post({ post, onComments }: { post: FeedItem; onComments: () => void }) 
           <Icon name="bookmark" size={20} color={saved ? colors.accent : colors.fg} />
         </Pressable>
       </View>
-      <Text variant="caption" muted>{timeAgo(post.createdAt)}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open post" onPress={() => router.push(postPath(String(post.postId)))}>
+        <Text variant="caption" muted>{timeAgo(post.createdAt)} · View post</Text>
+      </Pressable>
     </View>
   );
 }
