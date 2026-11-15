@@ -2,7 +2,7 @@ export const FEATURES = ["energy", "loudness", "crowdAge", "price", "dancing", "
   "pop", "hiphop", "electronic", "indie", "culture", "outdoors", "food"] as const;
 export type Feature = (typeof FEATURES)[number];
 
-export const TASTE_ETA = 0.05;
+export const TASTE_ETA = 0.25;
 export const TASTE_KAPPA = 5;
 export const TASTE_LAMBDA = 0.1;
 export const ELO_K0 = 0.5;
@@ -40,11 +40,15 @@ export function similarity(a: number[], b: number[]): number {
   return cosine(ca, cb);
 }
 
-/** 8.1: one BT/logistic step on the user's taste after "winner beat loser". */
+/**
+ * 8.1: one BT/logistic step on the user's taste after "winner beat loser". The surprise g is measured on
+ * the similarity gap, the same quantity the content score is built from; a raw dot product saturates
+ * whenever the winner simply has more high features, and then nothing is learned.
+ */
 export function updateTaste(t: number[], prior: number[], fW: number[], fL: number[],
   eta = TASTE_ETA, kappa = TASTE_KAPPA, lambda = TASTE_LAMBDA): number[] {
   const delta = fW.map((x, k) => x - fL[k]);
-  const g = 1 - sigmoid(kappa * dot(t, delta));
+  const g = 1 - sigmoid(kappa * (similarity(t, fW) - similarity(t, fL)));
   return t.map((x, k) => clip(x + eta * g * delta[k] - eta * lambda * (x - prior[k]), 0, 1));
 }
 
