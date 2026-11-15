@@ -1,5 +1,7 @@
 # clubi team playbook: 3 people, 5 Capy captains
 
+> **Update, 1:30 PM.** Ethan's backend is now built by three Claude Code sessions instead of three Capy captains: see [`SESSIONS.md`](SESSIONS.md). The backend half of the social features (feed, friends, profile, settings, trips) moved to Ethan's **People** session, so the screens can be wired against one contract. Bryan: your screen-by-screen guide is [`UI-SPEC.md`](UI-SPEC.md). The API is [`CONTRACT.md`](CONTRACT.md). The rest of this file is the morning plan, kept for the timeline and the demo script.
+
 **Consumer Mobile Hackathon, YC SF, Sun Nov 15 2026. Submit by 6:00 PM PT (we aim for 5:45).**
 Capy, Revyl and Convex are all required to win. Full product spec: `CLAUDE.md`. Tool setup: `guides/convex-capy-revyl.md`.
 
