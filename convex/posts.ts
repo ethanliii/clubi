@@ -13,7 +13,7 @@ import {
   cleanComment,
   rankLabel,
 } from "./lib/social";
-import { cardOf } from "./friends";
+import { blockedIdsOf, cardOf } from "./friends";
 import { notify } from "./notifications";
 import {
   deletePostCascade,
@@ -40,6 +40,8 @@ const REACTION_DEDUPE_SCAN = 200;
 export type PostViewer = {
   userId: Id<"users"> | null;
   friendIds: Set<Id<"users">>;
+  /** People the viewer blocked and people who blocked the viewer. */
+  blockedIds: Set<Id<"users">>;
   under21: boolean;
 };
 
@@ -47,21 +49,23 @@ export async function postViewer(ctx: QueryCtx): Promise<PostViewer> {
   const userId = await getAuthUserId(ctx);
   const user = userId === null ? null : await ctx.db.get("users", userId);
   if (userId === null || user === null) {
-    return { userId: null, friendIds: new Set(), under21: false };
+    return { userId: null, friendIds: new Set(), blockedIds: new Set(), under21: false };
   }
   return {
     userId,
     friendIds: await friendIdsOf(ctx, userId),
+    blockedIds: await blockedIdsOf(ctx, userId),
     under21: isUnder21(user.birthday, Date.now()),
   };
 }
 
 /**
  * The one place that decides who can see a post: the author always; `public` anyone signed in;
- * `friends` (and unset) accepted friends only; `private` nobody else. Every function in this file,
- * and the profile, goes through it.
+ * `friends` (and unset) accepted friends only; `private` nobody else; and nothing at all between two
+ * people when either has blocked the other. Every function in this file, and the profile, goes through it.
  */
 export const canSee = (viewer: PostViewer, post: Doc<"posts">) =>
+  !viewer.blockedIds.has(post.userId) &&
   canSeePost({
     viewerId: viewer.userId,
     authorId: post.userId,
@@ -451,7 +455,7 @@ export const comments = query({
     const getUser = userLoader(ctx);
     const items: CommentItem[] = [];
     for (const row of rows) {
-      const author = await getUser(row.userId);
+      const author = viewer.blockedIds.has(row.userId) ? null : await getUser(row.userId);
       if (author === null) {
         continue;
       }

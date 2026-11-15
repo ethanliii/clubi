@@ -184,7 +184,7 @@ const DELETE_BATCH = 150;
 /**
  * Deletes everything a user wrote or received, a batch per table: quiz, rankings, comparisons,
  * notifications (both directions), posts with their photos, reactions and comments, moments,
- * friendships, saves, trips they own (with members and votes), trip memberships and votes, answers to
+ * friendships, blocks, saves, trips they own (with members and votes), trip memberships and votes, answers to
  * venue questions, performer affinities and their avatar. Returns true when nothing is left, false when
  * a table still has rows (call again). Shared by `purgeTestUsers`, `settings.deleteAccount` and the
  * demo seed's `clear`.
@@ -230,6 +230,8 @@ export async function deleteUserRows(ctx: MutationCtx, userId: Id<"users">): Pro
   await drop(await ctx.db.query("moments").withIndex("by_author", (q) => q.eq("authorId", userId)).take(DELETE_BATCH));
   await drop(await ctx.db.query("friendships").withIndex("by_userA", (q) => q.eq("userA", userId)).take(DELETE_BATCH));
   await drop(await ctx.db.query("friendships").withIndex("by_userB", (q) => q.eq("userB", userId)).take(DELETE_BATCH));
+  await drop(await ctx.db.query("blocks").withIndex("by_blocker", (q) => q.eq("blockerId", userId)).take(DELETE_BATCH));
+  await drop(await ctx.db.query("blocks").withIndex("by_blocked", (q) => q.eq("blockedId", userId)).take(DELETE_BATCH));
   await drop(await ctx.db.query("reactions").withIndex("by_user", (q) => q.eq("userId", userId)).take(DELETE_BATCH));
   await drop(await ctx.db.query("comments").withIndex("by_user", (q) => q.eq("userId", userId)).take(DELETE_BATCH));
   await drop(await ctx.db.query("saves").withIndex("by_user", (q) => q.eq("userId", userId)).take(DELETE_BATCH));
