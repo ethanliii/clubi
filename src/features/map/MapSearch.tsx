@@ -2,7 +2,7 @@
  * The search box over the map and the results under it. Results are `api.places.search` rows,
  * in the backend's order; tapping one opens its page.
  */
-import { useQuery } from "convex/react";
+import { useKeptQuery } from "../../lib/useKeptQuery";
 import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Icon, IconButton, ItemCard, SkeletonRows, Text } from "../../components";
 import { api } from "../../lib/api";
@@ -56,7 +56,7 @@ export function SearchResults({
   const debounced = useDebounced(typed, 300);
   const active = typed.length >= MIN_LETTERS;
   const asked = debounced.length >= MIN_LETTERS;
-  const results = useQuery(api.places.search, ready && asked ? { text: debounced, lat, lng } : "skip");
+  const results = useKeptQuery(api.places.search, ready && asked ? { text: debounced, lat, lng } : "skip", debounced);
   if (!active) return null;
 
   // Still waiting when the query is loading, or the user has typed on since the last request.

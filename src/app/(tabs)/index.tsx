@@ -6,6 +6,7 @@ import { CardRow } from "../../features/home/CardRow";
 import { QuickLink } from "../../features/home/QuickLink";
 import { api } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
+import { useKeptQuery } from "../../lib/useKeptQuery";
 import { paths, planPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
 import { colors, radius, spacing } from "../../theme";
@@ -15,8 +16,8 @@ const UNREAD_CAP = 99;
 
 export default function Home() {
   const { lat, lng, ready } = useDemoLocation();
-  const tonight = useQuery(api.discover.tonight, ready ? { lat, lng } : "skip");
-  const upcoming = useQuery(api.discover.upcoming, ready ? { lat, lng } : "skip");
+  const tonight = useKeptQuery(api.discover.tonight, ready ? { lat, lng } : "skip", "tonight");
+  const upcoming = useKeptQuery(api.discover.upcoming, ready ? { lat, lng } : "skip", "upcoming");
   const unread = useQuery(api.notifications.unreadCount, {});
   const now = useNow();
 

@@ -22,6 +22,7 @@ import {
 } from "../../components";
 import { api, type Id, type Kind, type Source, type VenueDetail } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
+import { useKeptQuery } from "../../lib/useKeptQuery";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore, pluralize } from "../../lib/format";
 import { directionsUrl, openUrl, ratePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
@@ -77,7 +78,8 @@ export function VenuePage({ kind, id }: { kind: Kind; id: string }) {
   // Opened before the phone knows where it is (a reload on this page): show the place right away,
   // and switch to the answer that includes the distance once the location arrives.
   const [startedReady] = useState(ready);
-  const located = useQuery(api.places.get, ready ? { kind, id, lat, lng } : "skip");
+  // Kept while the location moves: a new fix must not swap the page for its loading state.
+  const located = useKeptQuery(api.places.get, ready ? { kind, id, lat, lng } : "skip", `${kind}:${id}`);
   const unlocated = useQuery(api.places.get, startedReady ? "skip" : { kind, id });
   const venue = located !== undefined ? located : unlocated;
   const hasDistance = located !== undefined;
@@ -89,7 +91,11 @@ export function VenuePage({ kind, id }: { kind: Kind; id: string }) {
     api.performers.forEvent,
     venueId && kind === "event" ? { eventId: venueId as Id<"events"> } : "skip",
   );
-  const similar = useQuery(api.discover.similar, venueId && ready ? { kind, id: venueId, lat, lng } : "skip");
+  const similar = useKeptQuery(
+    api.discover.similar,
+    venueId && ready ? { kind, id: venueId, lat, lng } : "skip",
+    `${kind}:${venueId ?? ""}`,
+  );
 
   if (venue === undefined) return <LoadingVenue />;
   if (venue === null) return <NotListed />;

@@ -55,12 +55,12 @@ export default function RootLayout() {
  * first screen that is still allowed.
  */
 function RootNavigator() {
-  const { gate } = useSession();
+  const { gate, landing } = useSession();
   if (gate === null) return <Splash />;
 
   const inApp = gate === "ready" || gate === "tasteCard";
   // Where someone lands when the screen they are on (or asked for) is not allowed for them.
-  const home = gate === "signedOut" ? paths.welcome : gate === "quiz" ? paths.quiz : paths.home;
+  const home = gate === "signedOut" ? paths.welcome : gate === "quiz" ? paths.quiz : landing;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       <Stack.Protected guard={inApp} redirectTo={home}>

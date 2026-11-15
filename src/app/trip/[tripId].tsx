@@ -22,6 +22,7 @@ import { vibeLabel } from "../../features/trips/vibes";
 import { api, type Id, type TripDetail } from "../../lib/api";
 import { confirm } from "../../lib/confirm";
 import { useDemoLocation } from "../../lib/demoLocation";
+import { useKeptQuery } from "../../lib/useKeptQuery";
 import { formatDateRange, pluralize } from "../../lib/format";
 import { paths, planPath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
@@ -94,7 +95,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
   const lat = spot?.lat ?? here.lat;
   const lng = spot?.lng ?? here.lng;
   const canPick = isIn && (hasSpot || here.ready);
-  const group = useQuery(api.discover.forGroup, canPick ? { tripId, lat, lng } : "skip");
+  const group = useKeptQuery(api.discover.forGroup, canPick ? { tripId, lat, lng } : "skip", tripId);
   // A city nobody has opened on the map has no places yet. Ask for them once; the picks above
   // are live and fill in when the import lands.
   const ensureArea = useMutation(api.ingest.ensureArea);
