@@ -14,7 +14,12 @@ export function useNearby(filter: Filter = "all"): NearbyResult | undefined {
   useEffect(() => {
     if (!ready || requestedAreas.has(area)) return;
     requestedAreas.add(area);
-    ensureArea({ lat, lng }).catch(() => requestedAreas.delete(area));
+    ensureArea({ lat, lng }).then(
+      ({ status }) => {
+        if (status === "throttled") requestedAreas.delete(area);
+      },
+      () => requestedAreas.delete(area),
+    );
   }, [ready, area, lat, lng, ensureArea]);
   return useQuery(api.discover.nearby, ready ? { lat, lng, filter } : "skip");
 }
