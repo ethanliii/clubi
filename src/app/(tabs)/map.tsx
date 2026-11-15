@@ -145,7 +145,7 @@ export default function MapScreen() {
               onPress={() => void openUrl(ATTRIBUTION_URL)}
               style={styles.attribution}
             >
-              <Text variant="caption" numberOfLines={1} style={styles.attributionText}>
+              <Text variant="caption" numberOfLines={2} style={styles.attributionText}>
                 {attribution}
               </Text>
             </Pressable>
@@ -247,7 +247,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     pointerEvents: "box-none",
   },
-  controlsLeft: { flexShrink: 1, alignItems: "flex-start", gap: spacing.xs + 2, pointerEvents: "box-none" },
+  // Takes the width left of "Recenter" and no more, so a long credit wraps instead of sliding under the button.
+  controlsLeft: { flex: 1, minWidth: 0, alignItems: "flex-start", gap: spacing.xs + 2, pointerEvents: "box-none" },
   pill: {
     flexDirection: "row",
     alignItems: "center",
@@ -268,6 +269,7 @@ const styles = StyleSheet.create({
   recenter: { paddingLeft: spacing.md, paddingRight: spacing.md + 2 },
   pillText: { fontWeight: fontWeight.semibold },
   attribution: {
+    maxWidth: "100%",
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     borderRadius: radius.sm,

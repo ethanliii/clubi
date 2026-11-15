@@ -1,12 +1,15 @@
 /**
- * The map in a browser: Leaflet on OpenStreetMap's own tiles, turned dark with a CSS filter, with the
- * same three pins as the native map drawn as HTML. The native twin is MapCanvas.native.tsx.
+ * The map in a browser: MapLibre GL drawing OpenFreeMap's night-blue vector map, with the same three pins as
+ * the native map drawn as HTML. The native twin is MapCanvas.native.tsx (Apple Maps on iOS).
  *
- * Why not a ready-made dark tile set: CARTO's dark tiles now answer "API KEY REQUIRED" without a key,
- * and this app has no map key. To switch later, change TILE_URL and TILE_ATTRIBUTION and drop the filter.
+ * Why vector tiles: the first version used OpenStreetMap's picture tiles, which are made for
+ * ordinary screens. On a Retina screen each one is stretched to twice its size, so streets and names
+ * were blurry, and the night look was a colour-invert filter over a daytime map. A vector map is drawn
+ * at the screen's own resolution and has a real dark style. OpenFreeMap needs no key and no account.
+ * Apple Maps in a browser (MapKit JS) would need a token from a paid Apple Developer account.
  */
-import "leaflet/dist/leaflet.css";
-import * as L from "leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { Map as GLMap, Marker, getVersion, setWorkerUrl } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
@@ -14,21 +17,34 @@ import { colors } from "../../theme";
 import { PIN, START_ZOOM, pinColor, pinGlow, pinLabel, pinOrder, pinSignature } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
 
-/** The tiles are OpenStreetMap's, and the screen already shows "© OpenStreetMap contributors". */
-export const TILE_ATTRIBUTION = "";
+/** The map picture's own credit. The screen shows it after "© OpenStreetMap contributors". */
+export const TILE_ATTRIBUTION = "OpenFreeMap © OpenMapTiles";
 
-const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-/** Light map in, night map out: flip the lightness, turn the hues back, then calm it down. */
-const TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.92) saturate(0.45)";
+/**
+ * MapLibre does its heavy work on a background worker that lives in a separate file. Expo's bundler
+ * does not ship that file with the app, so it is loaded from a public CDN, at exactly the installed version.
+ */
+setWorkerUrl(`https://cdn.jsdelivr.net/npm/maplibre-gl@${getVersion()}/dist/maplibre-gl-worker.mjs`);
+
+/** "fiord" is OpenFreeMap's night style with readable streets; their "dark" one is close to black on black. */
+const STYLE_URL = "https://tiles.openfreemap.org/styles/fiord";
+/** MapLibre counts zoom on 512-pixel tiles, one less than the usual web-map number for the same view. */
+const GL_ZOOM_OFFSET = -1;
+const MIN_ZOOM = 2;
+const MAX_ZOOM = 18;
+/** A map click this soon after a pin click is the same click arriving twice. */
+const SAME_CLICK_MS = 100;
+/** A pin under the pointer comes to the front, over every other pin. */
+const HOVER_ORDER = 6000;
 const STYLE_ID = "clubi-map-style";
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
 // Pins are plain elements styled by class; `--c` is the category color and `--g` its glow.
 const CSS = `
 .clubi-map { background: ${colors.page}; outline: none; font-family: ${FONT}; }
-.clubi-map .leaflet-pane, .clubi-map .leaflet-tile { -webkit-user-select: none; user-select: none; }
-.clubi-map .leaflet-tile-pane { filter: ${TILE_FILTER}; }
+.clubi-map .maplibregl-canvas { outline: none; }
 .clubi-anchor { width: 0 !important; height: 0 !important; margin: 0 !important; overflow: visible; background: none; border: none; outline: none; }
+.clubi-anchor:hover { z-index: ${HOVER_ORDER} !important; }
 .clubi-pin {
   position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
   box-sizing: border-box; display: flex; align-items: center; justify-content: center;
@@ -112,31 +128,44 @@ function pinElement(item: NearbyItem, selected: boolean): HTMLElement {
   return pin;
 }
 
-function pinIcon(element: HTMLElement): L.DivIcon {
-  return L.divIcon({ html: element, className: "clubi-anchor", iconSize: [0, 0] });
+/**
+ * A pin on the map is a zero-size anchor that MapLibre moves, with the pin centered on it.
+ * (MapLibre writes its own `transform` on the element it is given, so the pin cannot be that element.)
+ */
+function anchorFor(pin: HTMLElement, order: number): HTMLDivElement {
+  const anchor = document.createElement("div");
+  anchor.className = "clubi-anchor";
+  anchor.style.zIndex = String(order);
+  anchor.append(pin);
+  return anchor;
 }
+
+const lngLat = (at: LatLng): [number, number] => [at.lng, at.lat];
 
 /**
  * Put `target` in the middle of the part of the map that is not covered by the search bar and the list.
  * `zoom` null keeps the current zoom and slides; a number flies there.
  */
-function moveCamera(map: L.Map, target: LatLng, zoom: number | null, padding: { top: number; bottom: number }, animate: boolean) {
-  const nextZoom = zoom ?? map.getZoom();
-  const shift = (padding.bottom - padding.top) / 2;
-  const point = map.project([target.lat, target.lng], nextZoom).add([0, shift]);
-  const latLng = map.unproject(point, nextZoom);
-  if (!animate) map.setView(latLng, nextZoom, { animate: false });
-  else if (zoom === null) map.panTo(latLng, { animate: true, duration: 0.35 });
-  else map.flyTo(latLng, nextZoom, { duration: 0.6 });
+function moveCamera(map: GLMap, target: LatLng, zoom: number | null, padding: { top: number; bottom: number }, animate: boolean) {
+  const view = {
+    center: lngLat(target),
+    padding: { top: padding.top, bottom: padding.bottom, left: 0, right: 0 },
+    ...(zoom === null ? {} : { zoom: zoom + GL_ZOOM_OFFSET }),
+  };
+  if (!animate) map.jumpTo(view);
+  else if (zoom === null) map.easeTo({ ...view, duration: 350 });
+  else map.flyTo({ ...view, duration: 600 });
 }
 
-type Drawn = { marker: L.Marker; signature: string; item: NearbyItem };
+type Drawn = { marker: Marker; anchor: HTMLDivElement; signature: string; item: NearbyItem };
 
 export function MapCanvas({ items, center, user, selectedId, onSelect, recenterKey, padding }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<GLMap | null>(null);
   const drawnRef = useRef(new Map<string, Drawn>());
-  const userMarkerRef = useRef<L.Marker | null>(null);
+  const userMarkerRef = useRef<Marker | null>(null);
+  // When a pin was last clicked. Only read and written in click handlers.
+  const pinClickedAt = useRef(0);
   // The newest values for code that runs later (map clicks, camera moves) without re-running effects.
   const latest = useRef({ onSelect, padding, center });
   useEffect(() => {
@@ -149,25 +178,38 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
     if (!container) return;
     ensureStyle();
     const drawn = drawnRef.current;
-    const map = L.map(container, {
-      zoomControl: false,
-      // The screen shows the attribution itself, above the list, where it can always be read.
-      attributionControl: false,
-      minZoom: 3,
-      maxZoom: 19,
-      worldCopyJump: true,
-    });
-    L.tileLayer(TILE_URL, { maxZoom: 19 }).addTo(map);
+    let map: GLMap;
+    try {
+      map = new GLMap({
+        container,
+        style: STYLE_URL,
+        center: lngLat(latest.current.center),
+        zoom: START_ZOOM + GL_ZOOM_OFFSET,
+        minZoom: MIN_ZOOM,
+        maxZoom: MAX_ZOOM,
+        // The screen shows the attribution itself, above the list, where it can always be read.
+        attributionControl: false,
+        // North stays up and the map stays flat, like the native one.
+        dragRotate: false,
+        pitchWithRotate: false,
+        touchPitch: false,
+        rollEnabled: false,
+        maxPitch: 0,
+      });
+    } catch {
+      // No WebGL in this browser: the page keeps its plain background and the list below still works.
+      return;
+    }
+    map.touchZoomRotate.disableRotation();
+    map.keyboard.disableRotation();
     moveCamera(map, latest.current.center, START_ZOOM, latest.current.padding, false);
-    map.on("click", () => latest.current.onSelect(null));
+    map.on("click", () => {
+      if (performance.now() - pinClickedAt.current < SAME_CLICK_MS) return;
+      latest.current.onSelect(null);
+    });
     mapRef.current = map;
 
-    // Leaflet has to be told when its box changes size (window resize, coming back to this tab).
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => map.invalidateSize());
-    observer?.observe(container);
-
     return () => {
-      observer?.disconnect();
       map.remove();
       mapRef.current = null;
       userMarkerRef.current = null;
@@ -189,24 +231,34 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       const existing = drawn.get(id);
       if (existing) {
         existing.item = item;
-        const at = existing.marker.getLatLng();
-        if (at.lat !== item.lat || at.lng !== item.lng) existing.marker.setLatLng([item.lat, item.lng]);
+        const at = existing.marker.getLngLat();
+        if (at.lat !== item.lat || at.lng !== item.lng) existing.marker.setLngLat(lngLat(item));
         if (existing.signature !== signature) {
-          existing.marker.setIcon(pinIcon(pinElement(item, selected)));
-          existing.marker.setZIndexOffset(pinOrder(item, selected));
+          existing.anchor.replaceChildren(pinElement(item, selected));
+          existing.anchor.style.zIndex = String(pinOrder(item, selected));
+          existing.anchor.setAttribute("aria-label", pinLabel(item));
           existing.signature = signature;
         }
         continue;
       }
-      const marker = L.marker([item.lat, item.lng], {
-        icon: pinIcon(pinElement(item, selected)),
-        zIndexOffset: pinOrder(item, selected),
-        keyboard: true,
-        riseOnHover: true,
-        riseOffset: 6000,
+      const anchor = anchorFor(pinElement(item, selected), pinOrder(item, selected));
+      anchor.tabIndex = 0;
+      anchor.setAttribute("role", "button");
+      anchor.setAttribute("aria-label", pinLabel(item));
+      const marker = new Marker({ element: anchor, anchor: "center" }).setLngLat(lngLat(item));
+      const entry: Drawn = { marker, anchor, signature, item };
+      const select = (event: Event) => {
+        // The same click would otherwise reach the map underneath and clear the pick again.
+        event.stopPropagation();
+        pinClickedAt.current = performance.now();
+        latest.current.onSelect(entry.item);
+      };
+      anchor.addEventListener("click", select);
+      anchor.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        select(event);
       });
-      const entry: Drawn = { marker, signature, item };
-      marker.on("click", () => latest.current.onSelect(entry.item));
       marker.addTo(map);
       drawn.set(id, entry);
     }
@@ -229,18 +281,15 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       return;
     }
     if (userMarkerRef.current) {
-      userMarkerRef.current.setLatLng([userLat, userLng]);
+      userMarkerRef.current.setLngLat([userLng, userLat]);
       return;
     }
     const dot = document.createElement("div");
     dot.className = "clubi-pin clubi-user";
     dot.setAttribute("aria-label", "You are here");
-    userMarkerRef.current = L.marker([userLat, userLng], {
-      icon: pinIcon(dot),
-      interactive: false,
-      keyboard: false,
-      zIndexOffset: 500,
-    }).addTo(map);
+    const anchor = anchorFor(dot, 500);
+    anchor.style.pointerEvents = "none";
+    userMarkerRef.current = new Marker({ element: anchor, anchor: "center" }).setLngLat([userLng, userLat]).addTo(map);
   }, [userLat, userLng]);
 
   // Demo switch, a new position, or "Recenter": back to the center at the starting zoom.
@@ -271,7 +320,7 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       className="clubi-map"
       role="application"
       aria-label="Map"
-      // zIndex 0 keeps Leaflet's own layers (z-index up to 1000) underneath the search bar and the list.
+      // zIndex 0 keeps the map's own layers and the pins underneath the search bar and the list.
       style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 }}
     />
   );
