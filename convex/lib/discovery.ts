@@ -7,7 +7,7 @@ import {
   FEATURES, GAMMA_ELO, NEUTRAL_TASTE, Rater, TIME_TAU, clip, mapRank, matchPct, predict, similarity, whyFromFeatures,
 } from "./recs";
 
-export const ALGO = "hybrid-v2";
+export const ALGO = "hybrid-v3";
 export const ATTRIBUTION = "© OpenStreetMap contributors";
 export const DEFAULT_RADIUS_METERS = 2500;
 export const DEFAULT_LIMIT = 60;
@@ -90,7 +90,7 @@ export function venueVectorOf(doc: { venueVector?: number[]; category: Category 
   return FEATURES.map((k) => preset[k] ?? 0.3);
 }
 
-const tasteOf = (user: Doc<"users"> | null) =>
+export const tasteOf = (user: Doc<"users"> | null) =>
   user?.tasteVector?.length === FEATURES.length ? user.tasteVector : NEUTRAL_TASTE;
 
 const sameCity = (a: string | undefined, b: string | undefined) =>
