@@ -20,8 +20,7 @@ const CATEGORY_NOUN: Record<Category, string> = {
   live: "shows",
   popup: "pop-ups",
 };
-const LOCAL_CITIES = ["san francisco", "sf"];
-const LOCAL_UTC_OFFSET_HOURS = -8;
+const DEGREES_PER_HOUR = 15;
 const MAX_COMPARISONS = 20;
 
 const vKind = v.union(v.literal("place"), v.literal("event"));
@@ -46,13 +45,32 @@ async function loadTarget(
   ctx: QueryCtx,
   kind: "place" | "event",
   id: TargetId,
-): Promise<{ name: string; category: Category } | null> {
+): Promise<{
+  name: string;
+  category: Category;
+  city?: string;
+  lng: number;
+} | null> {
   if (kind === "place") {
     const place = await ctx.db.get("places", id as Id<"places">);
-    return place && { name: place.name, category: place.category };
+    return (
+      place && {
+        name: place.name,
+        category: place.category,
+        city: place.city,
+        lng: place.lng,
+      }
+    );
   }
   const event = await ctx.db.get("events", id as Id<"events">);
-  return event && { name: event.title, category: event.category };
+  return (
+    event && {
+      name: event.title,
+      category: event.category,
+      city: event.city,
+      lng: event.lng,
+    }
+  );
 }
 
 export const listInBucket = query({
@@ -118,7 +136,11 @@ export const rank = mutation({
     const user = await ctx.db.get("users", userId);
     const { category } = target;
     const now = Date.now();
-    const local = new Date(now + LOCAL_UTC_OFFSET_HOURS * 3600 * 1000);
+    const local = new Date(
+      now + Math.round(target.lng / DEGREES_PER_HOUR) * 3600 * 1000,
+    );
+    const homeCity = user?.homeCity?.trim().toLowerCase();
+    const targetCity = target.city?.trim().toLowerCase();
     const dayOfWeek = local.getUTCDay();
     const hour = local.getUTCHours();
 
@@ -132,6 +154,17 @@ export const rank = mutation({
       (ranking) => (ranking.placeId ?? ranking.eventId) === id,
     );
     const others = mine.filter((ranking) => ranking !== existing);
+    const rankedIds = new Set(
+      others.map((ranking) => ranking.placeId ?? ranking.eventId),
+    );
+    for (const { winnerId, loserId } of comparisons) {
+      const other = winnerId === id ? loserId : winnerId;
+      if ((winnerId !== id && loserId !== id) || !rankedIds.has(other)) {
+        throw new Error(
+          "Each comparison must be between this item and one you already ranked in the same category",
+        );
+      }
+    }
 
     const fields = {
       bucket,
@@ -139,9 +172,7 @@ export const rank = mutation({
       score: 0,
       tags,
       visitedAt: now,
-      wasLocal: LOCAL_CITIES.includes(
-        (user?.homeCity ?? "").trim().toLowerCase(),
-      ),
+      wasLocal: !!homeCity && homeCity === targetCity,
       dayOfWeek,
       hour,
     };
