@@ -7,6 +7,7 @@ import {
   MutationCtx,
   QueryCtx,
 } from "./_generated/server";
+import { DEFAULT_RADIUS_METERS } from "./lib/discovery";
 import { Feature, FEATURES } from "./lib/recs";
 import { categoryValidator, sourceValidator } from "./tables/catalog";
 
@@ -104,7 +105,8 @@ export function featurize(input: {
 
 export const MAX_BATCH = 100;
 const PLACE_DEDUPE_METERS = 50;
-const PLACE_DEDUPE_DEGREES = PLACE_DEDUPE_METERS / 111000;
+const METERS_PER_DEGREE = 111_320;
+const PLACE_DEDUPE_DEGREES = PLACE_DEDUPE_METERS / METERS_PER_DEGREE;
 const EVENT_DEDUPE_MS = 60 * 60 * 1000;
 const ASSUMED_EVENT_MS = 3 * 60 * 60 * 1000;
 // Hand-set rows are never overwritten or replaced by an import.
@@ -352,7 +354,6 @@ export const setIngestFrozen = internalMutation({
 });
 
 const AREA_CELL_DEGREES = 0.02;
-const AREA_RADIUS_METERS = 3000;
 const AREA_FRESH_MS = 24 * 60 * 60 * 1000;
 const AREA_RETRY_MS = 5 * 60 * 1000;
 const AREA_BUDGET_KEY = "osmAreaBudget";
@@ -364,7 +365,9 @@ type AreaStatus = "fresh" | "importing" | "scheduled" | "throttled";
 /**
  * Make sure the map has OSM places around a location. Snaps the location to a
  * 0.02 degree grid cell; when that cell has not been imported in the last 24
- * hours it records the cell in appConfig and schedules importOsm for it.
+ * hours it records the cell in appConfig and schedules importOsm for it. The
+ * import radius reaches the default discovery radius from every point of the
+ * cell, and rows nearest the caller are written first.
  * Callable without signing in: an already imported cell costs one read, and
  * new cells are capped per hour across all callers.
  */
@@ -393,10 +396,18 @@ export const ensureArea = mutation({
       count: inWindow ? budget.count + 1 : 1,
     });
     await writeConfig(ctx, areaKey, { ...area, requestedAt: now });
+    const centerLat = (latCell + 0.5) * AREA_CELL_DEGREES;
+    const halfCellMeters = (AREA_CELL_DEGREES / 2) * METERS_PER_DEGREE;
+    const cornerMeters = Math.hypot(
+      halfCellMeters,
+      halfCellMeters * Math.cos((centerLat * Math.PI) / 180),
+    );
     await ctx.scheduler.runAfter(0, internal.imports.osm.importOsm, {
-      lat: (latCell + 0.5) * AREA_CELL_DEGREES,
+      lat: centerLat,
       lng: (lngCell + 0.5) * AREA_CELL_DEGREES,
-      radiusMeters: AREA_RADIUS_METERS,
+      radiusMeters: Math.ceil(DEFAULT_RADIUS_METERS + cornerMeters),
+      nearLat: lat,
+      nearLng: lng,
       areaKey,
     });
     return { status: "scheduled", areaKey };

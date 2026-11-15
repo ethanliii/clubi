@@ -194,7 +194,7 @@ type ImportResult = {
 
 /**
  * Import named OSM places within radiusMeters of a point into `places`,
- * nearest first: `npx convex run imports/osm:importOsm '{"lat":37.7608,"lng":-122.3861}'`.
+ * nearest to nearLat/nearLng (default: the centre) first: `npx convex run imports/osm:importOsm '{"lat":37.7608,"lng":-122.3861}'`.
  * `areaKey` is set when `ingest.ensureArea` schedules the import, and marks
  * that grid cell as imported once every row is written.
  */
@@ -203,15 +203,18 @@ export const importOsm = internalAction({
     lat: v.number(),
     lng: v.number(),
     radiusMeters: v.optional(v.number()),
+    nearLat: v.optional(v.number()),
+    nearLng: v.optional(v.number()),
     areaKey: v.optional(v.string()),
   },
-  handler: async (ctx, { lat, lng, radiusMeters, areaKey }): Promise<ImportResult> => {
+  handler: async (ctx, { lat, lng, radiusMeters, nearLat, nearLng, areaKey }): Promise<ImportResult> => {
     const radius = Math.min(MAX_RADIUS_METERS, Math.max(200, radiusMeters ?? DEFAULT_RADIUS_METERS));
     const elements = await overpass({ lat, lng }, radius);
+    const near = { lat: nearLat ?? lat, lng: nearLng ?? lng };
     const rows = elements
       .map(osmToRow)
       .filter((row) => row !== null)
-      .map((row) => ({ row, distance: haversineMeters({ lat, lng }, row) }))
+      .map((row) => ({ row, distance: haversineMeters(near, row) }))
       .sort((a, b) => a.distance - b.distance)
       .map(({ row }) => row);
     const result: ImportResult = {
