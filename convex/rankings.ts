@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Bucket, Category, RankResult } from "./lib/contract";
+import { notify } from "./notifications";
 import { categoryValidator } from "./tables/catalog";
 import { bucketValidator } from "./tables/people";
 
@@ -22,6 +23,9 @@ const CATEGORY_NOUN: Record<Category, string> = {
 };
 const DEGREES_PER_HOUR = 15;
 const MAX_COMPARISONS = 20;
+
+export const localOffsetMs = (lng: number) =>
+  Math.round(lng / DEGREES_PER_HOUR) * 3600 * 1000;
 
 const vKind = v.union(v.literal("place"), v.literal("event"));
 const vTargetId = v.union(v.id("places"), v.id("events"));
@@ -136,9 +140,7 @@ export const rank = mutation({
     const user = await ctx.db.get("users", userId);
     const { category } = target;
     const now = Date.now();
-    const local = new Date(
-      now + Math.round(target.lng / DEGREES_PER_HOUR) * 3600 * 1000,
-    );
+    const local = new Date(now + localOffsetMs(target.lng));
     const homeCity = user?.homeCity?.trim().toLowerCase();
     const targetCity = target.city?.trim().toLowerCase();
     const dayOfWeek = local.getUTCDay();
@@ -265,6 +267,54 @@ export const rank = mutation({
       });
     } else {
       await ctx.db.patch("posts", previousPost._id, post);
+    }
+
+    const friendships = [
+      ...(await ctx.db
+        .query("friendships")
+        .withIndex("by_userA", (q) =>
+          q.eq("userA", userId).eq("status", "accepted"),
+        )
+        .collect()),
+      ...(await ctx.db
+        .query("friendships")
+        .withIndex("by_userB", (q) =>
+          q.eq("userB", userId).eq("status", "accepted"),
+        )
+        .collect()),
+    ];
+    const friendIds = new Set(
+      friendships.map((friendship) =>
+        friendship.userA === userId ? friendship.userB : friendship.userA,
+      ),
+    );
+    const sameTarget =
+      kind === "place"
+        ? await ctx.db
+            .query("rankings")
+            .withIndex("by_place", (q) => q.eq("placeId", id as Id<"places">))
+            .collect()
+        : await ctx.db
+            .query("rankings")
+            .withIndex("by_event", (q) => q.eq("eventId", id as Id<"events">))
+            .collect();
+    const scoreByUser = new Map(
+      sameTarget.map((ranking) => [ranking.userId, ranking.score]),
+    );
+    const actorName = user?.displayName ?? user?.username ?? "A friend";
+    for (const friendId of friendIds) {
+      const friendScore = scoreByUser.get(friendId);
+      await notify(ctx, {
+        userId: friendId,
+        type: friendScore === undefined ? "friend_posted" : "friend_ranked_same",
+        title: `${actorName} ranked ${target.name} #${position} · ${score.toFixed(1)}`,
+        body:
+          friendScore === undefined
+            ? (args.caption ?? `#${position} of their ${CATEGORY_NOUN[category]}`)
+            : `…and you gave it ${friendScore.toFixed(1)}`,
+        link: `/venue/${kind}/${id}`,
+        actorId: userId,
+      });
     }
 
     return {

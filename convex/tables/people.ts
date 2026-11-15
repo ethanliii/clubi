@@ -66,5 +66,7 @@ export const peopleTables = {
     createdAt: v.number(),
     link: v.optional(v.string()),
     actorId: v.optional(v.id("users")),
-  }).index("by_user_createdAt", ["userId", "createdAt"]),
+  })
+    .index("by_user_createdAt", ["userId", "createdAt"])
+    .index("by_user_read", ["userId", "read"]),
 };
