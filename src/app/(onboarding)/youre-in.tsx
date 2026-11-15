@@ -5,7 +5,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { FriendSuggestion } from "../../../convex/lib/contract";
-import { Avatar, Button, Screen, Skeleton, Text, VenueCard } from "../../components";
+import { Avatar, Button, Screen, Skeleton, Text, VenueCard } from "../../components/bryan";
 import { archetype } from "../../features/quiz";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { useOnboarding } from "../../state/onboarding";

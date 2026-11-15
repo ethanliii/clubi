@@ -5,7 +5,7 @@ import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { Bucket, Category, InsightAnswer, RankResult, Visibility } from "../../../convex/lib/contract";
-import { BackButton, Button, Chip, EmptyState, Icon, Screen, ScoreBadge, Skeleton, Text } from "../../components";
+import { BackButton, Button, Chip, EmptyState, Icon, Screen, ScoreBadge, Skeleton, Text } from "../../components/bryan";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { useNearby } from "../../lib/useNearby";
 import { colors, radius, spacing } from "../../theme";

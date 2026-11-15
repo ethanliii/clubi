@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { Alert, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import type { NearbyItem } from "../../../convex/lib/contract";
-import { Avatar, Button, Chip, Photo, ScoreBadge, Skeleton, Text, openVenue, timeAgo } from "../../components";
+import { Avatar, Button, Chip, Photo, ScoreBadge, Skeleton, Text, openVenue, timeAgo } from "../../components/bryan";
 import { colors, radius, spacing } from "../../theme";
 
 /**

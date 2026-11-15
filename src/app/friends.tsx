@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { Avatar, BackButton, EmptyState, FriendButton, Screen, Skeleton, Text } from "../components";
+import { Avatar, BackButton, EmptyState, FriendButton, Screen, Skeleton, Text } from "../components/bryan";
 import { colors, radius, spacing } from "../theme";
 
 /** Friends: search, requests, suggestions (always with a reason), your friends, sent. UI-SPEC §10. */

@@ -3,7 +3,7 @@ import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
-import { Button, Icon, ProfileView, Screen, Skeleton, Text, type IconName } from "../../components";
+import { Button, Icon, ProfileView, Screen, Skeleton, Text, type IconName } from "../../components/bryan";
 import { paths, rankingsPath } from "../../lib/links";
 import { colors, radius } from "../../theme";
 

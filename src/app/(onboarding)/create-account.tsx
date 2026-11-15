@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../../convex/_generated/api";
-import { Icon, SocialButton, Text } from "../../components";
+import { Icon, SocialButton, Text } from "../../components/bryan";
 import { onboardingColors } from "../../theme";
 
 // Hinge-style sign-up: one question per screen, cream background, serif question, black round arrow.

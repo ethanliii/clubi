@@ -610,8 +610,11 @@ export async function scoreAll(ctx: QueryCtx, candidates: Candidate[], viewer: V
 }
 
 /** Closed places are hidden from lists, and nightlife is hidden from viewers under 21. */
+/** A name with no letter or digit in it ("?", "-") is an import artefact, not a place. */
+const hasRealName = (c: Candidate) => /[\p{L}\p{N}]/u.test(c.kind === "place" ? c.doc.name : c.doc.title);
+
 export const isVisibleTo = (c: Candidate, viewer: Viewer, now: number) =>
-  timeContext(c, now).openNow !== false && !(viewer.under21 && c.doc.category === "nightlife");
+  hasRealName(c) && timeContext(c, now).openNow !== false && !(viewer.under21 && c.doc.category === "nightlife");
 
 export function matchesFilter(c: Candidate, filter: Filter, now: number): boolean {
   const { category } = c.doc;
@@ -623,7 +626,8 @@ export function matchesFilter(c: Candidate, filter: Filter, now: number): boolea
         ? c.doc.start <= now + TONIGHT_WINDOW_MS
         : category === "nightlife" || category === "popup" || category === "live";
     case "bars":
-      return category === "nightlife";
+      // Bars are places. A nightlife event belongs under "tonight" and "events".
+      return c.kind === "place" && category === "nightlife";
     case "food":
       return category === "food";
     case "events":

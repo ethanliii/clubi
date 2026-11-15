@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { api } from "../../convex/_generated/api";
 import type { Category } from "../../convex/lib/contract";
-import { BackButton, Chip, EmptyState, Screen, Skeleton, Text, openVenue } from "../components";
+import { BackButton, Chip, EmptyState, Screen, Skeleton, Text, openVenue } from "../components/bryan";
 import { colors, radius, ratingColor, spacing } from "../theme";
 
 type Tab = "been" | "want" | "going";

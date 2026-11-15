@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import type { NearbyItem } from "../../../convex/lib/contract";
-import { Text, VenuePhoto } from "../../components";
+import { Text, VenuePhoto } from "../../components/bryan";
 import { colors, ratingColor } from "../../theme";
 import type { MapSurfaceProps } from "./types";
 

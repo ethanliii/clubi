@@ -7,7 +7,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import type { NearbyItem } from "../../../convex/lib/contract";
 import {
   Avatar, AvatarStack, Button, Chip, EmptyState, Icon, Screen, Skeleton, Text, VenueCard, openVenue,
-} from "../../components";
+} from "../../components/bryan";
 import { paths } from "../../lib/links";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { colors, radius, spacing } from "../../theme";

@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, SocialButton, Text } from "../../components";
+import { Button, SocialButton, Text } from "../../components/bryan";
 import { APP_NAME, TAGLINE } from "../../constants/brand";
 import { VideoBackground } from "../../features/onboarding/VideoBackground";
 import { colors, spacing } from "../../theme";

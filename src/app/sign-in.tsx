@@ -7,7 +7,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, TextInput } from "react-native";
 import { api } from "../../convex/_generated/api";
-import { BackButton, Button, Screen, Text } from "../components";
+import { BackButton, Button, Screen, Text } from "../components/bryan";
 import { APP_NAME } from "../constants/brand";
 import { colors, radius, spacing } from "../theme";
 

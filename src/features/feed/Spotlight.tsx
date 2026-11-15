@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Alert, FlatList, Image, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import type { FeedItem } from "../../../convex/lib/contract";
-import { Avatar, Icon, Photo, Text, openVenue, timeAgo } from "../../components";
+import { Avatar, Icon, Photo, Text, openVenue, timeAgo } from "../../components/bryan";
 import { colors, radius, ratingColor, spacing } from "../../theme";
 
 /** Event-time clock for double-tap detection (kept outside the component for the purity lint). */

@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "reac
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../../convex/_generated/api";
 import type { Filter, NearbyItem } from "../../../convex/lib/contract";
-import { Chip, EmptyState, Icon, ScoreBadge, Skeleton, Text, formatDistance, openVenue } from "../../components";
+import { Chip, EmptyState, Icon, ScoreBadge, Skeleton, Text, formatDistance, openVenue } from "../../components/bryan";
 import { MapSurface } from "../../features/map/MapSurface";
 import { PlacePeek } from "../../features/map/PlacePeek";
 import { useDemoLocation } from "../../lib/demoLocation";

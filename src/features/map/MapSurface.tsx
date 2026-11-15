@@ -1,15 +1,20 @@
-import { StyleSheet, View } from "react-native";
-import { Text } from "../../components";
-import { colors } from "../../theme";
+import { MapCanvas } from "./MapCanvas";
 import type { MapSurfaceProps } from "./types";
 
-/** Web fallback: react-native-maps is native only. The ranked list in the sheet still works. */
-export function MapSurface({ items }: MapSurfaceProps) {
+/**
+ * Browser version of Bryan's map tab. react-native-maps is native only, so the browser draws the
+ * MapLibre map from MapCanvas.web.tsx instead (same pins, same selection).
+ */
+export function MapSurface({ items, center, selectedId, onSelect, recenterKey }: MapSurfaceProps) {
   return (
-    <View style={[StyleSheet.absoluteFill, styles.box]}>
-      <Text muted center>Map shows on iOS and Android. {items.length} places nearby, listed below.</Text>
-    </View>
+    <MapCanvas
+      items={items}
+      center={center}
+      user={null}
+      selectedId={selectedId}
+      onSelect={onSelect}
+      recenterKey={recenterKey}
+      padding={{ top: 0, bottom: 0 }}
+    />
   );
 }
-
-const styles = StyleSheet.create({ box: { backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", padding: 24 } });

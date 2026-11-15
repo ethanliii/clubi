@@ -5,7 +5,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { Icon, Text, VenuePhoto } from "../../components";
+import { Icon, Text, VenuePhoto } from "../../components/bryan";
 import { onboardingColors } from "../../theme";
 import {
   AGREE, BUDGET, DAYS, DEALBREAKERS, DRINKING, INTERESTS, SCENARIOS, SONGS, SQUAD, TAKES,

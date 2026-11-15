@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Icon, Text, type IconName } from "../../components";
+import { Icon, Text, type IconName } from "../../components/bryan";
 import { colors } from "../../theme";
 
 // Home = friend feed (landing), Search = tonight picks. Decisions D2/D3 in the merge doc.

@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { BackButton, EmptyState, ProfileView, Screen, Skeleton } from "../../components";
+import { BackButton, EmptyState, ProfileView, Screen, Skeleton } from "../../components/bryan";
 
 /** Someone else's profile. Private accounts show only the header until you're friends (Q20). */
 export default function UserProfile() {

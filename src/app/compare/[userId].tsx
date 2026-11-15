@@ -3,7 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { BackButton, EmptyState, Screen, ScoreBadge, Skeleton, Text, openVenue } from "../../components";
+import { BackButton, EmptyState, Screen, ScoreBadge, Skeleton, Text, openVenue } from "../../components/bryan";
 import { colors, radius, spacing } from "../../theme";
 
 /** You vs a friend. UI-SPEC §9. All numbers come from profile.compare. */

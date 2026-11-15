@@ -5,7 +5,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import {
   Avatar, BackButton, Button, Chip, EmptyState, MatchBadge, Photo, Screen, ScoreBadge, Skeleton, Text, timeAgo,
-} from "../../../components";
+} from "../../../components/bryan";
 import { colors, radius, ratingColor, spacing } from "../../../theme";
 
 type Kind = "place" | "event";

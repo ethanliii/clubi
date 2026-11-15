@@ -6,7 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import type { FeedItem } from "../../../convex/lib/contract";
 import {
   Avatar, Button, Chip, CommentsSheet, EmptyState, Icon, Skeleton, Text, openVenue, timeAgo,
-} from "../../components";
+} from "../../components/bryan";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useState } from "react";
 import { Spotlight } from "../../features/feed/Spotlight";
