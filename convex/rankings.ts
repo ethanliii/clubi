@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Bucket, Category, RankResult } from "./lib/contract";
+import { displayNameOf } from "./lib/discovery";
 import { notify } from "./notifications";
 import { categoryValidator } from "./tables/catalog";
 import { bucketValidator } from "./tables/people";
@@ -301,7 +302,7 @@ export const rank = mutation({
     const scoreByUser = new Map(
       sameTarget.map((ranking) => [ranking.userId, ranking.score]),
     );
-    const actorName = user?.displayName ?? user?.username ?? "A friend";
+    const actorName = user === null ? "A friend" : displayNameOf(user);
     for (const friendId of friendIds) {
       const friendScore = scoreByUser.get(friendId);
       await notify(ctx, {

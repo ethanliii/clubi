@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
+import { displayNameOf, isUnder21 } from "./lib/discovery";
 import { notify } from "./notifications";
 import { localOffsetMs } from "./rankings";
 import { predict, whyFromFeatures, type Rater } from "./scoring";
@@ -11,19 +12,10 @@ const MIN_SCORE = 8.5;
 const MAX_EVENTS = 200;
 const MAX_PER_USER_PER_RUN = 1;
 const MAX_PER_USER_PER_DAY = 3;
-const NIGHTLIFE_MIN_AGE = 21;
 
 function isLocal(user: Doc<"users">, city: string | undefined) {
   const homeCity = user.homeCity?.trim().toLowerCase();
   return !!homeCity && homeCity === city?.trim().toLowerCase();
-}
-
-function isUnderage(user: Doc<"users">, now: number) {
-  if (user.birthday === undefined) {
-    return false;
-  }
-  const [year, month, day] = user.birthday.split("-").map(Number);
-  return now < Date.UTC(year + NIGHTLIFE_MIN_AGE, month - 1, day);
 }
 
 function clockTime(timestamp: number, lng: number) {
@@ -72,7 +64,7 @@ export const eventTonight = internalMutation({
                 score: ranking.score,
                 local: ranking.wasLocal ?? isLocal(rater, event.city),
                 friend: false,
-                name: rater.displayName ?? rater.username ?? "Someone",
+                name: displayNameOf(rater),
               },
             ];
       });
@@ -92,7 +84,7 @@ export const eventTonight = internalMutation({
         .collect();
       const sent = recent.filter((row) => row.type === "event_tonight");
       const alreadySent = new Set(sent.map((row) => row.link));
-      const underage = isUnderage(user, now);
+      const underage = isUnder21(user.birthday, now);
       const matches = scorable
         .filter(
           ({ event }) =>

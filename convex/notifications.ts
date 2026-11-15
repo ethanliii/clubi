@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
+import { avatarUrlOf, displayNameOf } from "./lib/discovery";
 import type { NotificationItem } from "./lib/contract";
 
 const LIST_LIMIT = 50;
@@ -49,8 +50,8 @@ export const list = query({
           ? undefined
           : {
               userId: actorId,
-              displayName: actor.displayName ?? actor.username ?? "Someone",
-              avatarUrl: actor.avatar,
+              displayName: displayNameOf(actor),
+              avatarUrl: avatarUrlOf(actor),
             },
       );
     }
