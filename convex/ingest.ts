@@ -1,14 +1,17 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
   mutation,
-  MutationCtx,
-  QueryCtx,
+  type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import { DEFAULT_RADIUS_METERS } from "./lib/discovery";
-import { Feature, FEATURES } from "./lib/recs";
+import { genresToVector, MAX_PERFORMERS, nameKeys, normalizePerformerName, parsePerformers } from "./lib/performers";
+import { type Feature, FEATURES } from "./lib/recs";
+import { notifyPerformerFans } from "./performers";
 import { categoryValidator, sourceValidator } from "./tables/catalog";
 
 type Weights = Partial<Record<Feature, number>>;
@@ -108,12 +111,29 @@ const PLACE_DEDUPE_METERS = 50;
 const METERS_PER_DEGREE = 111_320;
 const PLACE_DEDUPE_DEGREES = PLACE_DEDUPE_METERS / METERS_PER_DEGREE;
 const EVENT_DEDUPE_MS = 60 * 60 * 1000;
+const VENUE_MATCH_METERS = 150;
+const VENUE_MATCH_DEGREES = VENUE_MATCH_METERS / METERS_PER_DEGREE;
+const VENUE_BAND_LIMIT = 400;
+const EVENT_LINK_LIMIT = 20;
 const ASSUMED_EVENT_MS = 3 * 60 * 60 * 1000;
 // Hand-set rows are never overwritten or replaced by an import.
 const PROTECTED_SOURCES = ["seed", "manual"] as const;
 const FROZEN_KEY = "ingestFrozen";
 
-/** One imported place or event. `start` (ms epoch) is required for events. */
+/** Who is on at an event. `genres` and `imageUrl` come from sources that know them (Ticketmaster attractions). */
+export const performerInput = v.object({
+  name: v.string(),
+  sourceId: v.optional(v.string()),
+  genres: v.optional(v.array(v.string())),
+  imageUrl: v.optional(v.string()),
+  kind: v.optional(v.string()),
+});
+type PerformerInput = typeof performerInput.type;
+
+/**
+ * One imported place or event. `start` (ms epoch) is required for events. `performers` (headliner
+ * first) and `venueName` are for events; `website` and `phone` are for places.
+ */
 export const ingestRow = v.object({
   source: sourceValidator,
   sourceId: v.string(),
@@ -135,6 +155,10 @@ export const ingestRow = v.object({
   end: v.optional(v.number()),
   price: v.optional(v.union(v.number(), v.string())),
   ticketUrl: v.optional(v.string()),
+  performers: v.optional(v.array(performerInput)),
+  venueName: v.optional(v.string()),
+  website: v.optional(v.string()),
+  phone: v.optional(v.string()),
 });
 type IngestRow = typeof ingestRow.type;
 
@@ -163,7 +187,7 @@ export function haversineMeters(a: { lat: number; lng: number }, b: { lat: numbe
 }
 
 const richness = (row: Record<string, unknown>) =>
-  ["subcategory", "address", "hours", "sourceUrl", "imageUrl", "blurb", "priceLevel", "end", "price", "ticketUrl"].filter(
+  ["subcategory", "address", "hours", "sourceUrl", "imageUrl", "blurb", "priceLevel", "end", "price", "ticketUrl", "venueName", "performerNames", "website", "phone"].filter(
     (k) => row[k] !== undefined && row[k] !== "",
   ).length + (Array.isArray(row.tags) ? Math.min(row.tags.length, 3) : 0);
 
@@ -206,6 +230,8 @@ async function upsertPlace(ctx: MutationCtx, row: IngestRow, nameKey: string): P
     blurb: row.blurb,
     priceLevel: row.priceLevel,
     city: row.city,
+    website: row.website,
+    phone: row.phone,
     venueVector:
       row.venueVector ??
       featurize({ ...row, title: row.name, description: row.blurb, price: row.priceLevel }),
@@ -215,8 +241,18 @@ async function upsertPlace(ctx: MutationCtx, row: IngestRow, nameKey: string): P
     .withIndex("by_source", (q) => q.eq("source", row.source).eq("sourceId", row.sourceId))
     .first();
   if (same) {
-    if (!differs(same, fields)) return "unchanged";
-    await ctx.db.patch(same._id, fields);
+    // Details the source does not have may have come from enrichment (imports/google.ts): keep them.
+    const merged = {
+      ...fields,
+      address: fields.address ?? same.address,
+      hours: fields.hours ?? same.hours,
+      imageUrl: fields.imageUrl ?? same.imageUrl,
+      priceLevel: fields.priceLevel ?? same.priceLevel,
+      website: fields.website ?? same.website,
+      phone: fields.phone ?? same.phone,
+    };
+    if (!differs(same, merged)) return "unchanged";
+    await ctx.db.patch(same._id, merged);
     return "updated";
   }
   const band = await ctx.db
@@ -240,11 +276,133 @@ async function upsertPlace(ctx: MutationCtx, row: IngestRow, nameKey: string): P
     imageUrl: fields.imageUrl ?? duplicate.imageUrl,
     blurb: fields.blurb ?? duplicate.blurb,
     priceLevel: fields.priceLevel ?? duplicate.priceLevel,
+    website: fields.website ?? duplicate.website,
+    phone: fields.phone ?? duplicate.phone,
   });
   return "replaced";
 }
 
-async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, start: number): Promise<Outcome> {
+type LineupEntry = { name: string; existing?: Doc<"performers">; input?: PerformerInput };
+
+async function findPerformer(ctx: QueryCtx, name: string): Promise<Doc<"performers"> | null> {
+  for (const key of nameKeys(name)) {
+    const hit = await ctx.db
+      .query("performers")
+      .withIndex("by_normalizedName", (q) => q.eq("normalizedName", key))
+      .first();
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * Who is on at this event, headliner first. A row that names its performers creates the ones we
+ * do not have yet. A row with only a title is matched against performers we already have and
+ * never creates one: a wrong performer sends a wrong alert.
+ */
+async function resolveLineup(ctx: QueryCtx, row: IngestRow): Promise<LineupEntry[]> {
+  const lineup: LineupEntry[] = [];
+  const seen = new Set<string>();
+  const add = (entry: LineupEntry) => {
+    const key = entry.existing?.normalizedName ?? normalizePerformerName(entry.name);
+    if (!key || seen.has(key) || lineup.length >= MAX_PERFORMERS) return;
+    seen.add(key);
+    lineup.push(entry);
+  };
+  if (row.performers?.length) {
+    for (const input of row.performers.slice(0, MAX_PERFORMERS * 2)) {
+      const name = input.name.trim();
+      if (!name) continue;
+      const existing = (await findPerformer(ctx, name)) ?? undefined;
+      add({ name: existing?.name ?? name, existing, input });
+    }
+    return lineup;
+  }
+  const candidates = new Set([row.name.trim(), ...parsePerformers(row.name, { solo: true })]);
+  for (const name of candidates) {
+    const existing = await findPerformer(ctx, name);
+    if (existing) add({ name: existing.name, existing });
+  }
+  return lineup;
+}
+
+/** Create or fill in the performers of an event and make `eventPerformers` match the line-up. */
+async function linkLineup(ctx: MutationCtx, eventId: Id<"events">, start: number, lineup: LineupEntry[], source: string) {
+  const ids: Id<"performers">[] = [];
+  for (const { name, existing, input } of lineup) {
+    if (!existing) {
+      ids.push(
+        await ctx.db.insert("performers", {
+          name,
+          normalizedName: normalizePerformerName(name),
+          kind: input?.kind,
+          genres: input?.genres,
+          imageUrl: input?.imageUrl,
+          source,
+          sourceId: input?.sourceId,
+          vector: genresToVector(input?.genres ?? []),
+        }),
+      );
+      continue;
+    }
+    ids.push(existing._id);
+    if (!input) continue;
+    // Fill gaps only: what a richer source already told us stays.
+    const patch: Partial<Doc<"performers">> = {};
+    if (!existing.genres?.length && input.genres?.length) {
+      patch.genres = input.genres;
+      patch.vector = genresToVector(input.genres);
+    }
+    if (!existing.imageUrl && input.imageUrl) patch.imageUrl = input.imageUrl;
+    if (!existing.kind && input.kind) patch.kind = input.kind;
+    if (!existing.sourceId && input.sourceId) {
+      patch.sourceId = input.sourceId;
+      patch.source = source;
+    }
+    if (Object.keys(patch).length) await ctx.db.patch(existing._id, patch);
+  }
+  const links = await ctx.db
+    .query("eventPerformers")
+    .withIndex("by_event", (q) => q.eq("eventId", eventId))
+    .take(EVENT_LINK_LIMIT);
+  const linked = new Set<Id<"performers">>();
+  for (const link of links) {
+    if (!ids.includes(link.performerId) || linked.has(link.performerId)) await ctx.db.delete(link._id);
+    else {
+      linked.add(link.performerId);
+      if (link.start !== start) await ctx.db.patch(link._id, { start });
+    }
+  }
+  for (const performerId of ids) {
+    if (!linked.has(performerId)) await ctx.db.insert("eventPerformers", { eventId, performerId, start });
+  }
+}
+
+type VenueCache = Map<string, Id<"places"> | null>;
+
+/** The catalog place an event is at: same normalised name as `venueName` within 150 m. */
+async function findVenuePlace(ctx: QueryCtx, row: IngestRow, cache: VenueCache): Promise<Id<"places"> | null> {
+  const venueKey = row.venueName ? normalizeName(row.venueName) : "";
+  if (!venueKey) return null;
+  const cacheKey = `${venueKey}|${row.lat.toFixed(4)}|${row.lng.toFixed(4)}`;
+  const cached = cache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  const band = await ctx.db
+    .query("places")
+    .withIndex("by_lat", (q) => q.gte("lat", row.lat - VENUE_MATCH_DEGREES).lte("lat", row.lat + VENUE_MATCH_DEGREES))
+    .take(VENUE_BAND_LIMIT);
+  let best: { id: Id<"places">; meters: number } | null = null;
+  for (const place of band) {
+    if (normalizeName(place.name) !== venueKey) continue;
+    const meters = haversineMeters(place, row);
+    if (meters <= VENUE_MATCH_METERS && (!best || meters < best.meters)) best = { id: place._id, meters };
+  }
+  cache.set(cacheKey, best?.id ?? null);
+  return best?.id ?? null;
+}
+
+async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, start: number, venues: VenueCache): Promise<Outcome> {
+  const lineup = await resolveLineup(ctx, row);
   const fields = {
     title: row.name.trim(),
     start,
@@ -263,8 +421,20 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     source: row.source,
     sourceId: row.sourceId,
     blurb: row.blurb,
+    venueName: row.venueName?.trim() || undefined,
+    performerNames: lineup.length ? lineup.map((entry) => entry.name) : undefined,
     venueVector:
       row.venueVector ?? featurize({ ...row, title: row.name, description: row.blurb }),
+  };
+  // After a write to an event that already existed. Fans hear about an event once, when it is
+  // first stored with a line-up: a later update never notifies again.
+  const afterUpdate = async (existing: Doc<"events">) => {
+    await linkLineup(ctx, existing._id, start, lineup, row.source);
+    if (!existing.placeId) {
+      const placeId = await findVenuePlace(ctx, row, venues);
+      if (placeId) await ctx.db.patch(existing._id, { placeId });
+    }
+    if (lineup.length && !existing.performerNames?.length) await notifyPerformerFans(ctx, existing._id);
   };
   const same = await ctx.db
     .query("events")
@@ -273,6 +443,7 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
   if (same) {
     if (!differs(same, fields)) return "unchanged";
     await ctx.db.patch(same._id, fields);
+    await afterUpdate(same);
     return "updated";
   }
   const window = await ctx.db
@@ -283,10 +454,21 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     .collect();
   const duplicate = window.find((e) => normalizeName(e.title) === nameKey);
   if (!duplicate) {
-    await ctx.db.insert("events", { ...fields, elo: 0, nComparisons: 0 });
+    const placeId = (await findVenuePlace(ctx, row, venues)) ?? undefined;
+    const eventId = await ctx.db.insert("events", { ...fields, placeId, createdAt: Date.now(), elo: 0, nComparisons: 0 });
+    await linkLineup(ctx, eventId, start, lineup, row.source);
+    if (lineup.length) await notifyPerformerFans(ctx, eventId);
     return "inserted";
   }
-  if (isProtected(duplicate.source) || richness(duplicate) >= richness(fields)) return "duplicate";
+  if (isProtected(duplicate.source) || richness(duplicate) >= richness(fields)) {
+    // The other source's row stays, but a line-up it did not have is worth keeping.
+    if (lineup.length && !duplicate.performerNames?.length) {
+      await ctx.db.patch(duplicate._id, { performerNames: fields.performerNames });
+      await linkLineup(ctx, duplicate._id, duplicate.start, lineup, row.source);
+      await notifyPerformerFans(ctx, duplicate._id);
+    }
+    return "duplicate";
+  }
   await ctx.db.patch(duplicate._id, {
     ...fields,
     end: fields.end ?? duplicate.end,
@@ -294,7 +476,10 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     imageUrl: fields.imageUrl ?? duplicate.imageUrl,
     ticketUrl: fields.ticketUrl ?? duplicate.ticketUrl,
     blurb: fields.blurb ?? duplicate.blurb,
+    venueName: fields.venueName ?? duplicate.venueName,
+    performerNames: fields.performerNames ?? duplicate.performerNames,
   });
+  if (lineup.length) await afterUpdate(duplicate);
   return "replaced";
 }
 
@@ -302,7 +487,9 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
  * Upsert up to MAX_BATCH places or events by source + sourceId. A row with the
  * same name within 50 m (places) or the same title starting within 1 h
  * (events) is a duplicate: the richer row is kept, and hand-set rows always
- * win. Unnamed rows and past events are dropped. Event batches write nothing
+ * win. Unnamed rows and past events are dropped. Events also get their
+ * performers stored and linked, a `placeId` when the venue is a catalog place,
+ * and, the first time they are stored with a line-up, the artist alert. Event batches write nothing
  * while the ingest is frozen; place batches are not part of the freeze.
  */
 export const upsertBatch = internalMutation({
@@ -315,6 +502,7 @@ export const upsertBatch = internalMutation({
     const counts = { inserted: 0, updated: 0, unchanged: 0, replaced: 0, duplicate: 0, dropped: 0, frozen: false };
     if (kind === "event" && (await readFrozen(ctx))) return { ...counts, frozen: true };
     const now = Date.now();
+    const venues: VenueCache = new Map();
     for (const row of rows) {
       const nameKey = normalizeName(row.name);
       const located = Number.isFinite(row.lat) && Number.isFinite(row.lng);
@@ -328,7 +516,7 @@ export const upsertBatch = internalMutation({
       counts[
         kind === "place"
           ? await upsertPlace(ctx, row, nameKey)
-          : await upsertEvent(ctx, row, nameKey, row.start!)
+          : await upsertEvent(ctx, row, nameKey, row.start!, venues)
       ]++;
     }
     return counts;
