@@ -43,7 +43,7 @@ const KEYWORD_RULES: { match: RegExp; set: Weights }[] = [
   { match: /latin|reggaeton|afrobeats?|dancehall/, set: { pop: 0.6, dancing: 0.75 } },
   { match: /lgbtq|\bgay\b|queer|\bdrag\b/, set: { energy: 0.7, dancing: 0.65, pop: 0.7 } },
   { match: /museum|gallery|\barts?\b|exhibit|theat(re|er)|cinema|\bfilms?\b|opera|ballet|histor|sculpture|poetry|\bbooks?\b|lecture/, set: { culture: 0.9 } },
-  { match: /comedy|stand[- ]?up|improv/, set: { culture: 0.7, energy: 0.55 } },
+  { match: /comedy|stand[- ]?up|improv/, set: { culture: 0.7, energy: 0.55, loudness: 0.45, liveMusic: 0.3, dancing: 0.1 } },
   { match: /\bparks?\b|\bhik(e|ing)\b|\boutdoors?\b(?! seating)|garden|beach|\btrail|picnic|playground|viewpoint|run club|cycling|kayak/, set: { outdoors: 0.85 } },
   { match: /rooftop|patio|outdoor seating|beer garden|biergarten/, set: { outdoors: 0.6 } },
   { match: /festival|block party|street fair|parade/, set: { energy: 0.8, loudness: 0.7, outdoors: 0.7 } },
