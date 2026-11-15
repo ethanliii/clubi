@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { Chip, ChipRow, IconButton, ScoreBadge, Text } from "../../components";
 import type { FeedItem } from "../../lib/api";
-import { formatRelativeTime } from "../../lib/format";
+import { formatRelativeTime, pluralize } from "../../lib/format";
 import { postPath, venuePath } from "../../lib/links";
 import { colors, radius, spacing } from "../../theme";
 
@@ -61,7 +61,7 @@ export function PostCard({ post, now }: { post: FeedItem; now: number }) {
           plain
           size={36}
           color={colors.muted}
-          label={`${post.reactionCount ?? 0} likes · ${post.commentCount ?? 0} comments`}
+          label={`${pluralize(post.reactionCount ?? 0, "like")} · ${pluralize(post.commentCount ?? 0, "comment")}`}
           onPress={() => router.push(postPath(post.postId))}
         />
         <Text variant="caption" muted>

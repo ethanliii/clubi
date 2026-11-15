@@ -1,6 +1,9 @@
-import { StyleSheet, Switch, View } from "react-native";
+import { Platform, StyleSheet, Switch, View } from "react-native";
 import { Text } from "../../components";
 import { colors, spacing } from "../../theme";
+
+/** react-native-web paints an "on" switch teal unless told otherwise; native ignores these. */
+const WEB_SWITCH = Platform.OS === "web" ? { activeThumbColor: colors.white, activeTrackColor: colors.accent } : null;
 
 /** A labelled on/off switch. The switch carries the label, so tests and screen readers find it by name. */
 export function SwitchRow({
@@ -34,6 +37,7 @@ export function SwitchRow({
         trackColor={{ false: colors.line, true: colors.accent }}
         thumbColor={colors.white}
         ios_backgroundColor={colors.line}
+        {...WEB_SWITCH}
       />
     </View>
   );
