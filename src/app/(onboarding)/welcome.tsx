@@ -3,7 +3,8 @@ import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Text } from "../../components";
-import { APP_NAME, TAGLINE } from "../../constants/brand";
+import { APP_NAME } from "../../constants/brand";
+import { WELCOME_TAGLINE } from "../../features/onboarding/copy";
 import { VideoBackground } from "../../features/onboarding/VideoBackground";
 import { signInPath } from "../../lib/links";
 import { colors, spacing } from "../../theme";
@@ -24,7 +25,7 @@ export default function Welcome() {
             {APP_NAME}
           </Text>
           <Text center style={styles.tagline}>
-            {TAGLINE}
+            {WELCOME_TAGLINE}
           </Text>
         </View>
         <View style={styles.bottom}>

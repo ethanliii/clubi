@@ -1,29 +1,34 @@
+import { useAuthActions } from "@convex-dev/auth/react";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Button, Screen, Text } from "../../components";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Button, Icon, Screen, Text, useToast } from "../../components";
+import { QUIZ_CARDS } from "../../features/onboarding/quizCards";
+import { rememberQuizResult } from "../../features/onboarding/quizResult";
+import { SpinnerButton } from "../../features/onboarding/SpinnerButton";
 import { api } from "../../lib/api";
+import { confirm } from "../../lib/confirm";
+import { errorMessage } from "../../lib/errors";
 import { paths } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, spacing } from "../../theme";
+import { colors, radius, spacing } from "../../theme";
 
-/** The six cards from docs/UI-SPEC.md section 2. An answer is the list of picked option indexes. */
-const CARDS: { question: string; options: string[]; many: boolean }[] = [
-  { question: "What music gets you out?", options: ["House", "Hip-hop", "Pop", "Techno", "Latin", "Live bands"], many: true },
-  { question: "Your ideal crowd?", options: ["Intimate", "Lively", "Packed", "Don't care"], many: false },
-  { question: "Budget for a night out?", options: ["Under $20", "$20–50", "$50–100", "$100+"], many: false },
-  { question: "When does your night peak?", options: ["Before 10", "10 to 12", "After midnight", "Sunrise"], many: false },
-  { question: "Loud or can you hear yourself?", options: ["Quiet", "Some buzz", "Loud", "Deafening"], many: false },
-  { question: "Besides nightlife you're into…", options: ["Food", "Museums & art", "Outdoors", "Live shows"], many: true },
-];
-
+/**
+ * Six cards (docs/UI-SPEC.md section 2). The answer for a card is the list of picked option indexes;
+ * "See my taste" sends all six to `api.users.saveQuiz` and opens the taste card.
+ */
 export default function Quiz() {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<number[][]>(() => CARDS.map(() => []));
+  const [answers, setAnswers] = useState<number[][]>(() => QUIZ_CARDS.map(() => []));
   const { run: saveQuiz, pending } = useMutationToast(api.users.saveQuiz);
-  const card = CARDS[step];
+  const { signOut } = useAuthActions();
+  const toast = useToast();
+  const [leaving, setLeaving] = useState(false);
+
+  const card = QUIZ_CARDS[step];
   const picked = answers[step];
-  const isLast = step === CARDS.length - 1;
+  const isLast = step === QUIZ_CARDS.length - 1;
+  const busy = pending || leaving;
 
   const toggle = (option: number) =>
     setAnswers((current) =>
@@ -35,59 +40,105 @@ export default function Quiz() {
     );
 
   const next = async () => {
+    if (picked.length === 0 || busy) return;
     if (!isLast) {
       setStep(step + 1);
       return;
     }
+    // On failure the toast has shown the backend's sentence and we stay on card 6.
     const saved = await saveQuiz({ answers });
-    if (saved !== undefined) router.push(paths.tasteCard);
+    if (saved === undefined) return;
+    rememberQuizResult({ answers, tasteSummary: saved.tasteSummary });
+    router.push(paths.tasteCard);
+  };
+
+  // The way out for someone who signed in to the wrong account. The gate shows Welcome afterwards.
+  const leave = async () => {
+    const sure = await confirm({
+      title: "Sign out?",
+      message: "You can sign back in and take the quiz any time.",
+      confirmLabel: "Sign out",
+    });
+    if (!sure) return;
+    setLeaving(true);
+    try {
+      await signOut();
+    } catch (error) {
+      toast(errorMessage(error), "error");
+      setLeaving(false);
+    }
   };
 
   return (
     <Screen scroll={false} edges={["top", "bottom"]}>
-      <Text muted center>
-        {step + 1} of {CARDS.length}
-      </Text>
+      <View style={styles.top}>
+        <Text variant="label" accessibilityLabel={`Quiz, ${step + 1} of ${QUIZ_CARDS.length}`}>
+          Quiz · {step + 1} of {QUIZ_CARDS.length}
+        </Text>
+        <Button
+          title="Sign out"
+          accessibilityLabel="Sign out"
+          variant="link"
+          disabled={busy}
+          hitSlop={12}
+          style={styles.signOut}
+          onPress={() => void leave()}
+        />
+      </View>
       <View style={styles.progress}>
-        <View style={[styles.progressFill, { width: `${((step + 1) / CARDS.length) * 100}%` }]} />
+        <View style={[styles.progressFill, { width: `${((step + 1) / QUIZ_CARDS.length) * 100}%` }]} />
       </View>
-      <View style={styles.intro}>
-        <Text variant="heading">{card.question}</Text>
-        <Text muted>{card.many ? "Pick as many as you want." : "Pick one."}</Text>
-      </View>
-      <View style={styles.tiles}>
-        {card.options.map((option, index) => {
-          const on = picked.includes(index);
-          return (
-            <Pressable
-              key={option}
-              accessibilityRole={card.many ? "checkbox" : "radio"}
-              accessibilityLabel={option}
-              accessibilityState={{ checked: on }}
-              onPress={() => toggle(index)}
-              style={[styles.tile, on && styles.tileOn]}
-            >
-              <Text style={styles.tileText}>{option}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <View style={styles.spacer} />
+      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.intro}>
+          <Text variant="heading" accessibilityRole="header">
+            {card.question}
+          </Text>
+          <Text muted>{card.many ? "Pick as many as you like." : "Pick one."}</Text>
+        </View>
+        <View accessibilityRole={card.many ? undefined : "radiogroup"} style={styles.tiles}>
+          {card.options.map((option, index) => {
+            const on = picked.includes(index);
+            return (
+              <Pressable
+                key={option}
+                accessibilityRole={card.many ? "checkbox" : "radio"}
+                accessibilityLabel={option}
+                accessibilityState={{ checked: on, disabled: busy }}
+                // react-native-web reads the aria prop, not accessibilityState, for the checked state.
+                aria-checked={on}
+                disabled={busy}
+                onPress={() => toggle(index)}
+                style={({ pressed }) => [styles.tile, on && styles.tileOn, pressed && styles.tilePressed]}
+              >
+                <Text style={[styles.tileText, on && styles.tileTextOn]}>{option}</Text>
+                {on ? (
+                  <View style={styles.tick}>
+                    <Icon name="check" size={12} color={colors.white} />
+                  </View>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
       <View style={styles.buttons}>
         {step > 0 ? (
-          <Button
-            title="Back"
-            accessibilityLabel="Back"
-            variant="ghost"
-            disabled={pending}
-            style={styles.button}
-            onPress={() => setStep(step - 1)}
-          />
+          // Wrapped so both buttons get the same width (a padded box cannot shrink to an equal share by itself).
+          <View style={styles.button}>
+            <Button
+              title="Back"
+              accessibilityLabel="Back"
+              variant="ghost"
+              disabled={busy}
+              onPress={() => setStep(step - 1)}
+            />
+          </View>
         ) : null}
-        <Button
-          title={isLast ? (pending ? "Saving…" : "See my taste") : "Next"}
+        <SpinnerButton
+          title={isLast ? "See my taste" : "Next"}
           accessibilityLabel={isLast ? "See my taste" : "Next"}
-          disabled={picked.length === 0 || pending}
+          busy={pending}
+          disabled={picked.length === 0 || leaving}
           style={styles.button}
           onPress={() => void next()}
         />
@@ -97,24 +148,42 @@ export default function Quiz() {
 }
 
 const styles = StyleSheet.create({
+  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 40 },
+  signOut: { minHeight: 40, paddingHorizontal: spacing.xs },
   progress: { height: 4, borderRadius: 4, backgroundColor: colors.surface, overflow: "hidden" },
-  progressFill: { height: "100%", backgroundColor: colors.accent },
-  intro: { gap: spacing.xs },
-  tiles: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  progressFill: { height: "100%", borderRadius: 4, backgroundColor: colors.accent },
+  body: { flex: 1 },
+  bodyContent: { gap: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.lg },
+  intro: { gap: spacing.sm },
+  tiles: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   tile: {
-    width: "48%",
+    width: "47%",
     flexGrow: 1,
+    minHeight: 64,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
-    borderRadius: 16,
+    borderRadius: radius.xl,
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.line,
     alignItems: "center",
+    justifyContent: "center",
   },
   tileOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
-  tileText: { fontWeight: "600" },
-  spacer: { flex: 1 },
+  tilePressed: { opacity: 0.75 },
+  tileText: { fontWeight: "600", fontSize: 15, textAlign: "center" },
+  tileTextOn: { color: colors.white },
+  tick: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   buttons: { flexDirection: "row", gap: spacing.md },
   button: { flex: 1 },
 });
