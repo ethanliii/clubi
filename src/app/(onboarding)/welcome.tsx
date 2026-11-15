@@ -3,8 +3,10 @@ import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Text } from "../../components";
-import { APP_NAME, TAGLINE } from "../../constants/brand";
+import { APP_NAME } from "../../constants/brand";
+import { WELCOME_TAGLINE } from "../../features/onboarding/copy";
 import { VideoBackground } from "../../features/onboarding/VideoBackground";
+import { signInPath } from "../../lib/links";
 import { colors, spacing } from "../../theme";
 
 export default function Welcome() {
@@ -23,12 +25,12 @@ export default function Welcome() {
             {APP_NAME}
           </Text>
           <Text center style={styles.tagline}>
-            {TAGLINE}
+            {WELCOME_TAGLINE}
           </Text>
         </View>
         <View style={styles.bottom}>
           <Text variant="caption" center style={styles.terms}>
-            By tapping {"'"}Sign in{"'"} / {"'"}Create account{"'"}, you agree to our{" "}
+            By tapping {"'"}Get started{"'"} / {"'"}I have an account{"'"}, you agree to our{" "}
             <Text variant="caption" style={styles.underline}>
               Terms of Service
             </Text>
@@ -38,8 +40,18 @@ export default function Welcome() {
             </Text>
             .
           </Text>
-          <Button title="Create account" variant="light" onPress={() => router.push("/quiz")} />
-          <Button title="Sign in" variant="link" onPress={() => router.push("/sign-in")} />
+          <Button
+            title="Get started"
+            accessibilityLabel="Get started"
+            variant="light"
+            onPress={() => router.push(signInPath("signup"))}
+          />
+          <Button
+            title="I have an account"
+            accessibilityLabel="I have an account"
+            variant="link"
+            onPress={() => router.push(signInPath("signin"))}
+          />
         </View>
       </SafeAreaView>
     </View>

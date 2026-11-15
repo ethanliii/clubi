@@ -1,98 +1,94 @@
-import { Link, router } from "expo-router";
+import { useQuery } from "convex/react";
+import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Icon, MatchBadge, Screen, Text, VenuePhoto } from "../../components";
-import { getFriend, TASTE_TWINS_NEARBY, venues } from "../../data/mock";
+import { EmptyState, Icon, IconButton, Screen, Text } from "../../components";
+import { CardRow } from "../../features/home/CardRow";
+import { QuickLink } from "../../features/home/QuickLink";
+import { api } from "../../lib/api";
+import { useDemoLocation } from "../../lib/demoLocation";
+import { paths, planPath } from "../../lib/links";
+import { useNow } from "../../lib/useNow";
 import { colors, radius, spacing } from "../../theme";
 
+/** The backend caps the count at 99; at the cap there may be more. */
+const UNREAD_CAP = 99;
+
 export default function Home() {
+  const { lat, lng, ready } = useDemoLocation();
+  const tonight = useQuery(api.discover.tonight, ready ? { lat, lng } : "skip");
+  const upcoming = useQuery(api.discover.upcoming, ready ? { lat, lng } : "skip");
+  const unread = useQuery(api.notifications.unreadCount, {});
+  const now = useNow();
+
+  const today = new Date(now).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  const badge = unread ? (unread >= UNREAD_CAP ? `${UNREAD_CAP}+` : String(unread)) : null;
+  const nothing =
+    tonight !== undefined &&
+    upcoming !== undefined &&
+    tonight.topPicks.length + tonight.friendsGoing.length + tonight.events.length + upcoming.length === 0;
+
   return (
     <Screen>
       <View style={styles.between}>
-        <View>
-          <Text variant="label">Palo Alto · Fri</Text>
-          <Text variant="heading">Tonight</Text>
+        <View style={styles.flex}>
+          <Text variant="label">{today}</Text>
+          <Text variant="heading" accessibilityRole="header">
+            Tonight
+          </Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
+        <IconButton
+          icon="bell"
           accessibilityLabel="Notifications"
-          onPress={() => router.push("/notifications")}
-          style={styles.iconButton}
-        >
-          <Icon name="bell" size={18} color={colors.fg} />
-        </Pressable>
+          badge={badge}
+          onPress={() => router.push(paths.notifications)}
+        />
       </View>
 
-      <Link href="/plan" asChild>
-        <Pressable style={styles.banner}>
-          <View style={styles.flex}>
-            <Text variant="title">Plan my night</Text>
-            <Text variant="caption" muted>
-              Tell us the vibe, get a full plan
-            </Text>
-          </View>
-          <View style={[styles.iconButton, { backgroundColor: colors.accent }]}>
-            <Icon name="spark" size={18} color={colors.white} />
-          </View>
-        </Pressable>
-      </Link>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Plan my night"
+        onPress={() => router.push(planPath())}
+        style={({ pressed }) => [styles.banner, pressed && styles.pressed]}
+      >
+        <View style={styles.flex}>
+          <Text variant="title">Plan my night</Text>
+          <Text variant="caption" muted>
+            Tell us the vibe, get a full plan
+          </Text>
+        </View>
+        <View style={styles.bannerIcon}>
+          <Icon name="spark" size={18} color={colors.white} />
+        </View>
+      </Pressable>
 
-      <View style={styles.between}>
-        <Text variant="title">Top picks for you</Text>
-        <Text variant="caption" muted>
-          Based on {TASTE_TWINS_NEARBY} taste twins
-        </Text>
+      <View style={styles.links}>
+        <QuickLink label="Trips" icon="users" onPress={() => router.push(paths.trips)} />
+        <QuickLink label="Saved" icon="bookmark" onPress={() => router.push(paths.saved)} />
       </View>
 
-      {venues.slice(0, 3).map((venue) => (
-        <Link key={venue.id} href={{ pathname: "/venue/[id]", params: { id: venue.id } }} asChild>
-          <Pressable style={styles.card}>
-            <VenuePhoto hue={venue.hue} height={170} style={styles.cardPhoto} />
-            <View style={styles.cardMeta}>
-              <View style={styles.between}>
-                <Text variant="title">{venue.name}</Text>
-                <MatchBadge match={venue.match} />
-              </View>
-              <View style={styles.between}>
-                <Text muted>
-                  {venue.type} · {venue.area} · {venue.dist}
-                </Text>
-                <View style={styles.avatars}>
-                  {venue.friendIds.slice(0, 3).map((id, index) => {
-                    const friend = getFriend(id);
-                    if (!friend) return null;
-                    return (
-                      <View
-                        key={id}
-                        style={[
-                          styles.avatar,
-                          { backgroundColor: `hsl(${friend.hue}, 55%, 42%)`, marginLeft: index ? -9 : 0 },
-                        ]}
-                      >
-                        <Text style={styles.avatarText}>{friend.initials}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            </View>
-          </Pressable>
-        </Link>
-      ))}
+      {nothing ? (
+        <EmptyState
+          icon="map"
+          title="Nothing nearby yet. Try the map."
+          actionLabel="Open map"
+          onAction={() => router.push(paths.map)}
+        />
+      ) : (
+        <>
+          <CardRow title="Top picks for you" items={tonight?.topPicks} cardWidth={270} />
+          <CardRow title="Friends went here" items={tonight?.friendsGoing} />
+          <CardRow title="Events tonight" items={tonight?.events} />
+          <CardRow title="Coming up for you" items={upcoming} />
+        </>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
+  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md },
   flex: { flex: 1, gap: 2 },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  pressed: { opacity: 0.8 },
   banner: {
     flexDirection: "row",
     alignItems: "center",
@@ -103,18 +99,13 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.accentSoft,
   },
-  card: { backgroundColor: colors.surface, borderRadius: radius.xl, overflow: "hidden" },
-  cardPhoto: { borderRadius: 0 },
-  cardMeta: { paddingVertical: spacing.md, paddingHorizontal: 14, gap: 6 },
-  avatars: { flexDirection: "row" },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.bg,
+  bannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { fontSize: 11, lineHeight: 13, fontWeight: "600", color: colors.white },
+  links: { flexDirection: "row", gap: spacing.md },
 });

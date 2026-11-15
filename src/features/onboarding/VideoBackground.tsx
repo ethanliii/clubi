@@ -41,6 +41,12 @@ function Clip({ source, visible }: { source: VideoSource; visible: boolean }) {
     p.play();
   });
 
+  // On web the `play()` in the setup above runs before the <video> element exists and does nothing,
+  // so start again once the view below has mounted. On iOS this is a second, harmless `play()`.
+  useEffect(() => {
+    player.play();
+  }, [player]);
+
   useEffect(() => {
     Animated.timing(opacity, { toValue: visible ? 1 : 0, duration: FADE_MS, useNativeDriver: Platform.OS !== "web" }).start();
   }, [visible, opacity]);

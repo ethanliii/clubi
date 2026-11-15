@@ -1,11 +1,13 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { ConvexReactClient, useConvexAuth } from "convex/react";
+import { ConvexReactClient } from "convex/react";
 import { Stack } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import { Platform } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { api } from "../../convex/_generated/api";
-import { OnboardingProvider, useOnboarding } from "../state/onboarding";
+import { ErrorBoundary, Splash, ToastProvider } from "../components";
+import { paths } from "../lib/links";
+import { SessionProvider, useSession } from "../state/session";
 import { colors } from "../theme";
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
@@ -29,36 +31,68 @@ export default function RootLayout() {
         isAuthenticated: api.auth.isAuthenticated,
       }}
     >
-      <OnboardingProvider>
-        <RootStack />
+      <SessionProvider>
+        {/* On a wide browser window the app stays a phone-width column. */}
+        <View style={styles.page}>
+          <View style={styles.app}>
+            <ToastProvider>
+              <ErrorBoundary>
+                <RootNavigator />
+              </ErrorBoundary>
+            </ToastProvider>
+          </View>
+        </View>
         <StatusBar style="light" />
-      </OnboardingProvider>
+      </SessionProvider>
     </ConvexAuthProvider>
   );
 }
 
-function RootStack() {
-  const { isAuthenticated } = useConvexAuth();
-  const { completed } = useOnboarding();
-  const onboarded = completed || isAuthenticated;
+/**
+ * Which screens exist depends on the session gate (see src/state/session.tsx):
+ * signed out → welcome + sign-in · not onboarded → the quiz · onboarded → everything else.
+ * A screen whose guard is false cannot be opened, and anyone standing on it is moved to the
+ * first screen that is still allowed.
+ */
+function RootNavigator() {
+  const { gate } = useSession();
+  if (gate === null) return <Splash />;
 
+  const inApp = gate === "ready" || gate === "tasteCard";
+  // Where someone lands when the screen they are on (or asked for) is not allowed for them.
+  const home = gate === "signedOut" ? paths.welcome : gate === "quiz" ? paths.quiz : paths.home;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Protected guard={!onboarded}>
+      <Stack.Protected guard={inApp} redirectTo={home}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="venue/[kind]/[id]" />
+        <Stack.Screen name="rate/[kind]/[id]" />
+        <Stack.Screen name="post/[postId]" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="rankings" />
+        <Stack.Screen name="friends" />
+        <Stack.Screen name="user/[userId]" />
+        <Stack.Screen name="compare/[userId]" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="saved" />
+        <Stack.Screen name="trips" />
+        <Stack.Screen name="trip/[tripId]" />
+        <Stack.Screen name="plan" />
+        <Stack.Screen name="following" />
+        <Stack.Screen name="performer/[performerId]" />
+      </Stack.Protected>
+      <Stack.Protected guard={gate !== "ready"} redirectTo={home}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
-      <Stack.Protected guard={onboarded} redirectTo="/welcome">
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="venue/[id]" />
-        <Stack.Screen name="rankings" />
-        <Stack.Screen name="plan" />
-        <Stack.Screen name="friends" />
-        <Stack.Screen name="friend/[id]" />
-        <Stack.Screen name="compare" />
-        <Stack.Screen name="notifications" />
-        <Stack.Screen name="moments" />
+      <Stack.Protected guard={gate === "signedOut"} redirectTo={home}>
+        <Stack.Screen name="sign-in" options={{ presentation: "modal" }} />
       </Stack.Protected>
-      <Stack.Screen name="sign-in" options={{ presentation: "modal" }} />
+      <Stack.Screen name="+not-found" />
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  page: { flex: 1, alignItems: "center", backgroundColor: colors.page },
+  app: { flex: 1, width: "100%", maxWidth: 520, backgroundColor: colors.bg },
+});
