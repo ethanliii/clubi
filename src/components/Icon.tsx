@@ -1,0 +1,39 @@
+import Svg, { Circle, Path, Rect } from "react-native-svg";
+
+export type IconName = "back" | "bell" | "home" | "map" | "plus" | "feed" | "user" | "spark";
+
+export function Icon({ name, size = 22, color }: { name: IconName; size?: number; color: string }) {
+  const stroke = { stroke: color, strokeWidth: 2, fill: "none" } as const;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      {name === "back" && <Path d="M15 5l-7 7 7 7" {...stroke} strokeWidth={2.2} strokeLinecap="round" />}
+      {name === "bell" && (
+        <>
+          <Path d="M6 16V11a6 6 0 1112 0v5l2 2H4z" {...stroke} />
+          <Path d="M10 20a2 2 0 004 0" {...stroke} />
+        </>
+      )}
+      {name === "home" && <Path d="M4 11l8-7 8 7v9H4z" {...stroke} />}
+      {name === "map" && (
+        <>
+          <Path d="M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11z" {...stroke} />
+          <Circle cx={12} cy={10} r={2.5} {...stroke} />
+        </>
+      )}
+      {name === "plus" && <Path d="M12 5v14M5 12h14" {...stroke} strokeWidth={2.6} strokeLinecap="round" />}
+      {name === "feed" && (
+        <>
+          <Rect x={4} y={4} width={16} height={16} rx={3} {...stroke} />
+          <Path d="M4 15l4-4 5 5 3-3 4 4" {...stroke} />
+        </>
+      )}
+      {name === "user" && (
+        <>
+          <Circle cx={12} cy={8} r={4} {...stroke} />
+          <Path d="M4 21c1-4 4-6 8-6s7 2 8 6" {...stroke} />
+        </>
+      )}
+      {name === "spark" && <Path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" {...stroke} />}
+    </Svg>
+  );
+}
