@@ -5,6 +5,7 @@ import {
   Candidate, DEFAULT_RADIUS_METERS, friendScoreOf, getCandidate, isPastEvent, isVisibleTo, loadInRadius, loadViewer,
   nearestMatching, rankItems, scoreAll, scoreCandidate, userLoader,
 } from "./lib/discovery";
+import { bestFor, highlights } from "./lib/insights";
 import { FEATURES, FEATURE_PHRASES } from "./lib/recs";
 
 const SEARCH_LIMIT = 10;
@@ -65,6 +66,16 @@ export const get = query({
       };
     }
 
+    // What visitors answered after rating it. Totals only, and nothing is stated from fewer than 5 people.
+    const stats = await ctx.db
+      .query("venueStats")
+      .withIndex("by_target", (q) => q.eq("targetId", doc._id))
+      .first();
+    const insights = stats === null
+      ? undefined
+      : { highlights: highlights(doc.category, stats.counts), bestFor: bestFor(doc.category, stats.counts) };
+
+    // `item` already carries ratingCount, saved, going and performers.
     return {
       ...item,
       rank: 1,
@@ -76,6 +87,9 @@ export const get = query({
       friendRankings,
       ticketUrl: candidate.kind === "event" ? candidate.doc.ticketUrl : undefined,
       myRanking,
+      insights,
+      website: candidate.kind === "place" ? candidate.doc.website : undefined,
+      phone: candidate.kind === "place" ? candidate.doc.phone : undefined,
     };
   },
 });
