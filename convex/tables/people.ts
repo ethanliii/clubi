@@ -46,6 +46,7 @@ export const peopleTables = {
     notifPrefs: v.optional(notifPrefsValidator),
   })
     .index("by_username", ["username"])
+    .index("by_homeCity", ["homeCity"])
     .searchIndex("search_displayName", { searchField: "displayName" }),
 
   quizAnswers: defineTable({

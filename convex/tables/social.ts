@@ -27,7 +27,9 @@ export const socialTables = {
     status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined")),
   })
     .index("by_userA", ["userA", "status"])
-    .index("by_userB", ["userB", "status"]),
+    .index("by_userB", ["userB", "status"])
+    // One row per pair: look it up as (a, b) and as (b, a).
+    .index("by_pair", ["userA", "userB"]),
 
   reactions: defineTable({
     postId: v.id("posts"),
