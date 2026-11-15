@@ -19,7 +19,9 @@ export const socialTables = {
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_target", ["targetId"])
-    .index("by_ranking", ["rankingId"]),
+    .index("by_ranking", ["rankingId"])
+    // The feed pages through every post, newest first.
+    .index("by_createdAt", ["createdAt"]),
 
   friendships: defineTable({
     userA: v.id("users"),
