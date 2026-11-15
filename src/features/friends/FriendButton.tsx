@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, Sheet, Text, useToast } from "../../components";
+import { Button, IconButton, Sheet, Text, useToast } from "../../components";
 import { api, type FriendStatus, type Id } from "../../lib/api";
 import { confirm } from "../../lib/confirm";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { spacing } from "../../theme";
+import { colors, spacing } from "../../theme";
 
 export type FriendButtonProps = {
   userId: Id<"users">;
@@ -39,7 +39,10 @@ export function FriendButton({
   const cancel = useMutationToast(api.friends.cancel);
   const remove = useMutationToast(api.friends.remove);
   const pending = request.pending || respond.pending || cancel.pending || remove.pending;
-  const size = compact ? styles.compact : undefined;
+  // In a list the buttons are small pills that hug their label; on a profile they fill the row.
+  const size = compact ? "sm" : "lg";
+  const fit = compact ? styles.compact : undefined;
+  const slop = compact ? COMPACT_SLOP : undefined;
 
   if (status === "self") return null;
 
@@ -48,8 +51,11 @@ export function FriendButton({
       <Button
         title={addLabel}
         accessibilityLabel={addLabel}
+        variant={compact ? "light" : "primary"}
+        size={size}
         disabled={pending}
-        style={size}
+        hitSlop={slop}
+        style={fit}
         onPress={async () => {
           const result = await request.run({ userId });
           if (result) toast(result.status === "friends" ? `You and ${displayName} are now friends` : "Request sent", "success");
@@ -65,7 +71,9 @@ export function FriendButton({
         accessibilityLabel="Requested"
         variant="ghost"
         disabled={pending || requestId === undefined}
-        style={size}
+        size={size}
+        hitSlop={slop}
+        style={fit}
         onPress={async () => {
           if (requestId === undefined) return;
           const sure = await confirm({
@@ -86,13 +94,38 @@ export function FriendButton({
       const result = await respond.run({ requestId, accept });
       if (result !== undefined && accept) toast(`You and ${displayName} are now friends`, "success");
     };
+    if (compact) {
+      // One tap to accept; declining is the small cross beside it.
+      return (
+        <View style={styles.pair}>
+          <Button
+            title="Accept"
+            accessibilityLabel="Accept"
+            size="sm"
+            disabled={pending || requestId === undefined}
+            hitSlop={COMPACT_SLOP}
+            style={styles.compact}
+            onPress={answer(true)}
+          />
+          <IconButton
+            icon="close"
+            accessibilityLabel="Decline"
+            plain
+            size={36}
+            color={colors.muted}
+            disabled={pending || requestId === undefined}
+            onPress={answer(false)}
+          />
+        </View>
+      );
+    }
     return (
-      <View style={[styles.pair, !compact && styles.pairWide]}>
+      <View style={[styles.pair, styles.pairWide]}>
         <Button
           title="Accept"
           accessibilityLabel="Accept"
           disabled={pending || requestId === undefined}
-          style={compact ? styles.compact : styles.half}
+          style={styles.half}
           onPress={answer(true)}
         />
         <Button
@@ -100,7 +133,7 @@ export function FriendButton({
           accessibilityLabel="Decline"
           variant="ghost"
           disabled={pending || requestId === undefined}
-          style={compact ? styles.compact : styles.half}
+          style={styles.half}
           onPress={answer(false)}
         />
       </View>
@@ -114,7 +147,9 @@ export function FriendButton({
         accessibilityLabel="Friends"
         variant="ghost"
         disabled={pending}
-        style={size}
+        size={size}
+        hitSlop={slop}
+        style={fit}
         onPress={() => setMenuOpen(true)}
       />
       <Sheet visible={menuOpen} onClose={() => setMenuOpen(false)} title={displayName}>
@@ -138,8 +173,11 @@ export function FriendButton({
   );
 }
 
+/** A list button is 36 tall; this makes what the thumb can hit 48. */
+const COMPACT_SLOP = { top: 6, bottom: 6, left: 4, right: 4 };
+
 const styles = StyleSheet.create({
-  compact: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
+  compact: { width: "auto", paddingHorizontal: 16 },
   pair: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   pairWide: { width: "100%" },
   half: { flex: 1, width: "auto" },
