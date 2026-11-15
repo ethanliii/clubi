@@ -11,7 +11,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:35:49Z
+- **Last updated:** 2026-11-15T20:37:49Z
 
 ## Log
 
@@ -155,3 +155,12 @@ Convex dev deployment. Convex features: queries, mutations, indexes, crons,
 scheduled functions (`convex/notifications.ts`, `convex/notificationsCron.ts`,
 `convex/crons.ts`, `convex/rankings.ts`, `convex/users.ts`,
 `convex/tables/people.ts`).
+
+### 2026-11-15 - 9950a6a
+Ranking now teaches the model live. Each saved comparison takes one taste step
+for the user and one Elo step for both places, and the bucket nudges the taste
+toward or away from the place. On the dev deployment, ranking a loud club over
+a quiet wine bar raised a new user's predicted scores for four loud venues by
+0.4 each, lowered a quiet wine bar by 0.1, and moved the two compared places'
+Elo to +0.25 and -0.25. Convex features: mutations (`convex/rankings.ts`,
+`convex/scoring.ts`).
