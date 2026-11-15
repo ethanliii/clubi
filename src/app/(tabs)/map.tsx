@@ -97,7 +97,7 @@ export default function MapScreen() {
         style={[styles.scrim, { height: top + spacing.xl }]}
       />
 
-      <View style={[styles.top, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.top, searching && styles.topSearching, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.gutter}>
           <SearchBox value={search} onChangeText={setSearch} />
         </View>
@@ -231,6 +231,8 @@ const styles = StyleSheet.create({
   scrim: { position: "absolute", top: 0, left: 0, right: 0, pointerEvents: "none" },
 
   top: { position: "absolute", top: 0, left: 0, right: 0, gap: spacing.sm, pointerEvents: "box-none" },
+  // The results drop down over the floating controls and the list, not under them.
+  topSearching: { zIndex: 2, elevation: 12 },
   gutter: { paddingHorizontal: spacing.md },
   chips: { paddingHorizontal: spacing.md },
   chip: { backgroundColor: "rgba(30,26,38,0.94)" },

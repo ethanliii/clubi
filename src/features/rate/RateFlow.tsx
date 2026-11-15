@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "convex/react";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
 import { Button, EmptyState, Skeleton, goBack, useToast } from "../../components";
 import { api, type Bucket, type InsightAnswer, type InsightQuestion, type Kind, type RankResult } from "../../lib/api";
@@ -44,6 +44,9 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const [result, setResult] = useState<RankResult | null>(null);
   const [questions, setQuestions] = useState<InsightQuestion[] | null>(null);
   const [sending, setSending] = useState(false);
+  // Whether the ranking just posted replaced an earlier one. Noted at "Post": afterwards
+  // `venue.myRanking` is set for a first ranking too.
+  const [reranked, setReranked] = useState(false);
   // A second tap right after a round changed is the same tap landing twice.
   const [guard] = useState(createTapGuard);
   const { photo, add: addPhoto, remove: removePhoto } = usePhotoDraft();
@@ -64,8 +67,17 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   );
   const liveQuestions = useQuery(
     api.insights.questionsFor,
-    step === "result" || step === "questions" ? { kind, id } : "skip",
+    (step === "result" || step === "questions") && !reranked ? { kind, id } : "skip",
   );
+
+  // The steps are one route, so the iOS swipe from the left edge would leave the whole flow: past
+  // "How was it?" that throws away the draft, or skips the questions once the ranking is posted.
+  // Only the first step, where on-screen Back leaves too, keeps the swipe.
+  const navigation = useNavigation();
+  const canSwipeBack = step === "how";
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: canSwipeBack });
+  }, [navigation, canSwipeBack]);
 
   // Step 3 starts the moment the bucket arrives. With nothing to compare against it is skipped:
   // position 1, no comparisons.
@@ -137,6 +149,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const post = async () => {
     if (posting || bucket === null || search === null) return;
     setPosting(true);
+    setReranked(isRerank);
     try {
       const caption = draft.caption.trim();
       const ranking = await rank({
@@ -159,8 +172,11 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
     }
   };
 
+  // After a re-rank the quick questions are not asked again: `insights.submit` replaces everything
+  // the user said about this place before, so answering one question (or a different set of
+  // questions) would erase the earlier answers, which the app has no way to read back and merge.
   const continueFromResult = () => {
-    if (liveQuestions !== undefined && liveQuestions.length === 0) {
+    if (reranked || (liveQuestions !== undefined && liveQuestions.length === 0)) {
       goToFeed();
       return;
     }
@@ -220,7 +236,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
 
   if (step === "result") {
     // "Done" when it is already known there is nothing to ask; "Continue" otherwise.
-    const nothingMore = liveQuestions !== undefined && liveQuestions.length === 0;
+    const nothingMore = reranked || (liveQuestions !== undefined && liveQuestions.length === 0);
     return (
       <ResultStep
         venue={venue}

@@ -1,10 +1,10 @@
 import { router } from "expo-router";
-import { useQuery } from "convex/react";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { EmptyState, Header, ItemCard, Screen, SkeletonRows, Text, TextField } from "../../components";
 import { api, type NearbyItem } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
+import { useKeptQuery } from "../../lib/useKeptQuery";
 import { ratePath } from "../../lib/links";
 import { useDebounced } from "../../lib/useDebounced";
 import { useNearby } from "../../lib/useNearby";
@@ -20,7 +20,7 @@ export default function RateScreen() {
   const searching = input.trim().length >= 2;
   const { lat, lng, ready } = useDemoLocation();
   const nearby = useNearby("all");
-  const found = useQuery(api.places.search, ready && text.length >= 2 ? { text, lat, lng } : "skip");
+  const found = useKeptQuery(api.places.search, ready && text.length >= 2 ? { text, lat, lng } : "skip", text);
 
   // While the box and the debounced text disagree, the old results are for something else: show loading.
   const results: NearbyItem[] | undefined = searching ? (text === input.trim() ? found : undefined) : nearby?.items.slice(0, SUGGESTIONS);
