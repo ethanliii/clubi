@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     minHeight: 60,
     paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   dimmed: { opacity: 0.6 },

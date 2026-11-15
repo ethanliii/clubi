@@ -8,7 +8,6 @@ import {
   EmptyState,
   ItemCard,
   ListRow,
-  SectionHeader,
   SkeletonRows,
   Text,
 } from "../../components";
@@ -17,6 +16,7 @@ import { categoryLabel } from "../../lib/format";
 import { userPath, venuePath } from "../../lib/links";
 import { colors, spacing } from "../../theme";
 import { MemberScores } from "./MemberScores";
+import { SectionLabel } from "./ScreenTop";
 import { VoteButtons, type Vote } from "./VoteButtons";
 
 type TargetId = GroupItem["id"];
@@ -28,8 +28,8 @@ const STATUS_LABEL = { joined: "Joined", invited: "Invited", declined: "Declined
 /** Everyone on the trip with where they stand: "Organizer", "Joined", "Invited", "Declined". */
 export function MemberList({ trip, meId }: { trip: TripDetail; meId: string | undefined }) {
   return (
-    <View>
-      <SectionHeader title="Who's in" count={trip.members.length} />
+    <View style={styles.rows}>
+      <SectionLabel title="Who's in" count={trip.members.length} />
       {trip.members.map((member) => (
         <ListRow
           key={member.userId}
@@ -74,7 +74,7 @@ export function GroupPicks({
   if (group === undefined) {
     return (
       <View style={styles.section}>
-        <SectionHeader title="Picks for the group" />
+        <SectionLabel title="Picks for the group" />
         <SkeletonRows count={4} />
       </View>
     );
@@ -83,7 +83,7 @@ export function GroupPicks({
   const items = showAll ? group.items : group.items.slice(0, PICKS_SHOWN);
   return (
     <View style={styles.section}>
-      <SectionHeader title="Picks for the group" />
+      <SectionLabel title="Picks for the group" />
       <Text variant="caption" muted>
         {solo
           ? "Invite friends to get picks that suit everyone"
@@ -149,8 +149,8 @@ export function Shortlist({
 }) {
   if (items.length === 0) return null;
   return (
-    <View>
-      <SectionHeader title="Shortlist" count={items.length} />
+    <View style={styles.rows}>
+      <SectionLabel title="Shortlist" count={items.length} />
       {items.map((item) => (
         <ListRow
           key={item.id}
@@ -179,8 +179,9 @@ export function Shortlist({
 
 const styles = StyleSheet.create({
   section: { gap: spacing.sm },
+  rows: { gap: spacing.xs },
   faded: { opacity: 0.7 },
-  pick: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  pick: { borderBottomWidth: 1, borderBottomColor: colors.line },
   pickCard: { borderBottomWidth: 0, paddingBottom: spacing.xs },
   // Lined up with the card's text: past the rank number and the picture.
   pickActions: {

@@ -2,15 +2,16 @@ import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Avatar, Chip, ChipRow, EmptyState, goBack, Header, ItemCard, Screen, Skeleton, Text } from "../components";
+import { Avatar, Chip, ChipRow, EmptyState, goBack, ItemCard, Screen, Skeleton, Text } from "../components";
 import { citySpot } from "../features/trips/city";
 import { FriendChips, toggleId } from "../features/trips/FriendChips";
 import { MemberScores } from "../features/trips/MemberScores";
+import { ScreenTop } from "../features/trips/ScreenTop";
 import { VibeChips, type Vibe } from "../features/trips/vibes";
 import { api, type Id, type PlanResult } from "../lib/api";
 import { useDemoLocation } from "../lib/demoLocation";
 import { useMe } from "../state/session";
-import { radius, spacing } from "../theme";
+import { colors, radius, spacing } from "../theme";
 
 function StopsSkeleton() {
   return (
@@ -70,7 +71,7 @@ export default function PlanScreen() {
   if (tripId && trip === null) {
     return (
       <Screen>
-        <Header title="Plan my night" />
+        <ScreenTop title="Plan my night" />
         <EmptyState title="This trip was deleted" icon="users" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
@@ -80,8 +81,10 @@ export default function PlanScreen() {
 
   return (
     <Screen>
-      <Header title="Plan my night" />
-      {tripId && trip ? <Text muted>{`Three stops for ${trip.name}`}</Text> : null}
+      <View style={styles.top}>
+        <ScreenTop title="Plan my night" kicker="Itinerary" />
+        {tripId && trip ? <Text muted>{`Three stops for ${trip.name}`}</Text> : null}
+      </View>
 
       <View style={styles.group}>
         <Text variant="label">{"Who's coming"}</Text>
@@ -128,7 +131,7 @@ export default function PlanScreen() {
           {shown.stops.map((stop) => (
             <View key={stop.id} style={styles.stop}>
               <Text variant="label">{stop.slotLabel}</Text>
-              <ItemCard item={stop}>
+              <ItemCard item={stop} style={styles.stopCard}>
                 <MemberScores scores={stop.memberScores} meId={me?.userId} />
               </ItemCard>
             </View>
@@ -141,9 +144,19 @@ export default function PlanScreen() {
 
 const styles = StyleSheet.create({
   group: { gap: spacing.sm },
+  top: { gap: spacing.xs },
   stops: { gap: spacing.md },
-  stop: { gap: spacing.xs },
+  // Each stop is one of Bryan's cards: the time slot as the small label, the place under it.
+  stop: {
+    gap: spacing.sm + 2,
+    padding: spacing.md + 2,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  stopCard: { borderBottomWidth: 0, paddingVertical: 0, minHeight: 0 },
   updating: { opacity: 0.5 },
-  skeletonRow: { flexDirection: "row", gap: spacing.md, paddingVertical: spacing.md },
+  skeletonRow: { flexDirection: "row", gap: spacing.md },
   skeletonLines: { flex: 1, gap: spacing.sm },
 });

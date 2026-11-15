@@ -4,7 +4,7 @@ import { Avatar, Icon, Text } from "../../components";
 import type { PerformerCard } from "../../lib/api";
 import { formatEventTime, formatScore } from "../../lib/format";
 import { performerPath, venuePath } from "../../lib/links";
-import { colors, fontWeight, spacing } from "../../theme";
+import { colors, fontWeight, radius, spacing } from "../../theme";
 import { FollowButton } from "./FollowButton";
 
 const AVATAR = 44;
@@ -79,8 +79,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: spacing.sm + 2,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   main: { flex: 1 },
@@ -97,5 +97,5 @@ const styles = StyleSheet.create({
   },
   nextText: { flex: 1, color: colors.mid, fontWeight: fontWeight.semibold },
   noDates: { marginLeft: AVATAR + spacing.md, paddingBottom: spacing.xs },
-  follow: { width: "auto", minWidth: 104, paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.md },
+  follow: { width: "auto", minWidth: 104, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.pill },
 });
