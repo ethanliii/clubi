@@ -11,7 +11,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:24:07Z
+- **Last updated:** 2026-11-15T20:27:31Z
 
 ## Log
 
@@ -106,3 +106,10 @@ the dev deployment for the demo area: 1,374 OpenStreetMap places beside the 33
 seeded ones, none duplicated. Map data (c) OpenStreetMap contributors. Convex
 features: mutations, queries, actions, scheduled functions, indexes
 (`convex/ingest.ts`, `convex/imports/osm.ts`).
+
+### 2026-11-15 - 367b91d
+The nearby hook now asks the backend to import places around the viewer the
+first time it is used in an area, once per grid cell, so the map fills in
+anywhere and not only around the seed data. A failed request leaves the list as
+it is. Checked on the dev deployment: an area with no places returned 60 ranked
+results about 20 seconds after the request (`src/lib/useNearby.ts`).
