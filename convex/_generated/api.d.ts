@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
 import type * as debug from "../debug.js";
 import type * as discover from "../discover.js";
 import type * as imports_luma from "../imports/luma.js";
@@ -37,6 +38,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  crons: typeof crons;
   debug: typeof debug;
   discover: typeof discover;
   "imports/luma": typeof imports_luma;
