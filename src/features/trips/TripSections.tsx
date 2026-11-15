@@ -172,8 +172,8 @@ const TILE = 168;
 
 /**
  * "Shortlist": what the group has voted up, in the backend's order, as a row of photo tiles that
- * scrolls sideways, each with its vote counts. `photoOf` finds a tile's picture (the shortlist
- * itself carries none; the picks do).
+ * scrolls sideways, each with its vote counts. A tile's picture is its own `imageUrl` when the
+ * backend sends one; otherwise `photoOf` borrows it from the matching pick.
  */
 export function Shortlist({
   items,
@@ -205,7 +205,12 @@ export function Shortlist({
               onPress={() => router.push(venuePath(item.kind, item.id))}
               style={({ pressed }) => [styles.tileOpen, pressed && styles.pressed]}
             >
-              <PlacePhoto uri={photoOf?.(item.id)} category={item.category} height={112} round={radius.lg} />
+              <PlacePhoto
+                uri={(item as { imageUrl?: string }).imageUrl ?? photoOf?.(item.id)}
+                category={item.category}
+                height={112}
+                round={radius.lg}
+              />
               <View>
                 <Text numberOfLines={1} style={styles.tileName}>
                   {item.name}

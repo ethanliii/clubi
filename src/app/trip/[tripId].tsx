@@ -181,7 +181,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
     pluralize(trip.memberCount, "person", "people"),
   ].filter((part) => part !== "");
 
-  // The shortlist carries no pictures of its own; the picks do, so a shortlisted pick borrows its photo.
+  // A shortlist item without a picture of its own borrows the matching pick's photo.
   const photoOf = (id: string) => group?.items.find((item) => item.id === id)?.imageUrl;
 
   return (

@@ -45,6 +45,9 @@ export function PlaceCard({
   const when = item.startsAt !== undefined ? formatEventTime(item.startsAt, now) : null;
   const performers = item.performers && item.performers.length > 0 ? item.performers.join(", ") : null;
   const height = item.imageUrl ? photoHeight : Math.round(photoHeight * 0.5);
+  // Who took the photo, when the backend says (Google's photos ask for it). Read loosely: the
+  // field is newer than some of the shapes this card is given.
+  const credit = item.imageUrl ? (item as { imageAttribution?: string }).imageAttribution : undefined;
   return (
     <View style={styles.card}>
       <Pressable
@@ -71,8 +74,13 @@ export function PlaceCard({
             <ScoreBadge score={item.score} />
           </View>
           {when ? (
-            <Text numberOfLines={1} style={styles.when}>
+            <Text numberOfLines={1} style={[styles.when, credit ? styles.whenBesideCredit : null]}>
               {when}
+            </Text>
+          ) : null}
+          {credit ? (
+            <Text numberOfLines={1} style={styles.credit}>
+              {credit}
             </Text>
           ) : null}
         </View>
@@ -122,6 +130,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     fontWeight: fontWeight.semibold,
+  },
+  whenBesideCredit: { right: "45%" },
+  credit: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    maxWidth: "50%",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: "hidden",
+    backgroundColor: "rgba(11,10,15,0.55)",
+    color: colors.white,
+    opacity: 0.85,
+    fontSize: 10,
+    lineHeight: 13,
   },
   text: { gap: 3 },
   // Two 44pt thumbs and the gap between them, plus air.
