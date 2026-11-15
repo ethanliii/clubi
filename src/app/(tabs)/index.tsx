@@ -9,6 +9,7 @@ import {
 } from "../../components";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useState } from "react";
+import { Spotlight } from "../../features/feed/Spotlight";
 import { colors, radius, ratingColor, spacing } from "../../theme";
 
 /** Home tab = the friend feed (decision D2). UI-SPEC §7. New posts appear on their own. */
@@ -16,15 +17,18 @@ export default function Home() {
   const { results, status, loadMore } = usePaginatedQuery(api.posts.feed, {}, { initialNumItems: 15 });
   const unread = useQuery(api.notifications.unreadCount, {});
   const [commentsFor, setCommentsFor] = useState<Id<"posts"> | null>(null);
+  // Spotlight = one big photo per friend, swipe to the next; All = the full feed below.
+  const [mode, setMode] = useState<"spotlight" | "all">("spotlight");
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <FlatList
-        data={results}
+        data={mode === "all" ? results : []}
         keyExtractor={(p) => String(p.postId)}
         contentContainerStyle={styles.list}
         onEndReached={() => status === "CanLoadMore" && loadMore(15)}
         ListHeaderComponent={
+          <View style={{ gap: spacing.md }}>
           <View style={styles.between}>
             <View>
               <Text variant="label">Friends · live</Text>
@@ -40,9 +44,21 @@ export default function Home() {
               </Pressable>
             </View>
           </View>
+          {results.length > 0 && (
+            <View style={styles.seg}>
+              {(["spotlight", "all"] as const).map((m) => (
+                <Pressable key={m} accessibilityRole="tab" accessibilityState={{ selected: mode === m }} onPress={() => setMode(m)}
+                  style={[styles.segBtn, mode === m && styles.segOn]}>
+                  <Text style={{ fontWeight: "600", color: mode === m ? colors.fg : colors.muted }}>{m === "spotlight" ? "Last night" : "All friends"}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {mode === "spotlight" && <Spotlight posts={results} onSeeAll={() => setMode("all")} onComments={(p) => setCommentsFor(p.postId)} />}
+          </View>
         }
         ListEmptyComponent={
-          status === "LoadingFirstPage" ? (
+          results.length > 0 ? undefined : status === "LoadingFirstPage" ? (
             <View style={{ gap: spacing.lg }}>
               <Skeleton height={320} />
               <Skeleton height={320} />
@@ -202,5 +218,8 @@ const styles = StyleSheet.create({
   photo: { flex: 1, height: 190, borderRadius: radius.lg },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   action: { flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 14 },
+  seg: { flexDirection: "row", backgroundColor: colors.surface, borderRadius: radius.lg, padding: 3 },
+  segBtn: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: radius.md },
+  segOn: { backgroundColor: colors.raised },
   ring: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: "center", justifyContent: "center" },
 });

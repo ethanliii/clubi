@@ -48,6 +48,11 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 - **"You're in" (`(onboarding)/youre-in.tsx`) replaces the taste card + Find friends:** persona line, Sync contacts (stub), People you may know / Similar taste (`friends.suggestions`, split by mutual friends, order kept), Picked for you tonight (`discover.tonight`), Let's go.
 - **Needs backend:** phone / email verification codes (Hinge asks for both) need an SMS / email provider; contact sync needs `expo-contacts` + a hashed-number lookup.
 
+## Pass 6 (Home spotlight)
+- **Home:** "Last night" / "All friends" toggle. Last night = one big photo card per friend (their newest post, feed order), swipe or "Next friend →", dots, "See all friends' posts". All friends = the full feed.
+- **Quick actions on each spotlight card (Instagram-style):** double-tap the photo to like (`posts.react`), hold to save (`saves.toggle` "want"). Small action row under the photo: heart · comment (opens `CommentsSheet`) on the left, bookmark on the right. Tap the place name to open the venue.
+- **Needs backend (E14):** "closest friend first" ordering (e.g. by interactions or taste match) and a "went out last night" window on `posts.feed`; the UI keeps the backend's order.
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 
