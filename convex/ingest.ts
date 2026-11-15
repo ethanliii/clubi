@@ -137,6 +137,13 @@ const PLACE_DEDUPE_METERS = 50;
 const METERS_PER_DEGREE = 111_320;
 const PLACE_DEDUPE_DEGREES = PLACE_DEDUPE_METERS / METERS_PER_DEGREE;
 const EVENT_DEDUPE_MS = 60 * 60 * 1000;
+// Two sources' rows are one event when they start within the hour, within 200 m of each other,
+// and have the same title or the same headliner.
+const EVENT_DEDUPE_METERS = 200;
+// Partiful and guests-only Luma events give a point rounded to about a kilometre.
+const APPROXIMATE_DEDUPE_METERS = 1500;
+const APPROXIMATE_TAG = "approximate location";
+const MAX_OTHER_URLS = 4;
 const VENUE_MATCH_METERS = 150;
 const VENUE_MATCH_DEGREES = VENUE_MATCH_METERS / METERS_PER_DEGREE;
 const VENUE_BAND_LIMIT = 400;
@@ -413,6 +420,12 @@ function lineupVector({ existing, input }: LineupEntry): number[] | null {
   return existing?.genres?.length && existing.vector?.length === FEATURES.length ? existing.vector : genresToVector(genres);
 }
 
+/** `otherUrls` with one more page added, or null when there is nothing new to add. */
+function withOtherUrl(event: { sourceUrl?: string; otherUrls?: string[] }, url: string | undefined): string[] | null {
+  if (!url || url === event.sourceUrl || event.otherUrls?.includes(url)) return null;
+  return [...(event.otherUrls ?? []), url].slice(-MAX_OTHER_URLS);
+}
+
 type VenueCache = Map<string, Id<"places"> | null>;
 
 /** The catalog place an event is at: same normalised name as `venueName` within 150 m. */
@@ -505,7 +518,14 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
       q.gte("start", start - EVENT_DEDUPE_MS).lte("start", start + EVENT_DEDUPE_MS),
     )
     .collect();
-  const duplicate = window.find((e) => normalizeName(e.title) === nameKey);
+  const headliner = lineup[0] ? normalizePerformerName(lineup[0].name) : undefined;
+  const approximate = (tags: string[] | undefined) => tags?.includes(APPROXIMATE_TAG) ?? false;
+  const duplicate = window.find(
+    (e) =>
+      haversineMeters(e, row) <= (approximate(e.tags) || approximate(row.tags) ? APPROXIMATE_DEDUPE_METERS : EVENT_DEDUPE_METERS) &&
+      (normalizeName(e.title) === nameKey ||
+        (headliner !== undefined && e.performerNames?.[0] !== undefined && normalizePerformerName(e.performerNames[0]) === headliner)),
+  );
   if (!duplicate) {
     const placeId = (await findVenuePlace(ctx, row, venues)) ?? undefined;
     const eventId = await ctx.db.insert("events", { ...fields, placeId, createdAt: Date.now(), elo: 0, nComparisons: 0 });
@@ -514,7 +534,10 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     return "inserted";
   }
   if (isProtected(duplicate.source) || (!isProtected(row.source) && richness(duplicate) >= richness(fields))) {
-    // The other source's row stays, but a line-up it did not have is worth keeping.
+    // The other source's row stays; this source's page is remembered next to it.
+    const otherUrls = withOtherUrl(duplicate, row.sourceUrl);
+    if (otherUrls) await ctx.db.patch(duplicate._id, { otherUrls });
+    // A line-up the kept row did not have is worth keeping too.
     if (lineup.length && !duplicate.performerNames?.length) {
       await ctx.db.patch(duplicate._id, { performerNames: fields.performerNames });
       await linkLineup(ctx, duplicate._id, duplicate.start, lineup, row.source);
@@ -531,6 +554,8 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     blurb: fields.blurb ?? duplicate.blurb,
     venueName: fields.venueName ?? duplicate.venueName,
     performerNames: fields.performerNames ?? duplicate.performerNames,
+    // The row now belongs to the richer source: keep the page it had before.
+    otherUrls: withOtherUrl({ ...duplicate, sourceUrl: fields.sourceUrl }, duplicate.sourceUrl) ?? duplicate.otherUrls,
   });
   if (lineup.length) await afterUpdate(duplicate);
   return "replaced";
@@ -574,8 +599,9 @@ export async function upsertRows(
 
 /**
  * Upsert up to MAX_BATCH places or events by source + sourceId. A row with the
- * same name within 50 m (places) or the same title starting within 1 h
- * (events) is a duplicate: the richer row is kept, and hand-set rows always
+ * same name within 50 m (places), or the same title or headliner starting
+ * within 1 h and within 200 m (events), is a duplicate: the richer row is
+ * kept, the other source's page goes into `otherUrls`, and hand-set rows always
  * win. Unnamed rows and past events are dropped. Events also get their
  * performers stored and linked, a `placeId` when the venue is a catalog place,
  * and, the first time they are stored with a line-up, the artist alert. Event batches write nothing
