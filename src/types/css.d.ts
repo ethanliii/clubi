@@ -1,2 +1,2 @@
-// Style sheets imported for their side effects on web (the Leaflet map).
+// Style sheets imported for their side effects on web (the browser map).
 declare module "*.css";
