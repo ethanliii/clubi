@@ -79,7 +79,7 @@ export function scoreCandidate(c: Candidate, taste: number[], lat: number, lng: 
   const exact = clip(contentScore(taste, f), 1, 10);
   const score = Math.round(exact * 10) / 10;
   const distance = haversineMeters(lat, lng, doc.lat, doc.lng);
-  const price = c.kind === "place" && doc.priceLevel !== undefined ? clip(Math.round(doc.priceLevel), 1, 4) : undefined;
+  const price = c.kind === "place" && c.doc.priceLevel !== undefined ? clip(Math.round(c.doc.priceLevel), 1, 4) : undefined;
   return {
     kind: c.kind,
     id: doc._id,

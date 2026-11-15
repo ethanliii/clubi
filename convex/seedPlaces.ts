@@ -1,6 +1,5 @@
 import { internalMutation } from "./_generated/server";
 import type { Category } from "./lib/contract";
-import { DEMO_CITY } from "./lib/demo";
 import { FEATURES, Feature } from "./lib/recs";
 
 const UNSET_FEATURE = 0.15;
@@ -21,6 +20,7 @@ type SeedPlace = {
 };
 
 const DEMO_TAG = "demo";
+const SEED_CITY = "San Francisco";
 
 export const SEED_PLACES: SeedPlace[] = [
   { sourceId: "dogpatch-saloon", name: "Dogpatch Saloon", category: "nightlife", subcategory: "bar", lat: 37.758035, lng: -122.388525, address: "2496 3rd St", blurb: "Corner neighborhood bar with a fireplace and Sunday jazz.", priceLevel: 2, tags: ["neighborhood bar", "jazz"], venueVector: vec({ energy: 0.5, loudness: 0.5, crowdAge: 0.4, price: 0.4, liveMusic: 0.4, indie: 0.4 }) },
@@ -69,7 +69,7 @@ export const run = internalMutation({
     let inserted = 0;
     let updated = 0;
     for (const place of SEED_PLACES) {
-      const fields = { ...place, source: "seed" as const, city: DEMO_CITY };
+      const fields = { ...place, source: "seed" as const, city: SEED_CITY };
       const existing = await ctx.db
         .query("places")
         .withIndex("by_source", (q) => q.eq("source", "seed").eq("sourceId", place.sourceId))

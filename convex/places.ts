@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { NearbyItem, Tier, VenueDetail } from "./lib/contract";
-import { DEMO_COORDS } from "./lib/demo";
 import {
   Candidate, DEFAULT_RADIUS_METERS, loadCandidates, rankItems, scoreCandidate, venueVectorOf, viewerTaste,
 } from "./lib/discovery";
@@ -33,7 +32,7 @@ export const get = query({
       candidate = { kind: "event", doc };
     }
     const taste = await viewerTaste(ctx);
-    const { order, ...item } = scoreCandidate(candidate, taste, args.lat ?? DEMO_COORDS.lat, args.lng ?? DEMO_COORDS.lng);
+    const { order, ...item } = scoreCandidate(candidate, taste, args.lat ?? candidate.doc.lat, args.lng ?? candidate.doc.lng);
     const f = venueVectorOf(candidate.doc);
     const tier: Tier = item.score >= TOP_SCORE ? "top" : item.score >= GOOD_SCORE ? "good" : "other";
     const breakdown = FEATURES.map((k, i) => ({ label: FEATURE_PHRASES[k], value: Math.round(taste[i] * f[i] * 100) / 10 }))

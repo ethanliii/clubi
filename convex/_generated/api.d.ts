@@ -9,7 +9,18 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as discover from "../discover.js";
+import type * as lib_contract from "../lib/contract.js";
+import type * as lib_demo from "../lib/demo.js";
+import type * as lib_discovery from "../lib/discovery.js";
+import type * as lib_recs from "../lib/recs.js";
 import type * as moments from "../moments.js";
+import type * as places from "../places.js";
+import type * as scoring from "../scoring.js";
+import type * as seedPlaces from "../seedPlaces.js";
+import type * as tables_catalog from "../tables/catalog.js";
+import type * as tables_people from "../tables/people.js";
+import type * as tables_social from "../tables/social.js";
 import type * as users from "../users.js";
 
 import type {
@@ -20,7 +31,18 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  discover: typeof discover;
+  "lib/contract": typeof lib_contract;
+  "lib/demo": typeof lib_demo;
+  "lib/discovery": typeof lib_discovery;
+  "lib/recs": typeof lib_recs;
   moments: typeof moments;
+  places: typeof places;
+  scoring: typeof scoring;
+  seedPlaces: typeof seedPlaces;
+  "tables/catalog": typeof tables_catalog;
+  "tables/people": typeof tables_people;
+  "tables/social": typeof tables_social;
   users: typeof users;
 }>;
 
