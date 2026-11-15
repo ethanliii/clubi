@@ -21,6 +21,7 @@ import type * as lib_hours from "../lib/hours.js";
 import type * as lib_recs from "../lib/recs.js";
 import type * as moments from "../moments.js";
 import type * as notifications from "../notifications.js";
+import type * as notificationsCron from "../notificationsCron.js";
 import type * as places from "../places.js";
 import type * as rankings from "../rankings.js";
 import type * as scoring from "../scoring.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   "lib/recs": typeof lib_recs;
   moments: typeof moments;
   notifications: typeof notifications;
+  notificationsCron: typeof notificationsCron;
   places: typeof places;
   rankings: typeof rankings;
   scoring: typeof scoring;
