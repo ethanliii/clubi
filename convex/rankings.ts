@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Category, RankResult, RankedListItem } from "./lib/contract";
-import { displayNameOf, friendIdsOf, sameCity } from "./lib/discovery";
+import { displayNameOf, friendIdsOf, isUnder21, sameCity } from "./lib/discovery";
 import {
   BUCKET_ORDER,
   CATEGORY_NOUN,
@@ -300,6 +300,10 @@ export const rank = mutation({
     const user = await ctx.db.get("users", userId);
     const { category } = target;
     const now = Date.now();
+    // Privacy: someone under 21 never gets nightlife, so they can't rank it either.
+    if (category === "nightlife" && isUnder21(user?.birthday, now)) {
+      throw new Error("That place or event isn't available");
+    }
     const local = new Date(now + localOffsetMs(target.lng));
     const dayOfWeek = local.getUTCDay();
     const hour = local.getUTCHours();

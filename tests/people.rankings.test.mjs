@@ -217,3 +217,14 @@ test("notify returns null for the actor themself, a switched-off pref or a missi
   assert.equal(await notifications.notify(ctx, { ...base, userId: friend, actorId: me }), null);
   assert.equal(t.all("notifications").length, 1);
 });
+
+test("someone under 21 can't rank nightlife, and can rank everything else", async () => {
+  const { t, f, me, bars, rank } = await world();
+  await t.db.patch(me, { birthday: `${new Date().getUTCFullYear() - 20}-01-01` });
+  await assert.rejects(rank(me, bars[0]), /isn't available/);
+  assert.equal(t.all("rankings").length, 0);
+  const cafe = await f.place("Sightglass", { category: "food" });
+  assert.equal((await rank(me, cafe)).position, 1);
+  await t.db.patch(me, { birthday: "1990-01-01" });
+  assert.equal((await rank(me, bars[0])).position, 1);
+});

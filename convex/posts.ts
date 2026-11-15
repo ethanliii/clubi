@@ -29,6 +29,10 @@ const FRIENDS_FEED_LIMIT = 30;
 const FRIENDS_FEED_SCAN = 200;
 const FRIENDS_FEED_AUTHORS = 50;
 const MAX_PAGE_SIZE = 50;
+/** One feed call scans at most this many posts looking for mine and my friends'. */
+const FEED_MAX_ROWS_READ = 1000;
+/** Above this many friends the author filter is applied after the read instead of inside it. */
+const FEED_FILTER_MAX_AUTHORS = 100;
 const COUNT_CAP = 500;
 const COMMENTS_LIMIT = 200;
 const DEFAULT_EMOJI = "❤️";
@@ -141,6 +145,9 @@ export function feedItemBuilder(ctx: QueryCtx, viewer: PostViewer) {
       .query("comments")
       .withIndex("by_post", (q) => q.eq("postId", post._id))
       .take(COUNT_CAP);
+    // Counts leave out anyone on either side of a block with the viewer, like everything else.
+    const shown = <T extends { userId: Id<"users"> }>(rows: T[]) =>
+      rows.filter((row) => !viewer.blockedIds.has(row.userId));
     const mine = reactions.find((reaction) => reaction.userId === viewer.userId);
     return {
       postId: post._id,
@@ -168,9 +175,9 @@ export function feedItemBuilder(ctx: QueryCtx, viewer: PostViewer) {
       myScoreForIt: isMine ? undefined : await myScoreFor(post.targetId),
       rankingId: ranking?._id,
       visibility: post.visibility ?? "friends",
-      reactionCount: reactions.length,
+      reactionCount: shown(reactions).length,
       myReaction: mine === undefined ? undefined : (mine.emoji ?? DEFAULT_EMOJI),
-      commentCount: comments.length,
+      commentCount: shown(comments).length,
       // INTEGRATION: insightChips from convex/lib/insights.ts answerChips() (Brain): read visitAnswers
       // by_ranking for `ranking._id` and pass them through; left unset until that function exists.
     };
@@ -198,23 +205,41 @@ export const feed = query({
     if (viewer.userId === null) {
       return emptyPage();
     }
-    // Plain newest-first (ALGORITHM.md §7). We page through every post by creation time and keep the
-    // ones written by me or a friend, rather than merging one index read per friend: the cursor is the
-    // database's own, so paging is stable and a friend's new post appears at the top of the first page
-    // the moment it is written. The cost is that a page can come back shorter than asked (posts by
-    // strangers are skipped); `usePaginatedQuery` just loads the next one. Each call reads at most
-    // MAX_PAGE_SIZE posts, which is fine while posts number in the thousands; past that the fix is a
-    // per-friend feed row written at post time.
-    const result = await ctx.db
-      .query("posts")
-      .withIndex("by_createdAt")
-      .order("desc")
-      .paginate({
-        ...paginationOpts,
-        numItems: Math.min(MAX_PAGE_SIZE, Math.max(1, paginationOpts.numItems)),
-      });
+    // Plain newest-first (ALGORITHM.md §7). We page through every post by creation time, on the
+    // database's own cursor, so paging is stable and a friend's new post is at the top of the first
+    // page the moment it is written. (Merging one index read per friend would need a hand-made
+    // cursor, and those leave gaps when a live page shifts.)
+    //
+    // The "is it by me or a friend" test runs inside the database, before the page size is counted.
+    // Without that, posts by strangers used up the page: with enough of them newer than my friends'
+    // posts, the first page came back empty and the feed looked blank. `maximumRowsRead` bounds the
+    // scan; only past that many stranger posts in a row can a page come back short, and the cursor
+    // still moves on. Past that scale the fix is a per-friend feed row written at post time.
+    const numItems = Math.min(MAX_PAGE_SIZE, Math.max(1, paginationOpts.numItems));
+    const opts = {
+      ...paginationOpts,
+      numItems,
+      maximumRowsRead: Math.min(FEED_MAX_ROWS_READ, paginationOpts.maximumRowsRead ?? FEED_MAX_ROWS_READ),
+    };
+    const me = viewer.userId;
+    const friends = [...viewer.friendIds];
+    const newest = ctx.db.query("posts").withIndex("by_createdAt").order("desc");
+    const result =
+      friends.length > FEED_FILTER_MAX_AUTHORS
+        ? await newest.paginate(opts)
+        : await newest
+            .filter((q) =>
+              q.or(
+                q.eq(q.field("userId"), me),
+                q.and(
+                  q.neq(q.field("visibility"), "private"),
+                  q.or(...friends.map((friend) => q.eq(q.field("userId"), friend))),
+                ),
+              ),
+            )
+            .paginate(opts);
     const mine = result.page.filter(
-      (post) => post.userId === viewer.userId || viewer.friendIds.has(post.userId),
+      (post) => post.userId === me || viewer.friendIds.has(post.userId),
     );
     return { ...result, page: await buildAll(ctx, viewer, mine) };
   },
