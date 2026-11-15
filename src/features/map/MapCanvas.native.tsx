@@ -18,6 +18,11 @@ export const TILE_ATTRIBUTION = "";
 
 /** How long a pin keeps redrawing after its look changes, before it is frozen into a cheap picture. */
 const SETTLE_MS = 700;
+/**
+ * On Apple Maps one tap on a pin can reach both the pin and the map underneath, in either order.
+ * A map tap this soon after a pin tap is the same finger, not a tap on bare map.
+ */
+const SAME_TAP_MS = 350;
 const CENTERED = { x: 0.5, y: 0.5 };
 
 function regionAround(center: LatLng) {
@@ -31,6 +36,12 @@ function regionAround(center: LatLng) {
 
 export function MapCanvas({ items, center, user, selectedId, onSelect, recenterKey, padding }: MapCanvasProps) {
   const mapRef = useRef<MapView>(null);
+  // When a pin was last tapped (0 = never). Only read and written in tap handlers.
+  const pinTappedAt = useRef(0);
+  const selectPin = (item: NearbyItem | null) => {
+    pinTappedAt.current = Date.now();
+    onSelect(item);
+  };
   // Only the first value is used: afterwards the camera is moved by the effects below.
   const [initialRegion] = useState(() => regionAround(center));
 
@@ -74,26 +85,40 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       loadingIndicatorColor={colors.accent}
       onPress={(event) => {
         // On iOS a tap on a pin also reaches the map; only a tap on bare map clears the pick.
-        if (event.nativeEvent.action !== "marker-press") onSelect(null);
+        if (event.nativeEvent.action === "marker-press") return;
+        if (Date.now() - pinTappedAt.current < SAME_TAP_MS) return;
+        onSelect(null);
       }}
     >
-      {user ? (
-        <Marker
-          coordinate={{ latitude: user.lat, longitude: user.lng }}
-          anchor={CENTERED}
-          zIndex={500}
-          tracksViewChanges={false}
-          accessibilityLabel="You are here"
-        >
-          <View style={styles.userHalo}>
-            <View style={styles.userDot} />
-          </View>
-        </Marker>
-      ) : null}
+      {user ? <UserMarker user={user} /> : null}
       {items.map((item) => (
-        <ItemMarker key={item.id} item={item} selected={item.id === selectedId} onSelect={onSelect} />
+        <ItemMarker key={item.id} item={item} selected={item.id === selectedId} onSelect={selectPin} />
       ))}
     </MapView>
+  );
+}
+
+/** The user's own position: a blue dot. It never changes its look, so it is frozen after its first moments. */
+function UserMarker({ user }: { user: LatLng }) {
+  // Android turns a custom pin into a picture; give it a moment to be laid out before freezing it.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(true), SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Marker
+      coordinate={{ latitude: user.lat, longitude: user.lng }}
+      anchor={CENTERED}
+      zIndex={500}
+      tracksViewChanges={!settled}
+      accessibilityLabel="You are here"
+    >
+      <View style={styles.userHalo}>
+        <View style={styles.userDot} />
+      </View>
+    </Marker>
   );
 }
 

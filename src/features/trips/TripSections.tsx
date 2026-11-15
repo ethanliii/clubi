@@ -57,12 +57,18 @@ export function GroupPicks({
   meId,
   voteOf,
   onVote,
+  note,
+  importing = false,
 }: {
   /** undefined while loading. */
   group: GroupResult | undefined;
   meId: string | undefined;
   voteOf: (id: TargetId) => Vote | undefined;
   onVote: OnVote;
+  /** One more line under the heading, e.g. that the picks are not from the trip's city. */
+  note?: string;
+  /** The backend is importing places for this spot right now: an empty list is not final yet. */
+  importing?: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
   if (group === undefined) {
@@ -83,8 +89,21 @@ export function GroupPicks({
           ? "Invite friends to get picks that suit everyone"
           : "Each score is for the whole group. Vote a pick up to put it on the shortlist."}
       </Text>
+      {note ? (
+        <Text variant="caption" muted>
+          {note}
+        </Text>
+      ) : null}
       {group.items.length === 0 ? (
-        <EmptyState title="No picks around here yet." body="Nothing nearby suits the whole group right now." />
+        importing ? (
+          <EmptyState
+            title="Looking up places there."
+            body="This takes a minute the first time. Picks show up here on their own."
+            icon="map"
+          />
+        ) : (
+          <EmptyState title="No picks around here yet." body="Nothing nearby suits the whole group right now." />
+        )
       ) : (
         <View>
           {items.map((item) => (

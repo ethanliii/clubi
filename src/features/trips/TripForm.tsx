@@ -6,6 +6,7 @@ import { api, type Id, type TripDetail } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { spacing } from "../../theme";
+import { citySpot } from "./city";
 import { DateRangeField, type DateRange } from "./DateRangeField";
 import { FriendChips, toggleId } from "./FriendChips";
 import { VibeChips, type Vibe } from "./vibes";
@@ -63,17 +64,28 @@ export function TripForm({
       ...(dates.end !== undefined ? { endDate: dates.end } : {}),
       ...(vibe !== undefined ? { vibe } : {}),
     };
+    // A city the backend knows puts the trip there, so the picks and the plan are for that city.
+    const spot = citySpot(cleanCity);
+    const here = ready ? { lat, lng } : {};
     if (trip !== undefined) {
-      // An empty city clears it on the backend.
-      const result = await update.run({ tripId: trip.tripId, ...shared, city: cleanCity });
+      // The spot follows the city only when the city changed: a known one moves the trip there,
+      // anything else (no city, or one we cannot place) brings it back to around here.
+      const cityChanged = cleanCity !== (trip.city ?? "");
+      const result = await update.run({
+        tripId: trip.tripId,
+        ...shared,
+        // An empty city clears it on the backend.
+        city: cleanCity,
+        ...(cityChanged ? (spot ?? here) : {}),
+      });
       if (result !== undefined) onSaved?.();
       return;
     }
     const result = await create.run({
       ...shared,
       // With no city this is a night out around here: pin the trip to where I am, so everyone in
-      // it gets the same picks. With a city the backend has no coordinates for it.
-      ...(cleanCity !== "" ? { city: cleanCity } : ready ? { lat, lng } : {}),
+      // it gets the same picks. A city we cannot place is sent without a spot.
+      ...(cleanCity !== "" ? { city: cleanCity, ...(spot ?? {}) } : here),
       ...(memberIds.length > 0 ? { memberIds } : {}),
     });
     if (result !== undefined) onCreated?.(result.tripId);

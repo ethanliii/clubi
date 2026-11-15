@@ -3,6 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Avatar, Chip, ChipRow, EmptyState, goBack, Header, ItemCard, Screen, Skeleton, Text } from "../components";
+import { citySpot } from "../features/trips/city";
 import { FriendChips, toggleId } from "../features/trips/FriendChips";
 import { MemberScores } from "../features/trips/MemberScores";
 import { VibeChips, type Vibe } from "../features/trips/vibes";
@@ -44,13 +45,19 @@ export default function PlanScreen() {
 
   const trip = useQuery(api.trips.get, tripId ? { tripId } : "skip");
   const friends = useQuery(api.friends.list, tripId ? "skip" : {});
+  // A trip is planned around its own spot (the backend reads it from the trip), then around its
+  // city when the backend knows that city, otherwise around me. Wait for the trip so the stops
+  // do not start near me and then jump to its city.
+  const tripCity = trip && trip.lat === undefined ? citySpot(trip.city) : undefined;
   const plan = useQuery(
     api.discover.plan,
-    !ready
-      ? "skip"
-      : tripId
-        ? { lat, lng, tripId, ...(vibe ? { vibe } : {}) }
-        : { lat, lng, memberIds, ...(vibe ? { vibe } : {}) },
+    tripId
+      ? trip && (tripCity !== undefined || ready)
+        ? { lat: tripCity?.lat ?? lat, lng: tripCity?.lng ?? lng, tripId, ...(vibe ? { vibe } : {}) }
+        : "skip"
+      : ready
+        ? { lat, lng, memberIds, ...(vibe ? { vibe } : {}) }
+        : "skip",
   );
 
   // Keep the last answer on screen while a new one loads, so the stops do not blink out

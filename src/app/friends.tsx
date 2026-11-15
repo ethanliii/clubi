@@ -26,6 +26,7 @@ function SearchResults({ text }: { text: string }) {
           right={
             <FriendButton
               compact
+              addLabel="Add"
               userId={person.userId}
               displayName={person.displayName}
               status={person.status}
