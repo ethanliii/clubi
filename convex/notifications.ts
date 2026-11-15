@@ -4,10 +4,16 @@ import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { avatarUrlOf, displayNameOf } from "./lib/discovery";
 import type { NotificationItem } from "./lib/contract";
+import { shouldNotify } from "./lib/social";
 
 const LIST_LIMIT = 50;
 const UNREAD_COUNT_CAP = 99;
+const MARK_READ_BATCH = 200;
 
+/**
+ * The one way to notify a user. Returns the new row's id, or null when nothing was sent: the receiver
+ * turned that group off in `notifPrefs` (a missing pref means on), it is their own action, or they are gone.
+ */
 export async function notify(
   ctx: MutationCtx,
   args: {
@@ -18,7 +24,22 @@ export async function notify(
     link?: string;
     actorId?: Id<"users">;
   },
-) {
+): Promise<Id<"notifications"> | null> {
+  if (args.actorId !== undefined && args.actorId === args.userId) {
+    return null;
+  }
+  const receiver = await ctx.db.get("users", args.userId);
+  if (
+    receiver === null ||
+    !shouldNotify({
+      receiverId: args.userId,
+      actorId: args.actorId,
+      type: args.type,
+      prefs: receiver.notifPrefs,
+    })
+  ) {
+    return null;
+  }
   return await ctx.db.insert("notifications", {
     ...args,
     read: false,
@@ -94,9 +115,28 @@ export const markAllRead = mutation({
     const unread = await ctx.db
       .query("notifications")
       .withIndex("by_user_read", (q) => q.eq("userId", userId).eq("read", false))
-      .collect();
+      .take(MARK_READ_BATCH);
     for (const row of unread) {
       await ctx.db.patch("notifications", row._id, { read: true });
+    }
+    return null;
+  },
+});
+
+export const markRead = mutation({
+  args: { id: v.id("notifications") },
+  returns: v.null(),
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not signed in");
+    }
+    const row = await ctx.db.get("notifications", id);
+    if (row === null || row.userId !== userId) {
+      return null;
+    }
+    if (!row.read) {
+      await ctx.db.patch("notifications", id, { read: true });
     }
     return null;
   },
