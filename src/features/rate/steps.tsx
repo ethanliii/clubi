@@ -1,6 +1,6 @@
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Icon, ScoreBadge, Skeleton, Text, type IconName } from "../../components";
+import { Button, Icon, Skeleton, Text, type IconName } from "../../components";
 import type { Bucket, RankResult, RankedListItem, VenueDetail } from "../../lib/api";
 import { categoryLabel, formatScore } from "../../lib/format";
 import { colors, fontWeight, radius, ratingColor, ratingColors, spacing } from "../../theme";
@@ -49,7 +49,7 @@ export function HowStep({
           </Text>
           {mine ? (
             <Text muted center>
-              {`You ranked it #${mine.position} of ${mine.outOf} · ${formatScore(mine.score)}. Ranking it again replaces that.`}
+              {`Your #${mine.position} of ${mine.outOf} · ${formatScore(mine.score)}. Ranking again replaces it.`}
             </Text>
           ) : null}
         </View>
@@ -80,7 +80,6 @@ export function HowStep({
 function Contender({
   name,
   note,
-  score,
   photo,
   category,
   height,
@@ -88,8 +87,6 @@ function Contender({
 }: {
   name: string;
   note: string;
-  /** The score the user already gave it. Left out for the place being ranked. */
-  score?: number;
   photo?: string;
   category: VenueDetail["category"];
   height: number;
@@ -105,11 +102,6 @@ function Contender({
       pressedStyle={styles.contenderPressed}
     >
       <PlacePhoto uri={photo} category={category} height={height} round={radius.xxl - 2} scrim>
-        {score !== undefined ? (
-          <View style={styles.contenderScore}>
-            <ScoreBadge score={score} />
-          </View>
-        ) : null}
         <View style={styles.onPhoto}>
           <Text numberOfLines={2} style={type.onPhoto}>
             {name}
@@ -176,7 +168,6 @@ export function CompareStep({
           <Contender
             name={opponent.name}
             note={`You gave it ${formatScore(opponent.score)}`}
-            score={opponent.score}
             photo={photos?.find((row) => row.id === opponent.id)?.imageUrl}
             category={venue.category}
             height={cardHeight}
@@ -237,10 +228,12 @@ export function ResultStep({
           </View>
         </Pop>
         <Rise delay={120} style={styles.resultText}>
-          <Text accessibilityRole="header" style={styles.resultHeading}>
-            {venue.name}
-            <Text style={[styles.resultHeading, styles.resultRest]}>{` is now ${result.label}`}</Text>
-          </Text>
+          <View accessible accessibilityRole="header" accessibilityLabel={`${venue.name} is now ${result.label}`}>
+            <Text numberOfLines={3} style={styles.resultHeading}>
+              {venue.name}
+            </Text>
+            <Text style={styles.resultRest}>{`Now ${result.label}`}</Text>
+          </View>
         </Rise>
       </View>
       {list === undefined ? (
@@ -297,7 +290,6 @@ const styles = StyleSheet.create({
   versus: { gap: VERSUS_GAP },
   contender: { borderRadius: radius.xxl, borderWidth: 2, borderColor: "transparent" },
   contenderPressed: { borderColor: colors.accent },
-  contenderScore: { position: "absolute", top: spacing.md, right: spacing.md },
   or: {
     position: "absolute",
     alignSelf: "center",
@@ -324,8 +316,8 @@ const styles = StyleSheet.create({
   },
   ringText: { fontSize: 30, lineHeight: 36, fontWeight: fontWeight.bold, letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
   resultText: { marginTop: spacing.md },
-  resultHeading: { fontSize: 26, lineHeight: 32, fontWeight: fontWeight.bold, letterSpacing: -0.4, color: colors.fg },
-  resultRest: { color: colors.muted },
+  resultHeading: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.5, color: colors.fg },
+  resultRest: { marginTop: spacing.xs, fontSize: 17, lineHeight: 23, fontWeight: fontWeight.medium, color: colors.muted },
 
   rows: { gap: spacing.sm },
   row: {

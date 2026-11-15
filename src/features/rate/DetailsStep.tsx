@@ -1,4 +1,5 @@
-import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Icon, Text, type IconName } from "../../components";
 import type { VenueDetail, Visibility } from "../../lib/api";
 import { colors, fontWeight, radius, spacing } from "../../theme";
@@ -70,6 +71,8 @@ export function DetailsStep({
   onBack: () => void;
 }) {
   const uploading = photo !== null && photo.storageId === null;
+  // The note box grows with the note, so a long one is never scrolled inside a small box.
+  const [noteHeight, setNoteHeight] = useState(TILE);
   const toggleTag = (tag: string) =>
     onChange({ ...draft, tags: draft.tags.includes(tag) ? draft.tags.filter((other) => other !== tag) : [...draft.tags, tag] });
 
@@ -151,7 +154,8 @@ export function DetailsStep({
             maxLength={CAPTION_MAX}
             multiline
             editable={!posting}
-            style={[styles.note, noFocusRing]}
+            onContentSizeChange={(event) => setNoteHeight(Math.max(TILE, Math.ceil(event.nativeEvent.contentSize.height) + NOTE_ROOM))}
+            style={[styles.note, noFocusRing, { height: noteHeight }]}
           />
           {draft.caption.length >= COUNTER_FROM ? (
             <Text style={[type.meta, styles.counter]}>{`${draft.caption.length}/${CAPTION_MAX}`}</Text>
@@ -189,6 +193,8 @@ export function DetailsStep({
 }
 
 const TILE = 96;
+// A browser measures the box's padding with the text; a phone measures the text alone.
+const NOTE_ROOM = Platform.OS === "web" ? 0 : spacing.sm;
 
 const styles = StyleSheet.create({
   dimmed: { opacity: 0.6 },
@@ -240,7 +246,6 @@ const styles = StyleSheet.create({
   },
   noteWrap: { flex: 1 },
   note: {
-    flex: 1,
     minHeight: TILE,
     paddingVertical: spacing.xs,
     paddingHorizontal: 0,

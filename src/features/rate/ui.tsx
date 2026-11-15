@@ -76,8 +76,8 @@ export function PlacePhoto({
       )}
       {scrim ? (
         <LinearGradient
-          colors={["rgba(8,6,12,0)", "rgba(8,6,12,0.18)", "rgba(8,6,12,0.86)"]}
-          locations={[0.25, 0.55, 1]}
+          colors={["rgba(8,6,12,0)", "rgba(8,6,12,0.38)", "rgba(8,6,12,0.9)"]}
+          locations={[0.2, 0.58, 1]}
           style={styles.scrim}
         />
       ) : null}
