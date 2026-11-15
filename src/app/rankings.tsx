@@ -2,15 +2,15 @@ import { useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { BackButton, Button, Chip, ChipRow, EmptyState, Screen, SkeletonRows, Text } from "../components";
-import { RankedRow } from "../features/profile";
+import { BackButton, EmptyState, IconButton, Screen, Skeleton, Text } from "../components";
+import { CategoryTabs, LeaderCard, RankedRow } from "../features/profile";
 import { api, type Bucket, type Category, type RankedListItem } from "../lib/api";
 import { confirm } from "../lib/confirm";
 import { CATEGORY_TABS, formatRelativeTime } from "../lib/format";
 import { paths } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
-import { spacing } from "../theme";
+import { colors, fontWeight, radius, spacing } from "../theme";
 
 const BUCKET_LABELS: Record<Bucket, string> = {
   loved: "Loved it",
@@ -23,7 +23,7 @@ export default function RankingsScreen() {
   const params = useLocalSearchParams<{ category?: string }>();
   const [picked, setPicked] = useState<Category | null>(null);
   const now = useNow();
-  // Every category at once: only used to open on a tab that has something in it, and to know "nothing at all".
+  // Every category at once: to open on a tab that has something in it, to count each tab, and to know "nothing at all".
   const everything = useQuery(api.rankings.mine, {});
   const fromLink = CATEGORY_TABS.find((tab) => tab.category === params.category)?.category;
   const firstUsed =
@@ -46,33 +46,48 @@ export default function RankingsScreen() {
 
   const tabLabel = CATEGORY_TABS.find((tab) => tab.category === category)?.label ?? "";
   const nothingAtAll = everything !== undefined && everything.length === 0;
+  const tabs = CATEGORY_TABS.map((tab) => ({
+    ...tab,
+    count: everything?.filter((item) => item.category === tab.category).length,
+  }));
+  const subtitleOf = (item: RankedListItem) => `${BUCKET_LABELS[item.bucket]} · ${formatRelativeTime(item.rankedAt, now)}`;
+  // Number one leads as the big photo; the list below starts at two.
+  const leader = items !== undefined && items.length > 0 && items[0].position === 1 ? items[0] : undefined;
+  const rest = items === undefined ? [] : leader ? items.slice(1) : items;
 
   return (
     <Screen>
       <BackButton />
-      <Text variant="heading" accessibilityRole="header">
-        My rankings
-      </Text>
-      <ChipRow scroll>
-        {CATEGORY_TABS.map((tab) => (
-          <Chip
-            key={tab.category}
-            label={tab.label}
-            accessibilityLabel={tab.label}
-            selected={tab.category === category}
-            onPress={() => setPicked(tab.category)}
-          />
-        ))}
-      </ChipRow>
+      <View style={styles.heading}>
+        <Text accessibilityRole="header" style={styles.title}>
+          My rankings
+        </Text>
+        {everything !== undefined && everything.length > 0 ? (
+          <Text muted>{`${everything.length} ranked, best first`}</Text>
+        ) : null}
+      </View>
+      {nothingAtAll ? null : <CategoryTabs tabs={tabs} selected={category} onSelect={setPicked} />}
 
       {items === undefined ? (
-        <SkeletonRows count={6} avatar={false} />
+        <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
+          <Skeleton height={236} round={radius.xxl} />
+          {[0, 1, 2].map((row) => (
+            <View key={row} style={styles.loadingRow}>
+              <Skeleton width={56} height={56} round={12} />
+              <View style={styles.loadingLines}>
+                <Skeleton width="60%" height={15} />
+                <Skeleton width="35%" height={11} />
+              </View>
+              <Skeleton width={40} height={26} />
+            </View>
+          ))}
+        </View>
       ) : items.length === 0 ? (
         nothingAtAll ? (
           <EmptyState
             icon="star"
             title="Nothing ranked yet"
-            body="Rank the places you go and your lists build themselves here."
+            body="Rank a place you've been and your lists start here."
             actionLabel="Rank your first place"
             onAction={() => router.push(paths.rate)}
           />
@@ -85,28 +100,47 @@ export default function RankingsScreen() {
           />
         )
       ) : (
-        <View>
-          {items.map((item) => (
-            <RankedRow
-              key={item.rankingId}
-              item={item}
-              ring
-              subtitle={`${BUCKET_LABELS[item.bucket]} · ${formatRelativeTime(item.rankedAt, now)}`}
-              trailing={
-                <Button
-                  title="Remove"
+        <View style={styles.list}>
+          {leader ? (
+            <LeaderCard
+              item={leader}
+              subtitle={subtitleOf(leader)}
+              corner={
+                <IconButton
+                  icon="trash"
                   accessibilityLabel="Remove"
-                  variant="ghost"
+                  plain
+                  size={36}
+                  color={colors.white}
                   disabled={remove.pending}
-                  style={styles.remove}
-                  onPress={() => void onRemove(item)}
+                  style={styles.onPhoto}
+                  onPress={() => void onRemove(leader)}
                 />
               }
             />
-          ))}
-          <Text variant="caption" muted style={styles.note}>
-            Removing a ranking also removes its post.
-          </Text>
+          ) : null}
+          <View>
+            {rest.map((item, index) => (
+              <RankedRow
+                key={item.rankingId}
+                item={item}
+                subtitle={subtitleOf(item)}
+                divider={index < rest.length - 1}
+                trailing={
+                  <IconButton
+                    icon="trash"
+                    accessibilityLabel="Remove"
+                    plain
+                    size={44}
+                    color={colors.low}
+                    disabled={remove.pending}
+                    style={styles.remove}
+                    onPress={() => void onRemove(item)}
+                  />
+                }
+              />
+            ))}
+          </View>
         </View>
       )}
     </Screen>
@@ -114,6 +148,13 @@ export default function RankingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  remove: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
-  note: { paddingTop: spacing.md },
+  heading: { gap: spacing.xxs },
+  title: { fontSize: 30, lineHeight: 36, fontWeight: fontWeight.bold, letterSpacing: -0.6 },
+  list: { gap: spacing.sm },
+  onPhoto: { backgroundColor: "rgba(8,6,12,0.55)", borderRadius: 18 },
+  // Pull the icon to the screen edge so its glyph lines up with the score column's right side.
+  remove: { marginRight: -spacing.md },
+  loading: { gap: spacing.lg },
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  loadingLines: { flex: 1, gap: spacing.sm },
 });

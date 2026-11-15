@@ -6,9 +6,11 @@ import {
   BackButton,
   Button,
   EmptyState,
+  Icon,
   ListRow,
   Loading,
   Screen,
+  SectionHeader,
   Sheet,
   Text,
   goBack,
@@ -21,7 +23,7 @@ import { formatDateRange, pluralize } from "../../lib/format";
 import { comparePath, paths } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { useNow } from "../../lib/useNow";
-import { spacing } from "../../theme";
+import { colors, spacing } from "../../theme";
 
 /** "Invite to a trip": pick one of the trips I'm in, from `api.trips.list`. */
 function InviteSheet({
@@ -108,10 +110,42 @@ export default function UserScreen() {
 
   const { user } = profile;
   const isFriend = user.status === "friends";
+  const firstName = user.displayName.trim().split(/\s+/)[0] || user.displayName;
+  // A post shows the place's photo when its author added none: the same `imageUrl` its ranked row has.
+  const photoOf = new Map<string, string>();
+  for (const list of profile.lists) {
+    for (const item of list.items) if (item.imageUrl) photoOf.set(`${item.kind}-${item.id}`, item.imageUrl);
+  }
+
+  const compare = (
+    <Button
+      title="Compare tastes"
+      accessibilityLabel="Compare tastes"
+      // One pink button at a time: adding them comes first, comparing once you are friends.
+      variant={isFriend ? "primary" : "ghost"}
+      style={isFriend ? styles.primary : undefined}
+      onPress={() => router.push(comparePath(user.userId))}
+    />
+  );
+  const friend = (
+    <FriendButton userId={user.userId} displayName={user.displayName} status={user.status} requestId={user.requestId} />
+  );
 
   return (
     <Screen>
-      <BackButton />
+      <View style={styles.bar}>
+        <BackButton />
+        {isFriend ? (
+          <Button
+            title="Invite to a trip"
+            accessibilityLabel="Invite to a trip"
+            variant="link"
+            hitSlop={8}
+            style={styles.invite}
+            onPress={() => setInviting(true)}
+          />
+        ) : null}
+      </View>
       <ProfileHeader user={user} counts={profile.counts} />
 
       {user.isMe ? (
@@ -121,52 +155,46 @@ export default function UserScreen() {
           variant="ghost"
           onPress={() => router.push(paths.settings)}
         />
+      ) : user.status === "incoming" ? (
+        // Accept and Decline are already a pair, so they get their own line.
+        <View style={styles.stack}>
+          <Text muted>{`${firstName} wants to be friends`}</Text>
+          {friend}
+          {compare}
+        </View>
       ) : (
         <View style={styles.actions}>
-          {user.status === "incoming" ? (
-            <Text muted>{`${user.displayName} wants to be friends.`}</Text>
-          ) : null}
-          <FriendButton
-            userId={user.userId}
-            displayName={user.displayName}
-            status={user.status}
-            requestId={user.requestId}
-          />
-          <Button
-            title="Compare tastes"
-            accessibilityLabel="Compare tastes"
-            variant="ghost"
-            onPress={() => router.push(comparePath(user.userId))}
-          />
-          {isFriend ? (
-            <Button
-              title="Invite to a trip"
-              accessibilityLabel="Invite to a trip"
-              variant="ghost"
-              onPress={() => setInviting(true)}
-            />
-          ) : null}
+          <View style={styles.half}>{friend}</View>
+          <View style={styles.half}>{compare}</View>
         </View>
       )}
 
       {!profile.canSee ? (
-        <EmptyState icon="lock" title="Add friend to see their rankings" />
+        <View style={styles.locked}>
+          <Icon name="lock" size={20} color={colors.muted} />
+          <Text muted style={styles.lockedText}>{`${firstName}'s rankings are for friends`}</Text>
+        </View>
       ) : (
         <>
           <TasteMeters summary={profile.tasteSummary} />
           {profile.lists.length === 0 ? (
-            <EmptyState icon="star" title={`${user.displayName} hasn't ranked anything yet`} />
+            <EmptyState icon="star" title={`${firstName} hasn't ranked anything yet`} />
           ) : (
             <RankedLists lists={profile.lists} limit={5} />
           )}
           {profile.recentPosts.length > 0 ? (
             <View style={styles.section}>
-              <Text variant="label" accessibilityRole="header">
-                Recent
-              </Text>
-              {profile.recentPosts.map((post) => (
-                <PostCard key={post.postId} post={post} now={now} />
-              ))}
+              <SectionHeader title="Recent" />
+              <View style={styles.posts}>
+                {profile.recentPosts.map((post) => (
+                  <PostCard
+                    key={post.postId}
+                    post={post}
+                    now={now}
+                    imageUrl={photoOf.get(`${post.target.kind}-${post.target.id}`)}
+                  />
+                ))}
+              </View>
             </View>
           ) : null}
         </>
@@ -185,6 +213,22 @@ export default function UserScreen() {
 }
 
 const styles = StyleSheet.create({
-  actions: { gap: spacing.sm },
-  section: { gap: spacing.md },
+  stack: { gap: spacing.sm },
+  actions: { flexDirection: "row", gap: spacing.sm },
+  half: { flex: 1 },
+  bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 36 },
+  invite: { minHeight: 36, justifyContent: "center" },
+  // The ghost button has a 1px border; the same border in pink keeps the pair the same height.
+  primary: { borderWidth: 1, borderColor: colors.accent },
+  locked: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+  },
+  lockedText: { flex: 1, fontSize: 15, lineHeight: 20 },
+  section: { gap: spacing.md, paddingTop: spacing.sm },
+  posts: { gap: spacing.lg },
 });
