@@ -21,7 +21,8 @@ function parseDays(spec: string): number[] | null {
 
 /**
  * Reads the common OpenStreetMap opening_hours forms ("24/7", "Mo-Fr 09:00-17:00; Sa,Su 10:00-02:00", "Su off").
- * Returns undefined when the text is missing or uses a form this does not understand.
+ * Returns undefined when the text is missing, uses a form this does not understand, or names no weekday.
+ * Public and school holiday rules (PH, SH) are skipped: there is no holiday calendar here.
  */
 export function isOpenAt(hours: string | undefined, day: number, minutes: number): boolean | undefined {
   if (!hours) return undefined;
@@ -46,6 +47,7 @@ export function isOpenAt(hours: string | undefined, day: number, minutes: number
     }
     for (const d of days) spansByDay[d] = spans;
   }
+  if (spansByDay.every((spans) => spans === undefined)) return undefined;
   const today = spansByDay[day] ?? [];
   const yesterday = spansByDay[(day + 6) % 7] ?? [];
   return today.some(([open, close]) => minutes >= open && minutes < close)

@@ -15,6 +15,7 @@ export const MAX_CANDIDATES = 200;
 export const SCAN_LIMIT = 1500;
 export const MAX_RATERS_PER_ITEM = 50;
 export const MAX_FRIENDS_SHOWN = 3;
+export const MAX_FRIENDS_LOADED = 50;
 export const TOP_TIER_SIZE = 5;
 export const GOOD_TIER_SIZE = 25;
 export const DIVERSITY_MAX_COSINE = 0.95;
@@ -54,6 +55,8 @@ export type Viewer = {
   homeCity?: string;
   under21: boolean;
   friendIds: Set<Id<"users">>;
+  /** The viewer's own and their friends' rankings by item id, loaded apart from the bounded crowd sample. */
+  knownRankings: Map<string, Doc<"rankings">[]>;
 };
 
 export type FriendRow = { ranking: Doc<"rankings">; user: Doc<"users">; local: boolean };
@@ -111,7 +114,7 @@ export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
   const userId = await getAuthUserId(ctx);
   const user = userId === null ? null : await ctx.db.get(userId);
   if (userId === null || user === null) {
-    return { userId: null, taste: NEUTRAL_TASTE, under21: false, friendIds: new Set() };
+    return { userId: null, taste: NEUTRAL_TASTE, under21: false, friendIds: new Set(), knownRankings: new Map() };
   }
   const asA = await ctx.db
     .query("friendships")
@@ -121,12 +124,25 @@ export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
     .query("friendships")
     .withIndex("by_userB", (q) => q.eq("userB", userId).eq("status", "accepted"))
     .collect();
+  const friendIds = new Set([...asA.map((f) => f.userB), ...asB.map((f) => f.userA)]);
+  const knownRankings = new Map<string, Doc<"rankings">[]>();
+  for (const id of [userId, ...[...friendIds].slice(0, MAX_FRIENDS_LOADED)]) {
+    const rows = await ctx.db
+      .query("rankings")
+      .withIndex("by_user_category", (q) => q.eq("userId", id))
+      .collect();
+    for (const row of rows) {
+      const itemId = row.placeId ?? row.eventId;
+      if (itemId !== undefined) knownRankings.set(itemId, [...(knownRankings.get(itemId) ?? []), row]);
+    }
+  }
   return {
     userId,
     taste: tasteOf(user),
     homeCity: user.homeCity,
     under21: isUnder21(user.birthday, now),
-    friendIds: new Set([...asA.map((f) => f.userB), ...asB.map((f) => f.userA)]),
+    friendIds,
+    knownRankings,
   };
 }
 
@@ -196,9 +212,11 @@ export async function scoreCandidate(
 ): Promise<Scored> {
   const { doc } = c;
   const vector = venueVectorOf(doc);
-  const rankings = c.kind === "place"
+  const sample = c.kind === "place"
     ? await ctx.db.query("rankings").withIndex("by_place", (q) => q.eq("placeId", c.doc._id)).take(MAX_RATERS_PER_ITEM)
     : await ctx.db.query("rankings").withIndex("by_event", (q) => q.eq("eventId", c.doc._id)).take(MAX_RATERS_PER_ITEM);
+  const known = viewer.knownRankings.get(doc._id) ?? [];
+  const rankings = [...known, ...sample.filter((r) => !known.some((k) => k._id === r._id))];
   let mine: Doc<"rankings"> | null = null;
   const raters: Rater[] = [];
   const friendRows: FriendRow[] = [];

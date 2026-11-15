@@ -46,10 +46,11 @@ export const get = query({
       .map((b) => ({ label: b.label[0].toUpperCase() + b.label.slice(1), value: b.value }));
 
     const friendRankings = await Promise.all(friendRows.map(async (row) => {
-      const post = await ctx.db
+      const linked = await ctx.db
         .query("posts")
         .withIndex("by_ranking", (q) => q.eq("rankingId", row.ranking._id))
         .first();
+      const post = linked !== null && linked.visibility !== "private" ? linked : null;
       const photo = post?.photos?.[0];
       return {
         ...friendScoreOf(row),
