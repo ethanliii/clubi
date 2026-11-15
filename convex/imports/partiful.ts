@@ -119,10 +119,14 @@ async function fetchPage(url: string): Promise<Record<string, any> | null> {
   }
 }
 
-/** Public event URLs to read (appConfig.partifulUrls: an array, or one string with a URL per line) minus those read in the last 6 hours. */
-export const dueUrls = internalQuery({
+/**
+ * The public event URLs in appConfig.partifulUrls (an array, or one string
+ * with a URL per line): the event ids they name, and the URLs not read in the
+ * last 6 hours.
+ */
+export const urlPlan = internalQuery({
   args: {},
-  handler: async (ctx): Promise<string[]> => {
+  handler: async (ctx): Promise<{ listedIds: string[]; due: string[] }> => {
     const listed: unknown = (await readConfig(ctx, URLS_KEY))?.value ?? [];
     const urls = (Array.isArray(listed) ? listed : String(listed).split(/[\s,]+/))
       .filter((url): url is string => typeof url === "string")
@@ -130,18 +134,21 @@ export const dueUrls = internalQuery({
       .filter((url) => url !== undefined);
     const fetched: Record<string, number> = (await readConfig(ctx, FETCHED_KEY))?.value ?? {};
     const now = Date.now();
-    return [...new Set(urls)]
-      .filter((url) => now - (fetched[url] ?? 0) > REFETCH_MS)
-      .slice(0, MAX_URLS_PER_RUN);
+    const unique = [...new Set(urls)];
+    return {
+      listedIds: unique.map((url) => url.match(EVENT_URL)![1]),
+      due: unique.filter((url) => now - (fetched[url] ?? 0) > REFETCH_MS).slice(0, MAX_URLS_PER_RUN),
+    };
   },
 });
 
-/** Replace the list of public event URLs to import: `npx convex run imports/partiful:setUrls '{"urls":["https://partiful.com/e/..."]}'`. */
+/** Replace the list of public event URLs to import, and read them all on the next run: `npx convex run imports/partiful:setUrls '{"urls":["https://partiful.com/e/..."]}'`. */
 export const setUrls = internalMutation({
   args: { urls: v.array(v.string()) },
   handler: async (ctx, { urls }) => {
     const valid = urls.filter((url) => EVENT_URL.test(url));
     await writeConfig(ctx, URLS_KEY, valid);
+    await writeConfig(ctx, FETCHED_KEY, {});
     return { saved: valid.length, rejected: urls.length - valid.length };
   },
 });
@@ -191,25 +198,31 @@ export const importPartiful = internalAction({
     const now = Date.now();
     const rows = new Map<string, NonNullable<ReturnType<typeof partifulToRow>>>();
 
+    const { listedIds, due } = await ctx.runQuery(internal.imports.partiful.urlPlan, {});
+
+    // A listed event is written only from its own page, which also has the
+    // price, so the Explore copy never overwrites it between page reads.
     const explore = await fetchPage(EXPLORE_URL);
     const trending: { event?: PartifulEvent }[] = explore?.trendingSections?.SF?.items ?? [];
     result.exploreEvents = trending.length;
     for (const item of trending) {
       const row = item.event ? partifulToRow(item.event, now) : null;
-      if (row) rows.set(row.sourceId, row);
+      if (row && !listedIds.includes(row.sourceId)) rows.set(row.sourceId, row);
     }
 
-    const urls = await ctx.runQuery(internal.imports.partiful.dueUrls, {});
-    for (const url of urls) {
+    const read: string[] = [];
+    for (const url of due) {
       await new Promise((resolve) => setTimeout(resolve, REQUEST_GAP_MS));
       const page = await fetchPage(url);
-      result.urlsRead++;
-      if (!page?.event || page.passwordRequired) continue;
+      if (!page) continue;
+      read.push(url);
+      if (!page.event || page.passwordRequired) continue;
       const offered = page.offersJsonLd?.price;
       const row = partifulToRow(page.event, now, typeof offered === "number" ? offered : undefined);
       if (row) rows.set(row.sourceId, row);
     }
-    if (urls.length) await ctx.runMutation(internal.imports.partiful.markFetched, { urls });
+    result.urlsRead = read.length;
+    if (read.length) await ctx.runMutation(internal.imports.partiful.markFetched, { urls: read });
 
     result.kept = rows.size;
     if (rows.size) {
