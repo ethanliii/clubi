@@ -1,6 +1,8 @@
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
-export type IconName = "back" | "bell" | "home" | "map" | "plus" | "feed" | "user" | "spark";
+export type IconName =
+  | "back" | "bell" | "home" | "map" | "plus" | "feed" | "user" | "spark"
+  | "search" | "heart" | "comment" | "check";
 
 export function Icon({ name, size = 22, color }: { name: IconName; size?: number; color: string }) {
   const stroke = { stroke: color, strokeWidth: 2, fill: "none" } as const;
@@ -34,6 +36,17 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
         </>
       )}
       {name === "spark" && <Path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" {...stroke} />}
+      {name === "search" && (
+        <>
+          <Circle cx={11} cy={11} r={7} {...stroke} />
+          <Path d="M20 20l-4-4" {...stroke} strokeLinecap="round" />
+        </>
+      )}
+      {name === "heart" && (
+        <Path d="M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z" {...stroke} />
+      )}
+      {name === "comment" && <Path d="M4 5h16v11H9l-5 4z" {...stroke} strokeLinejoin="round" />}
+      {name === "check" && <Path d="M5 12l5 5 9-10" {...stroke} strokeWidth={2.6} strokeLinecap="round" />}
     </Svg>
   );
 }

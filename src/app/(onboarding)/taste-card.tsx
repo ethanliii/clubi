@@ -1,24 +1,22 @@
+import { useQuery } from "convex/react";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Share, StyleSheet, View } from "react-native";
-import { Button, Screen, Text } from "../../components";
+import { api } from "../../../convex/_generated/api";
+import { Button, Screen, Skeleton, Text } from "../../components";
 import { APP_NAME } from "../../constants/brand";
-import { TASTE_TWINS_NEARBY } from "../../data/mock";
-import { deriveTaste } from "../../features/taste";
+import { archetype, nightCaption } from "../../features/quiz";
 import { useOnboarding } from "../../state/onboarding";
 import { colors, radius, spacing } from "../../theme";
 
+/** Meters come from the backend (`tasteSummary`); the persona name is local copy. UI-SPEC §2. */
 export default function TasteCard() {
-  const { picks, complete } = useOnboarding();
-  const taste = deriveTaste(picks);
+  const { answers, tasteSummary } = useOnboarding();
+  const me = useQuery(api.users.me);
+  const meters = tasteSummary ?? me?.tasteSummary;
+  const persona = archetype(answers);
 
-  const share = () =>
-    Share.share({ message: `My ${APP_NAME} taste: ${taste.title}` }).catch(() => undefined);
-
-  const enter = () => {
-    complete();
-    router.replace("/");
-  };
+  const share = () => Share.share({ message: `My ${APP_NAME} taste: ${persona.name}` }).catch(() => undefined);
 
   return (
     <Screen edges={["top", "bottom"]}>
@@ -35,28 +33,27 @@ export default function TasteCard() {
         <Text variant="caption" style={styles.cardLabel}>
           {APP_NAME.toUpperCase()} TASTE CARD
         </Text>
-        <Text style={styles.title}>{taste.title.replace(" ", "\n")}</Text>
-        {taste.meters.map((meter) => (
-          <View key={meter.label} style={styles.meterRow}>
-            <View style={styles.meterLabels}>
-              <Text variant="caption" style={styles.white}>
-                {meter.label}
-              </Text>
-              <Text variant="caption" style={styles.white}>
-                {meter.value}%
-              </Text>
+        <Text style={styles.title}>{persona.name}</Text>
+        <Text style={styles.line}>{persona.line}</Text>
+        {meters === undefined || meters === null ? (
+          <Skeleton height={120} style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+        ) : (
+          meters.map((meter) => (
+            <View key={meter.label} style={styles.meterRow}>
+              <View style={styles.meterLabels}>
+                <Text variant="caption" style={styles.white}>{meter.label}</Text>
+                <Text variant="caption" style={styles.white}>{meter.pct}%</Text>
+              </View>
+              <View style={styles.meter}>
+                <View style={[styles.meterFill, { width: `${meter.pct}%` }]} />
+              </View>
             </View>
-            <View style={styles.meter}>
-              <View style={[styles.meterFill, { width: `${meter.value}%` }]} />
-            </View>
-          </View>
-        ))}
-        <Text style={styles.twins}>
-          Taste twins nearby: <Text style={styles.bold}>{TASTE_TWINS_NEARBY}</Text>
-        </Text>
+          ))
+        )}
+        <Text style={styles.line}>{nightCaption(answers.nights)}</Text>
       </LinearGradient>
       <Button title="Share to story" variant="ghost" onPress={share} />
-      <Button title={`Enter ${APP_NAME}`} onPress={enter} />
+      <Button title="Find friends" onPress={() => router.push("/find-friends")} />
     </Screen>
   );
 }
@@ -66,11 +63,10 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.xxl, padding: 22, gap: spacing.md },
   cardLabel: { color: colors.white, opacity: 0.8 },
   title: { color: colors.white, fontSize: 28, lineHeight: 31, fontWeight: "700" },
+  line: { color: colors.white, opacity: 0.9, fontSize: 13 },
   meterRow: { gap: spacing.xs },
   meterLabels: { flexDirection: "row", justifyContent: "space-between" },
   meter: { height: 8, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.2)", overflow: "hidden" },
   meterFill: { height: "100%", backgroundColor: colors.white },
-  twins: { color: colors.white, opacity: 0.9, fontSize: 13 },
-  bold: { color: colors.white, fontWeight: "700", fontSize: 13 },
   white: { color: colors.white },
 });

@@ -1,9 +1,9 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { ConvexReactClient, useConvexAuth } from "convex/react";
+import { ConvexReactClient, useConvexAuth, useQuery } from "convex/react";
 import { Stack } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { api } from "../../convex/_generated/api";
 import { OnboardingProvider, useOnboarding } from "../state/onboarding";
 import { colors } from "../theme";
@@ -38,18 +38,25 @@ export default function RootLayout() {
 }
 
 function RootStack() {
-  const { isAuthenticated } = useConvexAuth();
-  const { completed } = useOnboarding();
-  const onboarded = completed || isAuthenticated;
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { completed, inQuiz } = useOnboarding();
+  // users.me: null = signed out, onboarded = the quiz is saved on the server.
+  const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
+
+  if (isLoading || (isAuthenticated && me === undefined)) {
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  }
+  // Signed in and done: the server says onboarded (or we finished it here), and we're not mid-quiz.
+  const inApp = isAuthenticated && !!me && (completed || me.onboarded) && !inQuiz;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Protected guard={!onboarded}>
+      <Stack.Protected guard={!inApp}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
-      <Stack.Protected guard={onboarded} redirectTo="/welcome">
+      <Stack.Protected guard={inApp} redirectTo="/welcome">
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="venue/[id]" />
+        <Stack.Screen name="venue/[kind]/[id]" />
         <Stack.Screen name="rankings" />
         <Stack.Screen name="plan" />
         <Stack.Screen name="friends" />

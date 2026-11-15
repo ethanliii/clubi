@@ -1,14 +1,21 @@
 import * as SecureStore from "expo-secure-store";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
-import type { QuizQuestion } from "../data/mock";
-import type { QuizPicks } from "../features/taste";
+import { emptyAnswers, type QuizAnswers } from "../features/quiz";
+
+type TasteSummary = { label: string; pct: number }[];
 
 type OnboardingState = {
-  picks: QuizPicks;
-  togglePick: (question: QuizQuestion["id"], option: number) => void;
+  answers: QuizAnswers;
+  update: (patch: Partial<QuizAnswers> | ((a: QuizAnswers) => Partial<QuizAnswers>)) => void;
+  /** Meters returned by `users.saveQuiz`, shown on the taste card. */
+  tasteSummary: TasteSummary | null;
+  setTasteSummary: (t: TasteSummary) => void;
   completed: boolean;
   complete: () => void;
+  /** True from the first quiz screen until "Let's go", so saving the quiz doesn't jump past the taste card. */
+  inQuiz: boolean;
+  startQuiz: () => void;
 };
 
 const OnboardingContext = createContext<OnboardingState | null>(null);
@@ -26,27 +33,28 @@ function saveCompleted() {
 }
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const [picks, setPicks] = useState<QuizPicks>({});
+  const [answers, setAnswers] = useState<QuizAnswers>(emptyAnswers);
+  const [tasteSummary, setTasteSummary] = useState<TasteSummary | null>(null);
   const [completed, setCompleted] = useState(readCompleted);
+  const [inQuiz, setInQuiz] = useState(false);
 
   const value = useMemo<OnboardingState>(
     () => ({
-      picks,
-      togglePick: (question, option) =>
-        setPicks((current) => {
-          const selected = current[question] ?? [];
-          const next = selected.includes(option)
-            ? selected.filter((i) => i !== option)
-            : [...selected, option];
-          return { ...current, [question]: next };
-        }),
+      answers,
+      update: (patch) =>
+        setAnswers((current) => ({ ...current, ...(typeof patch === "function" ? patch(current) : patch) })),
+      tasteSummary,
+      setTasteSummary,
       completed,
       complete: () => {
         saveCompleted();
         setCompleted(true);
+        setInQuiz(false);
       },
+      inQuiz,
+      startQuiz: () => setInQuiz(true),
     }),
-    [picks, completed],
+    [answers, tasteSummary, completed, inQuiz],
   );
 
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;

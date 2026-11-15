@@ -4,11 +4,12 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text, type IconName } from "../../components";
 import { colors } from "../../theme";
 
+// Home = friend feed (landing), Search = tonight picks. Decisions D2/D3 in the merge doc.
 const TABS: Record<string, { label: string; icon: IconName }> = {
   index: { label: "Home", icon: "home" },
   map: { label: "Map", icon: "map" },
   rate: { label: "Rate", icon: "plus" },
-  feed: { label: "Feed", icon: "feed" },
+  search: { label: "Search", icon: "search" },
   profile: { label: "Profile", icon: "user" },
 };
 
@@ -18,10 +19,10 @@ export default function TabsLayout() {
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
       tabBar={(props) => <TabBar {...props} />}
     >
-      <Tabs.Screen name="index" options={{ title: "Tonight" }} />
+      <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="map" options={{ title: "Map" }} />
       <Tabs.Screen name="rate" options={{ title: "Rate" }} />
-      <Tabs.Screen name="feed" options={{ title: "Feed" }} />
+      <Tabs.Screen name="search" options={{ title: "Search" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
     </Tabs>
   );
