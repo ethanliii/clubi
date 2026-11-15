@@ -70,7 +70,8 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   // Step 3 starts the moment the bucket arrives. With nothing to compare against it is skipped:
   // position 1, no comparisons.
   if (step === "compare" && search === null && bucketList !== undefined) {
-    const started = startSearch(bucketList, id);
+    // The id the backend returned for this place, so its own row is left out when re-ranking.
+    const started = startSearch(bucketList, venue?.id ?? id);
     setSearch(started);
     if (started.done) setStep("details");
   }
@@ -106,6 +107,8 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const isRerank = venue.myRanking !== undefined;
 
   const pickBucket = (picked: Bucket) => {
+    // A double tap on "Loved it" must not also answer the first "Which was better?".
+    guard.mark();
     setBucket(picked);
     setSearch(null);
     setStep("compare");
