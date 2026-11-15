@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { NearbyItem, Tier, VenueDetail } from "./lib/contract";
 import {
-  Candidate, DEFAULT_RADIUS_METERS, friendScoreOf, isPastEvent, isVisibleTo, loadInRadius, loadViewer,
+  Candidate, DEFAULT_RADIUS_METERS, friendScoreOf, getCandidate, isPastEvent, isVisibleTo, loadInRadius, loadViewer,
   nearestMatching, rankItems, scoreAll, scoreCandidate, userLoader,
 } from "./lib/discovery";
 import { FEATURES, FEATURE_PHRASES } from "./lib/recs";
@@ -21,18 +21,8 @@ export const get = query({
   },
   handler: async (ctx, args): Promise<VenueDetail | null> => {
     const now = Date.now();
-    let candidate: Candidate;
-    if (args.kind === "place") {
-      const id = ctx.db.normalizeId("places", args.id);
-      const doc = id === null ? null : await ctx.db.get(id);
-      if (doc === null) return null;
-      candidate = { kind: "place", doc };
-    } else {
-      const id = ctx.db.normalizeId("events", args.id);
-      const doc = id === null ? null : await ctx.db.get(id);
-      if (doc === null) return null;
-      candidate = { kind: "event", doc };
-    }
+    const candidate = await getCandidate(ctx, args.kind, args.id);
+    if (candidate === null) return null;
     const { doc } = candidate;
     const viewer = await loadViewer(ctx, now);
     if (viewer.under21 && doc.category === "nightlife") return null;
