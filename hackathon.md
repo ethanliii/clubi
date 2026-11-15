@@ -11,7 +11,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:32:30Z
+- **Last updated:** 2026-11-15T20:35:49Z
 
 ## Log
 
@@ -130,13 +130,16 @@ itself while the ingest freeze flag in appConfig is set, so no outside calls
 happen during the demo after the data freeze. Convex features: crons
 (`convex/crons.ts`).
 
-### 2026-11-15 - 3df45dd
+### 2026-11-15 - 4c61fc5
 In-app notifications are live. Ranking a place now notifies each accepted
 friend, and a friend who already ranked the same place gets a note with their
 own score. The notification list, unread count and mark-all-read functions
-replace their stubs, and a helper lets other mutations create notifications. An
-internal mutation finds events starting in the next six hours that score 8.5 or
-higher for a user and notifies them, at most three a day; it is not on a cron
-schedule yet. Pushed to the Convex dev deployment. Convex features: queries,
-mutations, indexes (`convex/notifications.ts`, `convex/notificationsCron.ts`,
-`convex/rankings.ts`, `convex/tables/people.ts`).
+replace their stubs, and a helper lets other mutations create notifications. A
+30 minute cron finds events starting in the next six hours that score 8.5 or
+higher for a user, with the same scoring the venue page uses, and notifies them
+at most three times a day. An internal mutation removes test accounts and their
+rows in scheduled batches and can reset place and event Elo. Pushed to the
+Convex dev deployment. Convex features: queries, mutations, indexes, crons,
+scheduled functions (`convex/notifications.ts`, `convex/notificationsCron.ts`,
+`convex/crons.ts`, `convex/rankings.ts`, `convex/users.ts`,
+`convex/tables/people.ts`).
