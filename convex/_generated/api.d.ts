@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as discover from "../discover.js";
 import type * as lib_contract from "../lib/contract.js";
 import type * as lib_discovery from "../lib/discovery.js";
+import type * as lib_hours from "../lib/hours.js";
 import type * as lib_recs from "../lib/recs.js";
 import type * as moments from "../moments.js";
 import type * as notifications from "../notifications.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   discover: typeof discover;
   "lib/contract": typeof lib_contract;
   "lib/discovery": typeof lib_discovery;
+  "lib/hours": typeof lib_hours;
   "lib/recs": typeof lib_recs;
   moments: typeof moments;
   notifications: typeof notifications;
