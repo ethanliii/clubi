@@ -8,7 +8,7 @@ import { colors } from "../../theme";
 const TABS: Record<string, { label: string; icon: IconName }> = {
   index: { label: "Home", icon: "home" },
   map: { label: "Map", icon: "map" },
-  rate: { label: "Rate", icon: "plus" },
+  rate: { label: "Add", icon: "plus" },
   search: { label: "Search", icon: "search" },
   profile: { label: "Profile", icon: "user" },
 };
@@ -21,7 +21,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="map" options={{ title: "Map" }} />
-      <Tabs.Screen name="rate" options={{ title: "Rate" }} />
+      <Tabs.Screen name="rate" options={{ title: "Add" }} />
       <Tabs.Screen name="search" options={{ title: "Search" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
     </Tabs>

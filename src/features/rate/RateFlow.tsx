@@ -71,7 +71,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   );
 
   // The steps are one route, so the iOS swipe from the left edge would leave the whole flow: past
-  // "How was it?" that throws away the draft, or skips the questions once the ranking is posted.
+  // "Would you go back?" that throws away the draft, or skips the questions once the ranking is posted.
   // Only the first step, where on-screen Back leaves too, keeps the swipe.
   const navigation = useNavigation();
   const canSwipeBack = step === "how";
@@ -117,7 +117,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const isRerank = venue.myRanking !== undefined;
 
   const pickBucket = (picked: Bucket) => {
-    // A double tap on "Loved it" must not also answer the first "Which was better?".
+    // A double tap on "Absolutely" must not also answer the first "Which was better?".
     guard.mark();
     setBucket(picked);
     setSearch(null);

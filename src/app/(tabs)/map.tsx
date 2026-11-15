@@ -1,4 +1,5 @@
 import { useQuery } from "convex/react";
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,6 +12,9 @@ import { useDemoLocation } from "../../lib/demoLocation";
 import { useNearby } from "../../lib/useNearby";
 import { colors, radius, spacing } from "../../theme";
 
+/** "Near me" looks within about a 15-minute walk. */
+const NEAR_ME_METERS = 1500;
+
 const FILTERS: { f: Filter; label: string }[] = [
   { f: "tonight", label: "Tonight" }, { f: "bars", label: "Bars" }, { f: "food", label: "Food" },
   { f: "events", label: "Events" }, { f: "popups", label: "Pop-ups" }, { f: "outdoors", label: "Outdoors" }, { f: "all", label: "All" },
@@ -19,8 +23,14 @@ const FILTERS: { f: Filter; label: string }[] = [
 /** Map tab. UI-SPEC §4. Items arrive ranked; the sheet shows the selected place or the ranked list. */
 export default function MapScreen() {
   const [filter, setFilter] = useState<Filter>("all");
-  const nearby = useNearby(filter);
+  const all = useNearby(filter);
   const { lat, lng, ready, isDemo, setDemo } = useDemoLocation();
+  // Near me: events close by, ranked by the backend on fit + distance + timing (no re-sorting here).
+  // Search → "Near me" opens the map with it already on.
+  const params = useLocalSearchParams<{ nearMe?: string }>();
+  const [nearMe, setNearMe] = useState(params.nearMe === "1");
+  const near = useQuery(api.discover.nearby, nearMe && ready ? { lat, lng, filter: "events", radiusMeters: NEAR_ME_METERS } : "skip");
+  const nearby = nearMe ? near : all;
   const [selected, setSelected] = useState<NearbyItem | null>(null);
   const [recenter, setRecenter] = useState(0);
   const [text, setText] = useState("");
@@ -57,9 +67,15 @@ export default function MapScreen() {
           </View>
         )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Near me" accessibilityState={{ selected: nearMe }}
+            onPress={() => { setNearMe(!nearMe); setSelected(null); setRecenter(recenter + 1); }}
+            style={[styles.nearMe, nearMe && styles.nearMeOn]}>
+            <Icon name="spark" size={14} color={nearMe ? colors.white : colors.fg} />
+            <Text style={{ fontWeight: "700", color: nearMe ? colors.white : colors.fg }}>Near me</Text>
+          </Pressable>
           {FILTERS.map((x) => (
-            <Chip key={x.f} label={x.label} accessibilityLabel={`Filter: ${x.label}`} on={filter === x.f}
-              onPress={() => { setFilter(x.f); setSelected(null); }} />
+            <Chip key={x.f} label={x.label} accessibilityLabel={`Filter: ${x.label}`} on={!nearMe && filter === x.f}
+              onPress={() => { setNearMe(false); setFilter(x.f); setSelected(null); }} />
           ))}
         </ScrollView>
       </SafeAreaView>
@@ -73,12 +89,18 @@ export default function MapScreen() {
       <View style={styles.sheet}>
         <View style={styles.handle} />
         <ScrollView style={{ maxHeight: selected ? 460 : 260 }} contentContainerStyle={{ gap: spacing.sm }}>
+          {nearMe && !selected && (
+            <View style={styles.nearHead}>
+              <Text variant="title">Events near you</Text>
+              <Text variant="caption" muted>Best fit for your taste first, closer ones bumped up</Text>
+            </View>
+          )}
           {selected ? (
             <PlacePeek item={selected} onClose={() => setSelected(null)} />
           ) : nearby === undefined ? (
             <Skeleton height={120} />
           ) : nearby.items.length === 0 ? (
-            <EmptyState text="Nothing here yet. We're loading places for this area." />
+            <EmptyState text={nearMe ? "No events close by right now. Try Events for the whole area." : "Nothing here yet. We're loading places for this area."} />
           ) : (
             nearby.items.slice(0, 12).map((item) => (
               <Pressable key={String(item.id)} onPress={() => setSelected(item)} onLongPress={() => openVenue(item)} style={styles.row}>
@@ -111,7 +133,10 @@ const styles = StyleSheet.create({
   input: { flex: 1, color: colors.fg, paddingVertical: 11 },
   results: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 8, gap: 4 },
   resultRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 },
-  chips: { gap: 8 },
+  chips: { gap: 8, alignItems: "center" },
+  nearMe: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.accent },
+  nearMeOn: { backgroundColor: colors.accent },
+  nearHead: { gap: 2, paddingBottom: 4 },
   controls: { position: "absolute", right: 14, bottom: 330 },
   round: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: spacing.md, gap: 8 },
