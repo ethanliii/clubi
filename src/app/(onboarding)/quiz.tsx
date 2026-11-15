@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { BackButton, Button, Screen, Text } from "../../components";
 import { quiz } from "../../data/mock";
 import { useOnboarding } from "../../state/onboarding";
@@ -30,27 +30,28 @@ export default function Quiz() {
       <View style={styles.progress}>
         <View style={[styles.progressFill, { width: `${((step + 1) / quiz.length) * 100}%` }]} />
       </View>
-      <View style={styles.intro}>
-        <Text variant="heading">{question.question}</Text>
-        <Text muted>Pick as many as you want.</Text>
-      </View>
-      <View style={styles.tiles}>
-        {question.options.map((option, index) => {
-          const on = selected.includes(index);
-          return (
-            <Pressable
-              key={option}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: on }}
-              onPress={() => togglePick(question.id, index)}
-              style={[styles.tile, on && styles.tileOn]}
-            >
-              <Text style={styles.tileText}>{option}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <View style={styles.spacer} />
+      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+        <View style={styles.intro}>
+          <Text variant="heading">{question.question}</Text>
+          <Text muted>Pick as many as you want.</Text>
+        </View>
+        <View style={styles.tiles}>
+          {question.options.map((option, index) => {
+            const on = selected.includes(index);
+            return (
+              <Pressable
+                key={option}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on }}
+                onPress={() => togglePick(question.id, index)}
+                style={[styles.tile, on && styles.tileOn]}
+              >
+                <Text style={styles.tileText}>{option}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
       <Button title={isLast ? "See my taste" : "Next"} onPress={next} />
     </Screen>
   );
@@ -60,6 +61,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   progress: { height: 4, borderRadius: 4, backgroundColor: colors.surface, overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: colors.accent },
+  body: { flex: 1 },
+  bodyContent: { gap: spacing.lg },
   intro: { gap: spacing.xs },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tile: {
@@ -75,5 +78,4 @@ const styles = StyleSheet.create({
   },
   tileOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
   tileText: { fontWeight: "600" },
-  spacer: { flex: 1 },
 });

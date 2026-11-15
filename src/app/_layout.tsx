@@ -38,16 +38,17 @@ export default function RootLayout() {
 }
 
 function RootStack() {
-  const { isAuthenticated } = useConvexAuth();
+  const { isLoading, isAuthenticated } = useConvexAuth();
   const { completed } = useOnboarding();
   const onboarded = completed || isAuthenticated;
+  const authPending = isLoading && !completed;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Protected guard={!onboarded}>
+      <Stack.Protected guard={authPending || !onboarded}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
-      <Stack.Protected guard={onboarded} redirectTo="/welcome">
+      <Stack.Protected guard={authPending || onboarded} redirectTo="/welcome">
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="venue/[id]" />
         <Stack.Screen name="rankings" />
