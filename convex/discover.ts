@@ -3,7 +3,7 @@ import { query } from "./_generated/server";
 import type { NearbyItem, NearbyResult } from "./lib/contract";
 import {
   ALGO, ATTRIBUTION, DEFAULT_LIMIT, DEFAULT_RADIUS_METERS,
-  loadCandidates, matchesFilter, rankItems, scoreCandidate, viewerTaste,
+  loadInRadius, matchesFilter, nearestMatching, rankItems, scoreCandidate, viewerTaste,
 } from "./lib/discovery";
 
 const filterValidator = v.union(
@@ -23,10 +23,9 @@ export const nearby = query({
     const now = Date.now();
     const filter = args.filter ?? "all";
     const taste = await viewerTaste(ctx);
-    const candidates = await loadCandidates(ctx, args.lat, args.lng, args.radiusMeters ?? DEFAULT_RADIUS_METERS, now);
-    const scored = candidates
-      .map((c) => scoreCandidate(c, taste, args.lat, args.lng))
-      .filter((item) => matchesFilter(item, filter, now));
+    const pool = await loadInRadius(ctx, args.lat, args.lng, args.radiusMeters ?? DEFAULT_RADIUS_METERS, now);
+    const scored = nearestMatching(pool, (c) => matchesFilter(c, filter, now))
+      .map((c) => scoreCandidate(c, taste, args.lat, args.lng));
     return {
       items: rankItems(scored, args.limit ?? DEFAULT_LIMIT),
       center: { lat: args.lat, lng: args.lng },
@@ -42,12 +41,13 @@ export const tonight = query({
   handler: async (ctx, args): Promise<{ topPicks: NearbyItem[]; friendsGoing: NearbyItem[]; events: NearbyItem[] }> => {
     const now = Date.now();
     const taste = await viewerTaste(ctx);
-    const candidates = await loadCandidates(ctx, args.lat, args.lng, DEFAULT_RADIUS_METERS, now);
-    const scored = candidates.map((c) => scoreCandidate(c, taste, args.lat, args.lng));
+    const pool = await loadInRadius(ctx, args.lat, args.lng, DEFAULT_RADIUS_METERS, now);
+    const tonightPool = pool.filter((c) => matchesFilter(c, "tonight", now));
+    const score = (candidates: typeof pool) => candidates.map((c) => scoreCandidate(c, taste, args.lat, args.lng));
     return {
-      topPicks: rankItems(scored.filter((item) => matchesFilter(item, "tonight", now)), 6),
+      topPicks: rankItems(score(nearestMatching(tonightPool, () => true)), 6),
       friendsGoing: [],
-      events: rankItems(scored.filter((item) => matchesFilter(item, "events", now) || item.category === "popup"), 10),
+      events: rankItems(score(nearestMatching(tonightPool, (c) => c.kind === "event" || c.doc.category === "live" || c.doc.category === "popup")), 10),
     };
   },
 });

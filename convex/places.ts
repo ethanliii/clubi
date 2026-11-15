@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { NearbyItem, Tier, VenueDetail } from "./lib/contract";
 import {
-  Candidate, DEFAULT_RADIUS_METERS, loadCandidates, rankItems, scoreCandidate, venueVectorOf, viewerTaste,
+  Candidate, DEFAULT_RADIUS_METERS, loadInRadius, nearestMatching, rankItems, scoreCandidate, venueVectorOf, viewerTaste,
 } from "./lib/discovery";
 import { FEATURES, FEATURE_PHRASES } from "./lib/recs";
 
@@ -61,7 +61,7 @@ export const search = query({
     const taste = await viewerTaste(ctx);
     let candidates: Candidate[];
     if (text === "") {
-      candidates = await loadCandidates(ctx, args.lat, args.lng, DEFAULT_RADIUS_METERS, now);
+      candidates = nearestMatching(await loadInRadius(ctx, args.lat, args.lng, DEFAULT_RADIUS_METERS, now), () => true);
     } else {
       const places = await ctx.db
         .query("places")

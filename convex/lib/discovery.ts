@@ -47,7 +47,8 @@ export async function viewerTaste(ctx: QueryCtx): Promise<number[]> {
   return user?.tasteVector?.length === FEATURES.length ? user.tasteVector : NEUTRAL_TASTE;
 }
 
-export async function loadCandidates(ctx: QueryCtx, lat: number, lng: number, radiusMeters: number, now: number): Promise<Candidate[]> {
+/** Every place and upcoming event within the radius, nearest first. */
+export async function loadInRadius(ctx: QueryCtx, lat: number, lng: number, radiusMeters: number, now: number): Promise<Candidate[]> {
   const dLat = radiusMeters / METERS_PER_DEGREE;
   const dLng = radiusMeters / (METERS_PER_DEGREE * Math.cos((lat * Math.PI) / 180));
   const places = await ctx.db
@@ -69,9 +70,12 @@ export async function loadCandidates(ctx: QueryCtx, lat: number, lng: number, ra
     .map((c) => ({ c, d: haversineMeters(lat, lng, c.doc.lat, c.doc.lng) }))
     .filter((x) => x.d <= radiusMeters)
     .sort((a, b) => a.d - b.d)
-    .slice(0, MAX_CANDIDATES)
     .map((x) => x.c);
 }
+
+/** The nearest candidates that pass the filter, capped so scoring stays bounded. */
+export const nearestMatching = (pool: Candidate[], matches: (c: Candidate) => boolean) =>
+  pool.filter(matches).slice(0, MAX_CANDIDATES);
 
 export function scoreCandidate(c: Candidate, taste: number[], lat: number, lng: number): ScoredItem {
   const { doc } = c;
@@ -103,24 +107,25 @@ export function scoreCandidate(c: Candidate, taste: number[], lat: number, lng: 
   };
 }
 
-export function matchesFilter(item: ScoredItem, filter: Filter, now: number): boolean {
+export function matchesFilter(c: Candidate, filter: Filter, now: number): boolean {
+  const { category } = c.doc;
   switch (filter) {
     case "all":
       return true;
     case "tonight":
-      return item.kind === "event"
-        ? (item.startsAt ?? 0) <= now + TONIGHT_WINDOW_MS
-        : item.category === "nightlife" || item.category === "popup" || item.category === "live";
+      return c.kind === "event"
+        ? c.doc.start <= now + TONIGHT_WINDOW_MS
+        : category === "nightlife" || category === "popup" || category === "live";
     case "bars":
-      return item.category === "nightlife";
+      return category === "nightlife";
     case "food":
-      return item.category === "food";
+      return category === "food";
     case "events":
-      return item.kind === "event" || item.category === "live";
+      return c.kind === "event" || category === "live";
     case "popups":
-      return item.category === "popup";
+      return category === "popup";
     case "outdoors":
-      return item.category === "outdoors";
+      return category === "outdoors";
   }
 }
 
