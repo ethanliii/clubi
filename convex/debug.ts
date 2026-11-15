@@ -30,7 +30,7 @@ export const explain = query({
       why: item.why,
       formula: [
         "content = 1 + 4.5 * (1 + similarity(taste, venue))",
-        "crowd = (sum(w * rating) + m * mean) / (sum(w) + m), w = similarity * (1 + alpha * local) * (1 + beta * friend)",
+        "crowd = (sum(w * rating) + m * mean) / (sum(w) + m), w = max(0, similarity) * (1 + alpha * local) * (1 + beta * friend)",
         "lambda = sum(w) / (sum(w) + half)",
         "predicted = clip((1 - lambda) * content + lambda * crowd + gamma * elo, 1, 10)",
         "order = score - delta * ln(1 + distance / d0) + tau * timeMatch",
