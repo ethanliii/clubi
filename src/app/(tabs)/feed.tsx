@@ -1,9 +1,10 @@
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
-import { FlatList, StyleSheet } from "react-native";
-import { Button, EmptyState, Header, IconButton, Loading, Screen, Text } from "../../components";
+import { FlatList, StyleSheet, View } from "react-native";
+import { Button, EmptyState, IconButton, Loading, Screen, Text } from "../../components";
 import { CommentsSheet } from "../../features/feed/Comments";
+import { dayLabel } from "../../features/feed/dayLabel";
 import { PostCard, PostSkeletons } from "../../features/feed/PostCard";
 import { PostMenu } from "../../features/feed/PostMenu";
 import { useFeed } from "../../features/feed/useFeed";
@@ -31,32 +32,41 @@ export default function FeedScreen() {
 
   return (
     <Screen scroll={false}>
-      <Header
-        title="Feed"
-        back={false}
-        right={
-          <IconButton
-            icon="bell"
-            accessibilityLabel="Notifications"
-            badge={unread ? formatCount(unread) : null}
-            onPress={() => router.push(paths.notifications)}
-          />
-        }
-      />
+      <View style={styles.between}>
+        <View style={styles.flex}>
+          <Text variant="label">Friends · live</Text>
+          <Text variant="heading" accessibilityRole="header" numberOfLines={1}>
+            Feed
+          </Text>
+        </View>
+        <IconButton
+          icon="bell"
+          accessibilityLabel="Notifications"
+          size={36}
+          badge={unread ? formatCount(unread) : null}
+          onPress={() => router.push(paths.notifications)}
+        />
+      </View>
       <FlatList
         data={feed.posts}
         keyExtractor={(post) => post.postId}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const mine = item.author.userId === me?.userId;
+          const previous = feed.posts[index - 1];
+          const day = dayLabel(item.createdAt, now);
+          const showDay = !previous || dayLabel(previous.createdAt, now) !== day;
           return (
-            <PostCard
-              post={item}
-              mine={mine}
-              now={now}
-              onComments={() => setComments({ postId: item.postId, open: true })}
-              onMenu={mine ? () => setMenu({ postId: item.postId, open: true }) : undefined}
-              onOpenPost={() => router.push(postPath(item.postId))}
-            />
+            <View style={styles.item}>
+              {showDay ? <Text variant="label">{day}</Text> : null}
+              <PostCard
+                post={item}
+                mine={mine}
+                now={now}
+                onComments={() => setComments({ postId: item.postId, open: true })}
+                onMenu={mine ? () => setMenu({ postId: item.postId, open: true }) : undefined}
+                onOpenPost={() => router.push(postPath(item.postId))}
+              />
+            </View>
           );
         }}
         ListEmptyComponent={
@@ -78,7 +88,7 @@ export default function FeedScreen() {
           ) : feed.canLoadMore ? (
             <Button title="Load more" accessibilityLabel="Load more" variant="ghost" onPress={feed.more} />
           ) : feed.exhausted ? (
-            <Text muted center style={styles.caughtUp}>
+            <Text variant="caption" muted center style={styles.caughtUp}>
               You&apos;re all caught up
             </Text>
           ) : undefined
@@ -107,6 +117,10 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Bryan's tab header: a small label over the heading, round buttons on the right.
+  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md },
+  flex: { flex: 1 },
+  item: { gap: spacing.md },
   // The list runs edge to edge and down to the tab bar; `Screen` pads the header.
   list: { flex: 1, marginHorizontal: -spacing.lg, marginBottom: -spacing.xl },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg },

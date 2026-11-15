@@ -1,12 +1,14 @@
 import { useMutation, useQuery } from "convex/react";
 import { StyleSheet, View } from "react-native";
-import { Button, EmptyState, Header, Screen, SkeletonRows, useToast } from "../components";
+import { Button, EmptyState, Header, Screen, SkeletonRows, Text, useToast } from "../components";
+import { dayLabel } from "../features/feed/dayLabel";
 import { NotificationRow } from "../features/feed/NotificationRow";
 import { api, type NotificationItem } from "../lib/api";
 import { errorMessage } from "../lib/errors";
 import { openLink } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
+import { spacing } from "../theme";
 
 export default function NotificationsScreen() {
   const items = useQuery(api.notifications.list, {});
@@ -46,9 +48,21 @@ export default function NotificationsScreen() {
         <EmptyState icon="bell" title="Nothing yet." body="Rank a place and your friends will hear about it." />
       ) : (
         <View>
-          {items.map((item) => (
-            <NotificationRow key={item.id} item={item} now={now} onPress={() => open(item)} />
-          ))}
+          {items.map((item, index) => {
+            const previous = items[index - 1];
+            const day = dayLabel(item.createdAt, now);
+            const showDay = !previous || dayLabel(previous.createdAt, now) !== day;
+            return (
+              <View key={item.id}>
+                {showDay ? (
+                  <Text variant="label" style={index > 0 ? styles.day : undefined}>
+                    {day}
+                  </Text>
+                ) : null}
+                <NotificationRow item={item} now={now} onPress={() => open(item)} />
+              </View>
+            );
+          })}
         </View>
       )}
     </Screen>
@@ -56,5 +70,7 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  markAll: { minHeight: 40, justifyContent: "center" },
+  markAll: { minHeight: 36, justifyContent: "center" },
+  // Bryan's day label between groups, as on his feed.
+  day: { marginTop: spacing.lg },
 });
