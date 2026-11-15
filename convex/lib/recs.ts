@@ -152,6 +152,10 @@ export function whyFromFeatures(features: readonly Feature[], measured = false):
  */
 export const friendMaySee = (postVisibility: "friends" | "public" | "private" | undefined) => postVisibility !== "private";
 
+/** The same rule for anyone: a friend sees all but the private ones, someone who is not a friend only the public ones. */
+export const mayShowRanking = (postVisibility: "friends" | "public" | "private" | undefined, isFriend: boolean) =>
+  isFriend ? friendMaySee(postVisibility) : postVisibility === "public";
+
 export const matchPct = (score: number) => clip(Math.round(((score - 1) / 9) * 100), 0, 100);
 
 /**

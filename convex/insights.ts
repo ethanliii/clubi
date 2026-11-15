@@ -117,6 +117,8 @@ async function remeasure(
   const learnedVector = hasObservations(observed.weight) && prior.length === FEATURES.length
     ? blendVector(prior, observed.vector, observed.weight)
     : undefined;
+  // Nothing measured before and nothing now: leave the catalog row alone, so no list re-runs for it.
+  if (learnedVector === undefined && target.doc.learnedVector === undefined) return;
   if (target.kind === "place") await ctx.db.patch(target.id as Id<"places">, { learnedVector });
   else await ctx.db.patch(target.id as Id<"events">, { learnedVector });
 }

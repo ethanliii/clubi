@@ -5,7 +5,7 @@ import {
   NEUTRAL_TASTE, NEW_ITEM_MAX_RATINGS, NEW_SLOT_MIN_CONTENT, PERFORMER_TERM_MAX, PERFORMER_TERM_MIN, SAVE_BUMP,
   TOP_MAX_PER_CATEGORY, WHY_RATED_MIN_RANKINGS,
   contentScore, effectiveAffinity, eloTerm, exploreBonus, friendMaySee, isNeutralTaste, learnedAffinity, lovedStepFor, mapRank,
-  mapRankV4, mmrPick, newSlotPick, nudgeTaste, performerAffinity, performerTerm, predict, quizToVector, shareOf, shownScore,
+  mapRankV4, mayShowRanking, mmrPick, newSlotPick, nudgeTaste, performerAffinity, performerTerm, predict, quizToVector, shareOf, shownScore,
   similarValue, socialBump, takeAcross, whyFromFeatures,
 } from "../convex/lib/recs.ts";
 
@@ -150,6 +150,14 @@ test("friendMaySee: a ranking is as visible to friends as its post", () => {
   assert.equal(friendMaySee("public"), true);
   // The post was deleted and the ranking stayed: People's rule shows it to friends.
   assert.equal(friendMaySee(undefined), true);
+  // A trip member who is not my friend: only what they posted publicly may appear as their score.
+  assert.equal(mayShowRanking("public", false), true);
+  assert.equal(mayShowRanking("friends", false), false);
+  assert.equal(mayShowRanking("private", false), false);
+  assert.equal(mayShowRanking(undefined, false), false);
+  for (const visibility of ["public", "friends", "private", undefined]) {
+    assert.equal(mayShowRanking(visibility, true), friendMaySee(visibility));
+  }
 });
 
 test("predict says which rater weighed most, so the caller can read that row's real score", () => {

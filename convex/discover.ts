@@ -14,7 +14,7 @@ import {
 } from "./lib/discovery";
 import { VoteTally, fairWeights, groupScoreV2, groupWhy, tallyVotes } from "./lib/group";
 import {
-  FEATURES, clip, effectiveAffinity, friendMaySee, mapRank, matchPct, performerTerm, predict, similarValue, similarity,
+  FEATURES, clip, effectiveAffinity, mapRank, matchPct, mayShowRanking, performerTerm, predict, similarValue, similarity,
   takeAcross, topFeatures, whyFromFeatures,
 } from "./lib/recs";
 
@@ -187,8 +187,9 @@ async function resolveGroup(
 /**
  * Each member's own score for an item the viewer's query already scored: their own ranking when they have
  * one the viewer may see, else the same prediction the map would show them (their taste, their friends among
- * the loaded raters, whether they are a local, their performer affinities). A member's "Only me" ranking is
- * theirs alone: the group gets the prediction for it, never the score they gave.
+ * the loaded raters, whether they are a local, their performer affinities). A ranking is as visible as its
+ * post: a member's "Only me" ranking is theirs alone, and a trip member who is not the viewer's friend shows
+ * only public ones. For the rest the group gets the prediction, never the score they gave.
  */
 async function memberScorer(ctx: QueryCtx, viewer: Viewer, group: Doc<"users">[], candidates: Candidate[]) {
   const friendsOf = new Map<string, Set<Id<"users">>>();
@@ -205,7 +206,8 @@ async function memberScorer(ctx: QueryCtx, viewer: Viewer, group: Doc<"users">[]
     for (const r of rankings) {
       const itemId = r.placeId ?? r.eventId;
       if (itemId === undefined || !candidateIds.has(itemId)) continue;
-      if (friendMaySee((await postOfRanking(ctx, r._id))?.visibility)) scores.set(itemId, clip(r.score, 1, 10));
+      const post = await postOfRanking(ctx, r._id);
+      if (mayShowRanking(post?.visibility, viewer.friendIds.has(user._id))) scores.set(itemId, clip(r.score, 1, 10));
     }
     ownScores.set(user._id, scores);
   }

@@ -399,6 +399,7 @@ function train(world) {
  */
 const MODELS = {
   "content only (quiz taste)": { content: true },
+  "content only (learned taste)": { content: "learned" },
   "v3": { measured: false, capElo: false, performer: false },
   "v4": { measured: true, capElo: true, performer: true },
   "v4, no measured vectors": { measured: false, capElo: true, performer: true },
@@ -412,6 +413,7 @@ const MODELS = {
 
 function scorer(world, state, model) {
   const { users, venues } = world;
+  if (model.content === "learned") return (u, i) => recs.contentScore(state.tasteBlend[u], state.blend[i]);
   if (model.content) return (u, i) => recs.contentScore(users[u].quiz, venues[i].guess);
   const taste = model.measured ? state.tasteBlend : state.tasteGuess;
   return (u, i) => {
@@ -483,6 +485,7 @@ function vectorErrors(world, state) {
     : []));
   const all = () => true;
   const well = (i) => state.respondents[i] >= WELL_MEASURED;
+  // `measured` holds the weights insights.measuredVector kept: only questions MIN_SHOW people answered at the venue.
   const hasAnswers = (i, k) => state.measured[i][k] > 0;
   const fiveAnswers = (i, k) => state.measured[i][k] >= insights.INSIGHT_N0;
   const guess = (venue) => venue.guess, blend = (venue) => state.blend[venue.i];
@@ -578,6 +581,7 @@ const R = averaged(RUNS);
 const ELAPSED_MS = performance.now() - STARTED;
 
 const QUIZ = "content only (quiz taste)";
+const LEARNED = "content only (learned taste)";
 const ABLATIONS = Object.keys(MODELS).filter((name) => name.startsWith("v4, "));
 const gap = (metric) => RUNS.map((run) => run.models.v4[metric] - run.models.v3[metric]);
 const exploreCost = R.models.v4.ndcg - R.models["v4 + exploration in the order"].ndcg;
@@ -587,7 +591,7 @@ const worstAblation = Math.max(...ABLATIONS.map((name) => R.models[name].widePai
 const TARGETS = [
   ["v4 pairwise accuracy >= v3 + 0.03", R.models.v4.pairwise - R.models.v3.pairwise >= 0.03],
   ["v4 NDCG@10 >= v3 + 0.02", R.models.v4.ndcg - R.models.v3.ndcg >= 0.02],
-  ["vector error at most half the featurizer's, venues with 10+ respondents, features a question asks about",
+  ["vector error at most half the featurizer's, venues with 10+ respondents, on the features measured there",
     R.vectors.wellAskedBlend <= R.vectors.wellAskedGuess / 2],
   ["a favourite performer's event in the top 10 twice as often as v3", R.models.v4.favTop >= 2 * R.models.v3.favTop],
   ["group minimum >= average-only + 0.5 with the mean down by <= 0.2",
@@ -622,17 +626,18 @@ function report() {
     `  favourite performers' events in the top 10: x${f2(v4.favTop / v3.favTop)} (${Math.round(v4.favEvents)} cases per world); `
       + `exploration costs ${f3(exploreCost)} NDCG@10`,
     "",
-    `${pad("by how the quiz was taken", 32)}${pad("users", 8)}${pad("quiz alone", 16)}${pad("v3", 16)}v4          (pairwise* / NDCG@10)`,
+    `${pad("by how the quiz was taken", 28)}${pad("users", 7)}${pad("quiz alone", 16)}${pad("learned taste", 16)}${pad("v3", 16)}v4          (pairwise* / NDCG@10)`,
     ...QUIZ_KINDS.map((kind) => {
       const cell = (name) => pad(`${f3(models[name].byQuiz[kind].widePairwise)} / ${f3(models[name].byQuiz[kind].ndcg)}`, 16);
-      return `${pad(kind, 32)}${pad(Math.round(v4.byQuiz[kind].users), 8)}${cell(QUIZ)}${cell("v3")}${cell("v4")}`;
+      return `${pad(kind, 28)}${pad(Math.round(v4.byQuiz[kind].users), 7)}${cell(QUIZ)}${cell(LEARNED)}${cell("v3")}${cell("v4")}`;
     }),
+    "  quiz alone / learned taste = the content score only, from the quiz vector or from the taste after training",
     "",
     `${pad("venue vector error (mean abs.)", 60)}${pad("featurizer", 12)}measured blend`,
     `${pad("all venues, all 13 features", 60)}${pad(f3(vectors.allGuess), 12)}${f3(vectors.allBlend)}`,
     `${pad(`venues with ${WELL_MEASURED}+ respondents (${vectors.wellVenues.toFixed(1)} per world), all features`, 60)}${pad(f3(vectors.wellGuess), 12)}${f3(vectors.wellBlend)}`,
-    `${pad("  the features a question asks about", 60)}${pad(f3(vectors.wellAskedGuess), 12)}${f3(vectors.wellAskedBlend)}`,
-    `${pad(`features with ${insights.INSIGHT_N0}+ answers (${Math.round(vectors.fiveCells)} per world)`, 60)}${pad(f3(vectors.fiveGuess), 12)}${f3(vectors.fiveBlend)}`,
+    `${pad("  the features measured there (a question 5+ answered)", 60)}${pad(f3(vectors.wellAskedGuess), 12)}${f3(vectors.wellAskedBlend)}`,
+    `${pad(`measured features with ${insights.INSIGHT_N0}+ answers' weight (${Math.round(vectors.fiveCells)} per world)`, 60)}${pad(f3(vectors.fiveGuess), 12)}${f3(vectors.fiveBlend)}`,
     "",
     `${pad(`group pick, ${N_GROUPS} groups of ${GROUP_MIN}-${GROUP_MAX} per world`, 42)}${pad("mean", 8)}minimum`,
     ...Object.entries(g.single).map(([name, r]) => `${pad(name, 42)}${pad(f2(r.mean), 8)}${f2(r.min)}`),
@@ -719,6 +724,9 @@ test("v4 beats the quiz alone for careful, careless and skipped quiz-takers alik
   // The weaker the quiz, the more there is to learn: the gain over the quiz grows from careful to skipped.
   const gain = (kind) => R.models.v4.byQuiz[kind].widePairwise - R.models[QUIZ].byQuiz[kind].widePairwise;
   assert.ok(gain("skipped") > gain("careless") && gain("careless") > gain("careful"));
+  // Taste learning on its own: it beats a skipped or careless quiz, and not yet a careful one (section 9.4).
+  const learned = (kind) => R.models[LEARNED].byQuiz[kind].widePairwise - R.models[QUIZ].byQuiz[kind].widePairwise;
+  assert.ok(learned("skipped") > 0.02 && learned("careless") > 0, `${learned("skipped")} ${learned("careless")}`);
 });
 
 test("a favourite performer's event reaches the top 10 more often under v4", () => {
@@ -730,7 +738,7 @@ test("exploration changes the order at a cost under 0.01 NDCG@10", () => {
   assert.ok(exploreCost > 0 && exploreCost < 0.01, `${exploreCost}`);
 });
 
-test("answers make venue vectors more accurate, and halve the error where a question asks about the feature", () => {
+test("answers make venue vectors more accurate, and halve the error on the features they measure", () => {
   const v = R.vectors;
   assert.ok(v.allBlend < v.allGuess);
   assert.ok(v.wellBlend < v.wellGuess);
