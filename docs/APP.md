@@ -58,7 +58,7 @@ Params arrive as strings. Cast once at the top of the screen: `const { kind, id 
 
 ## Components (`import { … } from "../components"`)
 
-Bryan's foundation, unchanged: `Screen`, `Text`, `Button`, `Icon`, `ScoreBadge`, `MatchBadge`, `VenuePhoto`, `BackButton`, `PlaceholderScreen`. `Icon` gained more names in the same stroke style (`search`, `close`, `check`, `chevron`, `heart`, `heartFilled`, `comment`, `send`, `more`, `gear`, `edit`, `trash`, `camera`, `bookmark`, `star`, `thumbUp`, `thumbDown`, `users`, `calendar`, `clock`, `music`, `ticket`, `navigate`, `locate`, `external`, `lock`, `globe`, `info`, …).
+Bryan's foundation, unchanged: `Screen`, `Text`, `Button`, `Icon`, `ScoreBadge`, `MatchBadge`, `VenuePhoto`, `BackButton`. `Icon` gained more names in the same stroke style (`search`, `close`, `check`, `chevron`, `heart`, `heartFilled`, `comment`, `send`, `more`, `gear`, `edit`, `trash`, `camera`, `bookmark`, `star`, `thumbUp`, `thumbDown`, `users`, `calendar`, `clock`, `music`, `ticket`, `navigate`, `locate`, `external`, `lock`, `globe`, `info`, …).
 
 | Component | One-line usage |
 | --- | --- |
@@ -118,10 +118,3 @@ Bryan's foundation, unchanged: `Screen`, `Text`, `Button`, `Icon`, `ScoreBadge`,
 **Look.** Colors, spacing, radius and type come from `src/theme`. Tap targets are at least 40 tall. Lists of rows use `ListRow` or `ItemCard`; screens start with `Header` inside `Screen`.
 
 **Lint.** `Date.now()`, `Math.random()` and reading or writing a ref while rendering are errors (React Compiler rules). Do them in an event handler or an effect, or use `useNow()`.
-
-## What is in each route file right now
-
-- Working baselines, to be finished by the onboarding screens' owner: `welcome`, `sign-in`, `quiz` (six cards → `users.saveQuiz`), `taste-card` (meters from `users.me.tasteSummary`).
-- `(tabs)/index.tsx` is still Bryan's sample Home on `src/data/mock.ts`: keep the look, swap the data.
-- `settings.tsx` is a placeholder with a working "Sign out".
-- Every other route is a `PlaceholderScreen` that compiles and shows its params.

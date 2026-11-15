@@ -2,15 +2,13 @@ import { useVideoPlayer, VideoView, type VideoSource } from "expo-video";
 import { useEffect, useState } from "react";
 import { Animated, Platform, StyleSheet } from "react-native";
 
-/**
- * Placeholder footage generated for this repo (abstract gradients, no people).
- * Swap in licensed or original clips before any public demo.
- */
+/** Bryan's own footage. Originals live in the project drive at design/welcome-clips/. */
 const CLIPS: VideoSource[] = [
-  require("../../../assets/welcome/clip-1.mp4"),
-  require("../../../assets/welcome/clip-2.mp4"),
-  require("../../../assets/welcome/clip-3.mp4"),
-  require("../../../assets/welcome/clip-4.mp4"),
+  require("../../../assets/welcome/01-road.mp4"),
+  require("../../../assets/welcome/02-fair.mp4"),
+  require("../../../assets/welcome/03-party.mp4"),
+  require("../../../assets/welcome/04-coast.mp4"),
+  require("../../../assets/welcome/05-lake.mp4"),
 ];
 
 const SLIDE_MS = 3000;
@@ -58,6 +56,7 @@ function Clip({ source, visible }: { source: VideoSource; visible: boolean }) {
         style={videoStyle}
         contentFit="cover"
         nativeControls={false}
+        playsInline
         surfaceType="textureView"
       />
     </Animated.View>

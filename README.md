@@ -27,7 +27,6 @@ Built at the Consumer Mobile Hackathon (YC SF, Nov 15 2026) by Ethan (backend), 
 | [`docs/SESSIONS.md`](docs/SESSIONS.md) | The three backend sessions: who owns which file, and the rules |
 | [`docs/sessions/`](docs/sessions/) | One task list per session: `brain.md`, `people.md`, `data.md` |
 | [`hackathon.md`](hackathon.md) | Build log |
-| [`docs/TEAM.md`](docs/TEAM.md), [`docs/ETHAN.md`](docs/ETHAN.md) | The original team plan from the morning (history; `SESSIONS.md` replaces the "captains" part) |
 
 ## Run it
 

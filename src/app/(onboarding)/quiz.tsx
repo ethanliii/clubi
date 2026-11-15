@@ -88,7 +88,7 @@ export default function Quiz() {
       <View style={styles.progress}>
         <View style={[styles.progressFill, { width: `${((step + 1) / QUIZ_CARDS.length) * 100}%` }]} />
       </View>
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+      <ScrollView key={step} style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
         <View style={styles.intro}>
           <Text variant="heading" accessibilityRole="header">
             {card.question}

@@ -32,7 +32,7 @@ The 13 features, in this order everywhere (`FEATURES`): `energy, loudness, crowd
 
 ## 1. What runs today (hybrid-v3)
 
-This is what `convex/lib/recs.ts` and `convex/lib/discovery.ts` do on `main` now. It differs from the older sketch in `docs/ETHAN.md` section 8 in three places: similarity is measured from a baseline, the taste step uses the similarity gap, and the learning rate is higher.
+This is what `convex/lib/recs.ts` and `convex/lib/discovery.ts` do on `main` now. It differs from the older sketch in the morning plan (`docs/ETHAN.md`, removed from the repo; it is in git history) section 8 in three places: similarity is measured from a baseline, the taste step uses the similarity gap, and the learning rate is higher.
 
 | Term | Formula | Constants |
 | --- | --- | --- |

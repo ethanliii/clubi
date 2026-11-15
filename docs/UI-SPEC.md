@@ -112,42 +112,6 @@ async function uploadPhoto(asset: { uri: string; mimeType?: string }) {
 
 Location: every "near me" call takes `lat` and `lng` from `useDemoLocation()` in `src/lib/demoLocation.ts`. Call nothing until `ready` is true.
 
-## Swapping out `src/data/mock.ts`
-
-| Mock field | Real field | Note |
-| --- | --- | --- |
-| `Venue.id` | `NearbyItem.id` + `NearbyItem.kind` | Always carry both. |
-| `Venue.name` | `name` | |
-| `Venue.type` | `subcategory ?? category` | `category` is one of `nightlife`, `food`, `culture`, `outdoors`, `live`, `popup`. |
-| `Venue.area` | none | Use `VenueDetail.address` on the venue page; drop it on cards. |
-| `Venue.dist` | `distanceMeters` | Formatting the number ("350 m", "1.2 km") is yours. |
-| `Venue.match` | `matchPct` (0–100) | |
-| `Venue.avg` | `score` (1–10, one decimal) | It is the score predicted **for this user**, not an average. Always show `why` with it. |
-| `Venue.hue` | none | Color by `category` in your theme. |
-| `Venue.tags` | `VenueDetail.tags` | |
-| `Venue.friendIds` | `friends: FriendScore[]` (up to 3) | Each has `displayName`, `avatarUrl?`, `score`, `isLocal?`. |
-| `Venue.peak` | none | Drop. Crowd facts come from `insights.venue` 🆕. |
-| `detail.live` | `openNow` (places), `startsAt` (events) | |
-| `detail.price` | `priceLevel` 1–4 | Show as `$` to `$$$$`. |
-| `detail.address`, `detail.hours` | `address`, `hours` | |
-| `detail.ratings` | `ratingCount` 🆕 | |
-| `detail.breakdown` | `breakdown: {label, value}[]` | `value` is 0–10. |
-| `detail.quotes`, `detail.photos`, `detail.photoBy` | `friendRankings[]`: `displayName`, `score`, `caption?`, `when`, `photoUrl?` | |
-| `detail.moreTags`, `detail.know` | `insights.highlights`, `insights.bestFor` 🆕 | |
-| `detail.tonight` | `performers?: string[]` on events 🆕 | |
-| `Friend.id`, `Friend.name` | `userId`, `displayName` | Initials from `displayName` are fine to derive. |
-| `Friend.agree` | `FriendItem.tasteMatchPct`, `CompareResult.tasteMatchPct` | |
-| `FriendDetail.bio` | `ProfileResult.user.bio` | |
-| `FriendDetail.dims` | `CompareResult.dims: {label, me, them}[]` | |
-| `FriendDetail.both`, `disagree` | `CompareResult.shared`, `CompareResult.summary` | |
-| `FriendDetail.recent` | `ProfileResult.recentPosts: FeedItem[]` | |
-| `FriendDetail.topVenueIds` | `ProfileResult.lists[].items` | |
-| `FriendDetail.school`, `mutualIds`, `TASTE_TWINS_NEARBY` | none | Drop. (`mutualCount` exists on suggestions and search results.) |
-| `quiz` (4 cards) | 6 cards, section 2 | |
-| `deriveTaste()` meters in `src/features/taste.ts` | `tasteSummary: {label, pct}[]` from `users.saveQuiz` / `users.me` | The persona title ("Late-Night Socialite") is copy and can stay local. |
-
----
-
 ## 1. Welcome, Sign up, Sign in
 
 **Routes:** `(onboarding)/welcome.tsx`, `sign-in.tsx` · **Purpose:** get an account and get in. · **Status:** ✅
@@ -212,8 +176,7 @@ Six cards, in this order. The answer for each card is the list of picked option 
 | "See my taste" (on card 6) | Saves | `api.users.saveQuiz({answers})`, e.g. `answers: [[0,3],[2],[1],[2],[2],[0,3]]` | Returns `{tasteSummary: {label, pct}[]}` (4 meters). Go to the taste card. |
 | "Let's go" | Enters the app | none | Go to the Map tab. |
 
-- The cards in `src/data/mock.ts` are the first four. Add cards 5 and 6.
-- Show the meters from `tasteSummary`, not from `deriveTaste()`.
+- Show the meters from `tasteSummary`.
 - **States:** "See my taste" shows a spinner while saving. On error, toast and stay on card 6.
 
 ## 3. Home / Tonight
