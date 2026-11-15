@@ -303,3 +303,44 @@ test("a rounded map point still matches the precise one for the same event", asy
   const [event] = ctx.all("events");
   assert.deepEqual([event.lat, event.source, event.otherUrls], [37.7843, "luma", ["https://partiful.com/e/p2"]]);
 });
+
+test("every importer's rows pass the ingest validators and the schema, straight from the real fixtures", async () => {
+  const { fixture, jsonFixture } = await import("./fixtures/load.mjs");
+  const now = Date.parse("2026-11-15T20:00:00Z");
+  const eventbrite = await load("imports/eventbrite");
+  const partiful = await load("imports/partiful");
+  const luma = await load("imports/luma");
+  const ticketmaster = await load("imports/ticketmaster");
+  const osm = await load("imports/osm");
+  const eventRows = [
+    ...eventbrite.listingEvents(fixture("eventbrite-listing.html")).map((e) => eventbrite.eventbriteToRow(e, now)),
+    ...eventbrite.listingEvents(fixture("eventbrite-browse.html")).map((e) => eventbrite.eventbriteToRow(e, now)),
+    eventbrite.eventbriteDetailToRow(jsonFixture("eventbrite-detail.json"), now),
+    ...partiful.pageProps(fixture("partiful-explore.html")).trendingSections.SF.items.map((i) => partiful.partifulToRow(i.event, now)),
+    ...jsonFixture("luma-discover.json").entries.map((e) => luma.lumaToRow(e, now)),
+    ...jsonFixture("ticketmaster-events.json")._embedded.events.map((e) => ticketmaster.ticketmasterToRow(e, now)),
+  ].filter(Boolean);
+  const placeRows = jsonFixture("osm-overpass.json").elements.map(osm.osmToRow).filter(Boolean);
+  assert.ok(eventRows.length >= 18 && placeRows.length >= 9);
+
+  const realNow = Date.now;
+  Date.now = () => now;
+  try {
+    const ctx = fakeCtx();
+    const places = await run(upsertBatch, ctx, { kind: "place", rows: placeRows });
+    assert.equal(places.inserted, placeRows.length);
+    const counts = await events(ctx, eventRows);
+    assert.equal(counts.dropped, 0);
+    assert.equal(counts.inserted + counts.duplicate + counts.updated + counts.unchanged + counts.replaced, eventRows.length);
+    assert.ok(counts.inserted >= 15);
+    const sources = new Set(ctx.all("events").map((e) => e.source));
+    assert.deepEqual([...sources].sort(), ["eventbrite", "luma", "partiful", "ticketmaster"]);
+    assert.ok(ctx.all("performers").length >= 8);
+    // A second run of everything changes nothing.
+    const again = await events(ctx, eventRows);
+    assert.equal(again.inserted + again.updated + again.replaced, 0);
+    assert.equal((await run(upsertBatch, ctx, { kind: "place", rows: placeRows })).unchanged, placeRows.length);
+  } finally {
+    Date.now = realNow;
+  }
+});

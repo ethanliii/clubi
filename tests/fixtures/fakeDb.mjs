@@ -13,6 +13,57 @@ const compare = (a, b) => {
   return a < b ? -1 : 1;
 };
 
+/**
+ * Why `value` does not satisfy a Convex validator (its `.json` form), or null when it does.
+ * Fields set to undefined count as absent, as they do when Convex serialises arguments.
+ */
+export function violation(type, value, path = "value") {
+  switch (type.type) {
+    case "any":
+      return null;
+    case "string":
+    case "boolean":
+      return typeof value === type.type ? null : `${path}: expected ${type.type}, got ${JSON.stringify(value)}`;
+    case "number":
+      return typeof value === "number" && !Number.isNaN(value) ? null : `${path}: expected number, got ${JSON.stringify(value)}`;
+    case "null":
+      return value === null ? null : `${path}: expected null`;
+    case "id":
+      return typeof value === "string" && value.startsWith(type.tableName + ":") ? null : `${path}: expected an id of "${type.tableName}", got ${JSON.stringify(value)}`;
+    case "literal":
+      return value === type.value ? null : `${path}: expected ${JSON.stringify(type.value)}`;
+    case "union": {
+      const problems = type.value.map((option) => violation(option, value, path));
+      return problems.includes(null) ? null : `${path}: ${JSON.stringify(value)} matches no option (${problems[problems.length - 1]})`;
+    }
+    case "array": {
+      if (!Array.isArray(value)) return `${path}: expected an array`;
+      for (const [index, item] of value.entries()) {
+        const problem = violation(type.value, item, `${path}[${index}]`);
+        if (problem) return problem;
+      }
+      return null;
+    }
+    case "object": {
+      if (value === null || typeof value !== "object" || Array.isArray(value)) return `${path}: expected an object`;
+      for (const key of Object.keys(value)) {
+        if (value[key] !== undefined && !(key in type.value)) return `${path}.${key}: not a field of this validator`;
+      }
+      for (const [key, field] of Object.entries(type.value)) {
+        if (value[key] === undefined) {
+          if (!field.optional) return `${path}.${key}: required`;
+          continue;
+        }
+        const problem = violation(field.fieldType, value[key], `${path}.${key}`);
+        if (problem) return problem;
+      }
+      return null;
+    }
+    default:
+      throw new Error(`fakeDb does not know the validator type "${type.type}"`);
+  }
+}
+
 function tableInfo(table) {
   const definition = schema.tables[table];
   if (!definition) throw new Error(`No table "${table}" in the schema`);
@@ -20,6 +71,7 @@ function tableInfo(table) {
   const fields = exported.documentType.type === "object" ? new Set(Object.keys(exported.documentType.value)) : null;
   return {
     fields,
+    documentType: exported.documentType,
     indexes: Object.fromEntries(exported.indexes.map((index) => [index.indexDescriptor, index.fields])),
     searchIndexes: Object.fromEntries(exported.searchIndexes.map((index) => [index.indexDescriptor, index.searchField])),
   };
@@ -35,6 +87,12 @@ export function fakeCtx({ userId } = {}) {
     for (const key of Object.keys(fields)) {
       if (known && !known.has(key)) throw new Error(`Field "${key}" is not in table "${table}"`);
     }
+  };
+  // Every stored document must satisfy the real schema, as it would on Convex.
+  const checkDocument = (table, doc) => {
+    const { _id, _creationTime, ...fields } = doc;
+    const problem = violation(tableInfo(table).documentType, fields, table);
+    if (problem) throw new Error("Schema: " + problem);
   };
   const rowsOf = (table) => [...docs.values()].filter((doc) => tableOf(doc._id) === table);
 
@@ -67,6 +125,7 @@ export function fakeCtx({ userId } = {}) {
       checkFields(table, fields);
       const _id = `${table}:${++counter}`;
       const clean = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+      checkDocument(table, clean);
       docs.set(_id, structuredClone({ ...clean, _id, _creationTime: counter }));
       return _id;
     },
@@ -79,6 +138,7 @@ export function fakeCtx({ userId } = {}) {
         if (value === undefined) delete doc[key];
         else doc[key] = value;
       }
+      checkDocument(tableOf(id), doc);
     },
     delete: async (a, b) => {
       docs.delete(b ?? a);
@@ -153,5 +213,13 @@ export function fakeCtx({ userId } = {}) {
   };
 }
 
-/** Run a registered Convex function's handler against a fake ctx. */
-export const run = (fn, ctx, args = {}) => fn._handler(ctx, args);
+/**
+ * Run a registered Convex function's handler against a fake ctx. The arguments are checked against
+ * the function's own validators first, as Convex does, with undefined fields dropped.
+ */
+export const run = (fn, ctx, args = {}) => {
+  const validator = JSON.parse(fn.exportArgs());
+  const problem = violation(validator, args, "args");
+  if (problem) throw new Error("ArgumentValidationError: " + problem);
+  return fn._handler(ctx, JSON.parse(JSON.stringify(args)));
+};

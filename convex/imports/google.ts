@@ -158,7 +158,7 @@ type Candidate = { placeId: Id<"places">; name: string; lat: number; lng: number
  * Up to `limit` places worth enriching: ones people ranked recently, then hand-seeded ones, that
  * lack hours, have no Google id yet and were not looked up in the last 30 days.
  */
-export const candidates = internalQuery({
+export const enrichmentCandidates = internalQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }): Promise<Candidate[]> => {
     const max = Math.min(MAX_PLACES_PER_RUN, Math.max(1, limit ?? MAX_PLACES_PER_RUN));
@@ -203,7 +203,7 @@ const patchValidator = v.object({
 });
 
 /** Write the enrichment and remember which places were looked up. Gap-filling is checked again against the row as it is now. */
-export const apply = internalMutation({
+export const applyEnrichment = internalMutation({
   args: { patches: v.array(patchValidator), checked: v.array(v.id("places")) },
   handler: async (ctx, { patches, checked }): Promise<{ patched: number }> => {
     let patched = 0;
@@ -252,7 +252,7 @@ export const enrichPlaces = internalAction({
     const key = process.env.GOOGLE_MAPS_KEY;
     if (!key) return { skipped: "no GOOGLE_MAPS_KEY" };
     if (await ctx.runQuery(internal.ingest.isIngestFrozen, {})) return { skipped: "ingest frozen" };
-    const places = await ctx.runQuery(internal.imports.google.candidates, { limit });
+    const places = await ctx.runQuery(internal.imports.google.enrichmentCandidates, { limit });
     const result: EnrichResult = { looked: 0, matched: 0, patched: 0, noMatch: 0 };
     const patches: (ReturnType<typeof googleToPatch> & { placeId: Id<"places"> })[] = [];
     const checked: Id<"places">[] = [];
@@ -291,7 +291,7 @@ export const enrichPlaces = internalAction({
       patches.push({ placeId: place.placeId, ...googleToPatch(place, match) });
     }
     if (checked.length) {
-      result.patched = (await ctx.runMutation(internal.imports.google.apply, { patches, checked })).patched;
+      result.patched = (await ctx.runMutation(internal.imports.google.applyEnrichment, { patches, checked })).patched;
     }
     return result;
   },

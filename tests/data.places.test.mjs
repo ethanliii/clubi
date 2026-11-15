@@ -159,18 +159,18 @@ test("candidates are ranked or seeded places without hours; apply patches only g
   for (const placeId of [ranked, rankedWithHours]) {
     await ctx.db.insert("rankings", { userId, category: "nightlife", bucket: "loved", position: 1, score: 9, placeId });
   }
-  const found = await run(google.candidates, ctx, {});
+  const found = await run(google.enrichmentCandidates, ctx, {});
   assert.deepEqual(found.map((c) => c.name), ["Ranked, no hours", "Seeded"]);
 
   const patch = googleToPatch(found[1], results[0]);
-  const applied = await run(google.apply, ctx, { patches: [{ placeId: seeded, ...patch }], checked: [ranked, seeded] });
+  const applied = await run(google.applyEnrichment, ctx, { patches: [{ placeId: seeded, ...patch }], checked: [ranked, seeded] });
   assert.deepEqual(applied, { patched: 1 });
   const after = await ctx.db.get(seeded);
   assert.equal(after.website, "https://hand.example", "the hand-set website stays");
   assert.deepEqual([after.hours, after.externalRating, after.googlePlaceId, after.source, after.name], ["Mo-Su 09:00-02:00", 4.4, results[0].id, "seed", "Seeded"]);
   const untouched = await ctx.db.get(ranked);
   assert.deepEqual([untouched.elo, untouched.nComparisons, untouched.hours], [1.2, 3, undefined]);
-  assert.deepEqual(await run(google.candidates, ctx, {}), [], "nothing is looked up again within 30 days");
+  assert.deepEqual(await run(google.enrichmentCandidates, ctx, {}), [], "nothing is looked up again within 30 days");
 });
 
 test("without GOOGLE_MAPS_KEY the enrichment skips and says so", async () => {
