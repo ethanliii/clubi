@@ -2,18 +2,10 @@ import { useMutation, useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import {
-  Button,
-  EmptyState,
-  goBack,
-  IconButton,
-  Screen,
-  Sheet,
-  SkeletonRows,
-  Text,
-} from "../../components";
+import { Button, EmptyState, goBack, IconButton, Screen, Sheet, Skeleton, Text } from "../../components";
 import { citySpot } from "../../features/trips/city";
 import { InviteSheet } from "../../features/trips/InviteSheet";
+import { Page } from "../../features/trips/Page";
 import { ScreenTop } from "../../features/trips/ScreenTop";
 import { TripForm } from "../../features/trips/TripForm";
 import { GroupPicks, MemberList, Shortlist, type OnVote } from "../../features/trips/TripSections";
@@ -26,8 +18,9 @@ import { useKeptQuery } from "../../lib/useKeptQuery";
 import { formatDateRange, pluralize } from "../../lib/format";
 import { paths, planPath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
+import { useNow } from "../../lib/useNow";
 import { useMe } from "../../state/session";
-import { colors, radius, spacing } from "../../theme";
+import { colors, fontWeight, radius, spacing } from "../../theme";
 
 /** Same grid as `useNearby`: one "import places here" request per cell while the app is open. */
 const AREA_DEGREES = 0.02;
@@ -43,8 +36,15 @@ export default function TripScreen() {
   if (trip === undefined || leaving) {
     return (
       <Screen>
-        <ScreenTop title="Trip" />
-        <SkeletonRows count={5} />
+        <ScreenTop title="" />
+        <Skeleton width="70%" height={28} />
+        <View style={styles.loadingFaces}>
+          {[0, 1, 2, 3].map((index) => (
+            <Skeleton key={index} width={56} height={56} round={28} />
+          ))}
+        </View>
+        <Skeleton height={196} round={radius.xl} />
+        <Skeleton width="60%" height={18} />
       </Screen>
     );
   }
@@ -69,6 +69,7 @@ export default function TripScreen() {
 
 function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
   const me = useMe();
+  const now = useNow();
   const { tripId } = trip;
   const isOwner = trip.myStatus === "owner";
   const isIn = isOwner || trip.myStatus === "joined";
@@ -180,8 +181,22 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
     pluralize(trip.memberCount, "person", "people"),
   ].filter((part) => part !== "");
 
+  // A shortlist item without a picture of its own borrows the matching pick's photo.
+  const photoOf = (id: string) => group?.items.find((item) => item.id === id)?.imageUrl;
+
   return (
-    <Screen>
+    <Page
+      footer={
+        isIn ? (
+          <Button
+            title="Plan the night"
+            accessibilityLabel="Plan the night"
+            onPress={() => router.push(planPath(tripId))}
+            style={styles.plan}
+          />
+        ) : undefined
+      }
+    >
       <View style={styles.top}>
         <ScreenTop
           title={trip.name}
@@ -191,16 +206,15 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
             ) : undefined
           }
         />
-        <Text muted>{facts.join(" · ")}</Text>
+        <Text muted style={styles.facts}>
+          {facts.join(" · ")}
+        </Text>
       </View>
 
       {trip.myStatus === "invited" ? (
         <View style={styles.invite}>
-          <Text variant="label" style={styles.inviteKicker}>
-            Invitation
-          </Text>
-          <Text variant="title">{`${trip.ownerName} invited you`}</Text>
-          <Text muted>Join to see picks that suit the whole group and vote on where to go.</Text>
+          <Text style={styles.inviteTitle}>{`${trip.ownerName} invited you`}</Text>
+          <Text muted>Join to vote on where the group goes.</Text>
           <View style={styles.buttons}>
             <Button
               title="Join"
@@ -221,35 +235,19 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
         </View>
       ) : null}
 
-      <MemberList trip={trip} meId={me?.userId} />
+      <MemberList trip={trip} meId={me?.userId} onInvite={isIn ? () => setInviteOpen(true) : undefined} />
 
-      {isIn ? (
-        <Button
-          title="Invite friends"
-          accessibilityLabel="Invite friends"
-          variant="ghost"
-          onPress={() => setInviteOpen(true)}
-        />
-      ) : null}
+      <Shortlist items={trip.shortlist} canVote={isIn} onVote={onVote} photoOf={photoOf} />
 
       {isIn ? (
         <GroupPicks
           group={group}
           meId={me?.userId}
+          now={now}
           voteOf={myVoteOf}
           onVote={onVote}
           note={picksNote}
           importing={importing}
-        />
-      ) : null}
-
-      <Shortlist items={trip.shortlist} canVote={isIn} onVote={onVote} />
-
-      {isIn ? (
-        <Button
-          title="Plan the night"
-          accessibilityLabel="Plan the night"
-          onPress={() => router.push(planPath(tripId))}
         />
       ) : null}
 
@@ -285,21 +283,25 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
           />
         )}
       </Sheet>
-    </Screen>
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  top: { gap: spacing.xs },
-  inviteKicker: { color: colors.accent },
-  invite: {
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
+  top: { gap: spacing.xs + 2 },
+  facts: { fontSize: 15 },
+  loadingFaces: { flexDirection: "row", gap: spacing.md },
+  invite: { gap: spacing.xs, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface },
+  inviteTitle: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold },
+  buttons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  // The payoff: a full pill with a soft pink glow, so it reads as the one thing to do next.
+  plan: {
+    borderRadius: radius.pill,
+    paddingVertical: spacing.md + 4,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
   },
-  buttons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
 });

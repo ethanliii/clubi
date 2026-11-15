@@ -29,7 +29,6 @@ export function RankedLists({
         const expanded = open.includes(list.category);
         const rows = expanded ? list.items : list.items.slice(0, limit);
         const more = list.items.length > limit;
-        const title = titleOf(list.noun);
         const action = onSeeAll
           ? { label: "See all", run: () => onSeeAll(list.category) }
           : more
@@ -44,14 +43,14 @@ export function RankedLists({
         return (
           <View key={list.category} style={styles.section}>
             <SectionHeader
-              title={title}
+              title={titleOf(list.noun)}
               actionLabel={action?.label}
               onAction={action?.run}
               actionAccessibilityLabel={action ? `${action.label} ${list.noun}` : undefined}
             />
             <View>
-              {rows.map((item) => (
-                <RankedRow key={item.rankingId} item={item} />
+              {rows.map((item, index) => (
+                <RankedRow key={item.rankingId} item={item} divider={index < rows.length - 1} />
               ))}
             </View>
           </View>
@@ -62,5 +61,5 @@ export function RankedLists({
 }
 
 const styles = StyleSheet.create({
-  section: { gap: spacing.xs },
+  section: { gap: spacing.xs, paddingTop: spacing.sm },
 });

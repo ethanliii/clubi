@@ -161,6 +161,7 @@ export const compare = query({
       category: their.category,
       myScore: my.score,
       theirScore: their.score,
+      imageUrl: their.imageUrl,
     }));
     const theirTopNewToMe = theirs
       .filter((item) => !mineById.has(item.id))

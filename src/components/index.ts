@@ -3,10 +3,10 @@ export * from "./BackButton";
 export * from "./Button";
 export * from "./Icon";
 export * from "./ScoreBadge";
-export * from "./SocialButton";
 export * from "./Screen";
 export * from "./Text";
 export * from "./VenuePhoto";
+export * from "./Photo";
 // Shared pieces for the functional screens (see docs/APP.md)
 export * from "./Avatar";
 export * from "./Chip";
@@ -23,9 +23,3 @@ export * from "./Sheet";
 export * from "./Splash";
 export * from "./TextField";
 export * from "./Toast";
-// Bryan's screens (bryan-ui-input) import from "./bryan", which carries his own Avatar, Chip,
-// Skeleton and EmptyState from Bits.tsx. These are his pieces whose names don't clash with the above.
-export * from "./CommentsSheet";
-export * from "./FriendButton";
-export * from "./ProfileView";
-export * from "./VenueCard";

@@ -1,38 +1,42 @@
 import { Text as RNText, StyleSheet, type TextProps as RNTextProps } from "react-native";
-import { colors, fontSize, fontWeight } from "../theme";
+import { colors, palette, type } from "../theme";
 
-type Variant = "display" | "heading" | "title" | "body" | "caption" | "label";
+type Variant = "display" | "heading" | "headline" | "title" | "bodyLg" | "body" | "caption" | "label";
 
 export type TextProps = RNTextProps & {
+  /**
+   * `display` a splash wordmark · `heading` the one big title of a screen · `headline` a section
+   * title · `title` a card or row title · `bodyLg`/`body` running text · `caption` supporting
+   * text · `label` the quiet name of a field or group (sentence case, never shouted).
+   */
   variant?: Variant;
   muted?: boolean;
+  /** Between normal and muted: second-level text that still has to be read (a reason line). */
+  soft?: boolean;
   center?: boolean;
 };
 
-export function Text({ variant = "body", muted, center, style, ...props }: TextProps) {
+export function Text({ variant = "body", muted, soft, center, style, ...props }: TextProps) {
   return (
     <RNText
-      style={[styles.base, styles[variant], muted && styles.muted, center && styles.center, style]}
+      style={[styles.base, styles[variant], soft && styles.soft, muted && styles.muted, center && styles.center, style]}
       {...props}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  base: { color: colors.fg, fontSize: fontSize.body, lineHeight: 20 },
-  display: { fontSize: fontSize.display, lineHeight: 46, fontWeight: fontWeight.bold, letterSpacing: -1 },
-  heading: { fontSize: fontSize.heading, lineHeight: 32, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
-  title: { fontSize: fontSize.title, lineHeight: 22, fontWeight: fontWeight.bold },
+  base: { color: colors.fg, ...type.body },
+  display: type.display,
+  heading: type.heading,
+  headline: type.headline,
+  title: type.title,
+  bodyLg: type.bodyLg,
   body: {},
-  caption: { fontSize: fontSize.caption, lineHeight: 16 },
-  label: {
-    fontSize: fontSize.label,
-    lineHeight: 14,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: colors.muted,
-  },
+  caption: type.caption,
+  // Was tiny, uppercase and letter-spaced. Now a calm sentence-case label.
+  label: { ...type.label, color: colors.muted },
+  soft: { color: palette.soft },
   muted: { color: colors.muted },
   center: { textAlign: "center" },
 });

@@ -1,27 +1,23 @@
-import { Pressable, StyleSheet, View } from "react-native";
-import { Button, ScoreBadge, Skeleton, SkeletonRows, Text } from "../../components";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Button, Icon, Skeleton, Text, type IconName } from "../../components";
 import type { Bucket, RankResult, RankedListItem, VenueDetail } from "../../lib/api";
 import { categoryLabel, formatScore } from "../../lib/format";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, radius, ratingColor, ratingColors, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
 import { opponentOf, totalRounds, type Search } from "./search";
+import { PlacePhoto, Pop, PressScale, Rise, type } from "./ui";
 
 /** The three answers to "How was it?", with the exact labels from docs/UI-SPEC.md. */
-const BUCKETS: { bucket: Bucket; label: string; emoji: string; color: string }[] = [
-  { bucket: "loved", label: "Loved it", emoji: "\u{1F525}", color: "#7fd8a4" },
-  { bucket: "fine", label: "It was fine", emoji: "\u{1F610}", color: "#f5d27a" },
-  { bucket: "didnt", label: "Didn't like it", emoji: "\u{1F480}", color: "#f28b9b" },
+const BUCKETS: { bucket: Bucket; label: string; icon: IconName; color: string }[] = [
+  { bucket: "loved", label: "Loved it", icon: "heartFilled", color: ratingColors.great },
+  { bucket: "fine", label: "It was fine", icon: "minus", color: ratingColors.okay },
+  { bucket: "didnt", label: "Didn't like it", icon: "thumbDown", color: ratingColors.bad },
 ];
 
-function Progress({ current, total }: { current: number; total: number }) {
-  return (
-    <Text variant="caption" muted center accessibilityLabel={`${current} of ${total}`}>
-      {current} of {total}
-    </Text>
-  );
-}
+const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 
-/** Step 2. A card with three big colored circles. */
+/** Step 2. The place's photo, then three big circles within reach of a thumb. */
 export function HowStep({
   venue,
   onPick,
@@ -31,38 +27,49 @@ export function HowStep({
   onPick: (bucket: Bucket) => void;
   onBack: () => void;
 }) {
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const mine = venue.myRanking;
+  // The photo takes what the back row, the question and the circles leave over.
+  const photoHeight = clamp(height - insets.top - insets.bottom - (mine ? 470 : 410), 180, 460);
   return (
-    <FlowScreen title="" onBack={onBack}>
-      <View style={styles.intro}>
-        <Text variant="heading">{venue.name}</Text>
-        <Text muted>{categoryLabel(venue.category, venue.subcategory)}</Text>
-        {mine ? (
-          <Text muted>
-            {`You ranked it #${mine.position} of ${mine.outOf} · ${formatScore(mine.score)}. Ranking it again replaces that.`}
+    <FlowScreen onBack={onBack}>
+      <PlacePhoto uri={venue.imageUrl} category={venue.category} height={photoHeight} scrim>
+        <View style={styles.onPhoto}>
+          <Text style={type.onPhotoNote}>{categoryLabel(venue.category, venue.subcategory)}</Text>
+          <Text numberOfLines={3} style={styles.heroName}>
+            {venue.name}
           </Text>
-        ) : null}
-      </View>
-      <View style={styles.card}>
-        <Text variant="title" center accessibilityRole="header">
-          How was it?
-        </Text>
+        </View>
+      </PlacePhoto>
+      <View style={styles.ask}>
+        <View style={styles.askText}>
+          <Text accessibilityRole="header" style={[type.question, styles.center]}>
+            How was it?
+          </Text>
+          {mine ? (
+            <Text muted center>
+              {`Your #${mine.position} of ${mine.outOf} · ${formatScore(mine.score)}. Ranking again replaces it.`}
+            </Text>
+          ) : null}
+        </View>
         <View style={styles.circles}>
-          {BUCKETS.map(({ bucket, label, emoji, color }) => (
-            <Pressable
+          {BUCKETS.map(({ bucket, label, icon, color }) => (
+            <PressScale
               key={bucket}
-              accessibilityRole="button"
               accessibilityLabel={label}
               onPress={() => onPick(bucket)}
-              style={({ pressed }) => [styles.circleCol, pressed && styles.pressed]}
+              to={0.9}
+              style={styles.circleCol}
+              contentStyle={styles.circleInner}
             >
               <View style={[styles.circle, { backgroundColor: color }]}>
-                <Text style={styles.emoji}>{emoji}</Text>
+                <Icon name={icon} size={34} color={INK} />
               </View>
-              <Text variant="caption" center>
+              <Text center style={type.strong}>
                 {label}
               </Text>
-            </Pressable>
+            </PressScale>
           ))}
         </View>
       </View>
@@ -70,22 +77,39 @@ export function HowStep({
   );
 }
 
-function Contender({ name, note, onPress }: { name: string; note: string; onPress: () => void }) {
+function Contender({
+  name,
+  note,
+  photo,
+  category,
+  height,
+  onPress,
+}: {
+  name: string;
+  note: string;
+  photo?: string;
+  category: VenueDetail["category"];
+  height: number;
+  onPress: () => void;
+}) {
   return (
-    <Pressable
-      accessibilityRole="button"
+    <PressScale
+      testID="contender"
       accessibilityLabel={name}
       accessibilityHint="Tap if this one was better"
       onPress={onPress}
-      style={({ pressed }) => [styles.contender, pressed && styles.contenderPressed]}
+      contentStyle={styles.contender}
+      pressedStyle={styles.contenderPressed}
     >
-      <Text variant="title" center numberOfLines={4}>
-        {name}
-      </Text>
-      <Text variant="caption" muted center>
-        {note}
-      </Text>
-    </Pressable>
+      <PlacePhoto uri={photo} category={category} height={height} round={radius.xxl - 2} scrim>
+        <View style={styles.onPhoto}>
+          <Text numberOfLines={2} style={type.onPhoto}>
+            {name}
+          </Text>
+          <Text style={type.onPhotoNote}>{note}</Text>
+        </View>
+      </PlacePhoto>
+    </PressScale>
   );
 }
 
@@ -93,29 +117,30 @@ function Contender({ name, note, onPress }: { name: string; note: string; onPres
 export function CompareStep({
   venue,
   search,
+  photos,
   onAnswer,
   onTooClose,
   onBack,
 }: {
   venue: VenueDetail;
   search: Search | null;
+  /** The user's ranked places in this category, for the photo of the one already ranked. */
+  photos: RankedListItem[] | undefined;
   onAnswer: (newWon: boolean) => void;
   onTooClose: () => void;
   onBack: () => void;
 }) {
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // Two photos share what the top row, the question and "Too close to call" leave over.
+  const cardHeight = clamp(Math.floor((height - insets.top - insets.bottom - 270) / 2), 140, 300);
   const opponent = search === null ? null : opponentOf(search);
   if (search === null || opponent === null) {
     return (
-      <FlowScreen title="" onBack={onBack}>
-        <View style={styles.card}>
-          <Text variant="title" center accessibilityRole="header">
-            Which was better?
-          </Text>
-          <Skeleton height={12} width="20%" style={styles.centered} />
-          <View style={styles.versus}>
-            <Skeleton height={140} round={radius.xl} style={styles.flex} />
-            <Skeleton height={140} round={radius.xl} style={styles.flex} />
-          </View>
+      <FlowScreen title={venue.name} heading="Which was better?" onBack={onBack}>
+        <View style={styles.versus}>
+          <Skeleton height={cardHeight} round={radius.xxl} />
+          <Skeleton height={cardHeight} round={radius.xxl} />
         </View>
       </FlowScreen>
     );
@@ -123,32 +148,35 @@ export function CompareStep({
   const total = Math.max(totalRounds(search.list.length), search.rounds + 1);
   return (
     <FlowScreen
-      title=""
+      title={venue.name}
+      heading="Which was better?"
+      progress={total > 1 ? { current: search.rounds + 1, total } : undefined}
       onBack={onBack}
       footer={<Button title="Too close to call" accessibilityLabel="Too close to call" variant="ghost" onPress={onTooClose} />}
     >
-      <View style={styles.card}>
-        <Text variant="title" center accessibilityRole="header">
-          Which was better?
-        </Text>
-        <Progress current={search.rounds + 1} total={total} />
-        <View style={styles.versus}>
-          <Contender name={venue.name} note="New" onPress={() => onAnswer(true)} />
-          <View style={styles.vs}>
-            <Text variant="label" style={styles.vsText}>
-              VS
-            </Text>
-          </View>
+      <View style={styles.versus}>
+        <Contender
+          name={venue.name}
+          note="The new one"
+          photo={venue.imageUrl}
+          category={venue.category}
+          height={cardHeight}
+          onPress={() => onAnswer(true)}
+        />
+        {/* The key replays the entrance for every new opponent. */}
+        <Rise key={opponent.id}>
           <Contender
-            key={opponent.id}
             name={opponent.name}
             note={`You gave it ${formatScore(opponent.score)}`}
+            photo={photos?.find((row) => row.id === opponent.id)?.imageUrl}
+            category={venue.category}
+            height={cardHeight}
             onPress={() => onAnswer(false)}
           />
+        </Rise>
+        <View style={[styles.or, { top: cardHeight + VERSUS_GAP / 2 - OR_SIZE / 2 }]}>
+          <Text style={styles.orText}>or</Text>
         </View>
-        <Text variant="caption" muted center>
-          Tap the one you liked more.
-        </Text>
       </View>
     </FlowScreen>
   );
@@ -165,7 +193,7 @@ function windowAround<T>(list: T[], at: number): { from: number; rows: T[] } {
   return { from, rows: list.slice(from, from + size) };
 }
 
-/** Step 5. The label comes from `rankings.rank`; the list under it from `rankings.mine`. */
+/** Step 5. The score and the label come from `rankings.rank`; the list under them from `rankings.mine`. */
 export function ResultStep({
   venue,
   result,
@@ -185,31 +213,38 @@ export function ResultStep({
   const at = list?.findIndex((row) => row.rankingId === result.rankingId) ?? -1;
   const { from, rows: shown } = windowAround(list ?? [], at);
   const hiddenAfter = (list?.length ?? 0) - (from + shown.length);
+  const scoreColor = ratingColor(result.score);
 
   return (
     <FlowScreen
-      title="Ranked"
-      center
       back={false}
       footer={<BusyButton title={continueLabel} accessibilityLabel={continueLabel} busy={busy} onPress={onContinue} />}
     >
       <View style={styles.result}>
-        <View style={styles.centered}>
-          <ScoreBadge score={result.score} size="lg" />
-        </View>
-        <Text variant="heading" center accessibilityRole="header">
-          {`${venue.name} is now ${result.label}`}
-        </Text>
+        <PlacePhoto uri={venue.imageUrl} category={venue.category} height={210} scrim />
+        <Pop style={styles.ringWrap}>
+          <View accessibilityLabel={`Score ${formatScore(result.score)}`} style={[styles.ring, { borderColor: scoreColor }]}>
+            <Text style={[styles.ringText, { color: scoreColor }]}>{formatScore(result.score)}</Text>
+          </View>
+        </Pop>
+        <Rise delay={120} style={styles.resultText}>
+          <View accessible accessibilityRole="header" accessibilityLabel={`${venue.name} is now ${result.label}`}>
+            <Text numberOfLines={3} style={styles.resultHeading}>
+              {venue.name}
+            </Text>
+            <Text style={styles.resultRest}>{`Now ${result.label}`}</Text>
+          </View>
+        </Rise>
       </View>
       {list === undefined ? (
-        <SkeletonRows count={4} avatar={false} />
-      ) : (
-        <View>
-          {from > 0 ? (
-            <Text variant="caption" muted style={styles.more}>
-              {`${from} above`}
-            </Text>
-          ) : null}
+        <View style={styles.rows}>
+          <Skeleton height={52} round={radius.lg} />
+          <Skeleton height={52} round={radius.lg} />
+          <Skeleton height={52} round={radius.lg} />
+        </View>
+      ) : shown.length > 1 ? (
+        <Rise delay={220}>
+          {from > 0 ? <Text style={[type.meta, styles.more]}>{`${from} above`}</Text> : null}
           {shown.map((row) => {
             const isNew = row.rankingId === result.rankingId;
             return (
@@ -218,94 +253,86 @@ export function ResultStep({
                 accessibilityLabel={`${row.position}. ${row.name}, ${formatScore(row.score)}${isNew ? ", new" : ""}`}
                 style={[styles.row, isNew && styles.rowNew]}
               >
-                <Text style={styles.rowRank} muted={!isNew}>
-                  {row.position}
-                </Text>
+                <Text style={[styles.rowRank, isNew && styles.rowRankNew]}>{row.position}</Text>
+                <PlacePhoto uri={row.imageUrl} category={row.category} height={40} width={40} round={radius.md} />
                 <Text numberOfLines={1} style={[styles.rowName, isNew && styles.rowNameNew]}>
                   {row.name}
                 </Text>
-                {isNew ? (
-                  <Text variant="label" style={styles.newMark}>
-                    New
-                  </Text>
-                ) : null}
-                {/* The badge pins itself to the top of a row; the wrapper centers it. */}
-                <View style={styles.centered}>
-                  <ScoreBadge score={row.score} size="sm" />
-                </View>
+                <Text style={[styles.rowScore, { color: ratingColor(row.score) }]}>{formatScore(row.score)}</Text>
               </View>
             );
           })}
-          {hiddenAfter > 0 ? (
-            <Text variant="caption" muted style={styles.more}>
-              {`${hiddenAfter} more below`}
-            </Text>
-          ) : null}
-        </View>
-      )}
+          {hiddenAfter > 0 ? <Text style={[type.meta, styles.more]}>{`${hiddenAfter} more below`}</Text> : null}
+        </Rise>
+      ) : null}
     </FlowScreen>
   );
 }
 
+/** Icons on the bright circles are drawn in the page's darkest colour. */
+const INK = "#0b0a0f";
+const VERSUS_GAP = 8;
+const OR_SIZE = 40;
+const RING = 84;
+
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  centered: { alignSelf: "center" },
-  pressed: { opacity: 0.7 },
-  intro: { gap: spacing.xs },
-  // The card from the placeholder screens: filled, thin border, big radius.
-  card: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  circles: { flexDirection: "row", justifyContent: "space-around" },
-  circleCol: { flex: 1, alignItems: "center", gap: 6 },
-  circle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
-  emoji: { fontSize: 24, lineHeight: 30 },
+  center: { textAlign: "center" },
+  onPhoto: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.lg, gap: 2 },
+  heroName: { fontSize: 28, lineHeight: 33, fontWeight: fontWeight.bold, letterSpacing: -0.5, color: colors.white },
 
-  versus: { flexDirection: "row", alignItems: "center", gap: 6 },
-  vs: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.raised,
+  ask: { flex: 1, justifyContent: "center", gap: spacing.xl + 2 },
+  askText: { gap: spacing.sm },
+  circles: { flexDirection: "row" },
+  circleCol: { flex: 1 },
+  circleInner: { alignItems: "center", gap: spacing.md },
+  circle: { width: 92, height: 92, borderRadius: 46, alignItems: "center", justifyContent: "center" },
+
+  versus: { gap: VERSUS_GAP },
+  contender: { borderRadius: radius.xxl, borderWidth: 2, borderColor: "transparent" },
+  contenderPressed: { borderColor: colors.accent },
+  or: {
+    position: "absolute",
+    alignSelf: "center",
+    width: OR_SIZE,
+    height: OR_SIZE,
+    borderRadius: OR_SIZE / 2,
+    backgroundColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: -14,
-    zIndex: 2,
+    pointerEvents: "none",
   },
-  vsText: { color: colors.fg },
-  contender: {
-    flex: 1,
-    minHeight: 140,
+  orText: { fontSize: 13, lineHeight: 16, fontWeight: fontWeight.semibold, color: colors.muted },
+
+  result: { paddingTop: spacing.sm },
+  ringWrap: { marginTop: -RING / 2, marginLeft: spacing.lg, alignSelf: "flex-start" },
+  ring: {
+    width: RING,
+    height: RING,
+    borderRadius: RING / 2,
+    borderWidth: 4,
+    backgroundColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: 1.5,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
   },
-  contenderPressed: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  ringText: { fontSize: 30, lineHeight: 36, fontWeight: fontWeight.bold, letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
+  resultText: { marginTop: spacing.md },
+  resultHeading: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.5, color: colors.fg },
+  resultRest: { marginTop: spacing.xs, fontSize: 17, lineHeight: 23, fontWeight: fontWeight.medium, color: colors.muted },
 
-  result: { gap: spacing.md },
+  rows: { gap: spacing.sm },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    minHeight: 48,
-    paddingHorizontal: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    gap: spacing.md,
+    minHeight: 56,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
   },
-  rowNew: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, borderRadius: radius.md },
-  rowRank: { width: 24, fontWeight: fontWeight.bold },
-  rowName: { flex: 1 },
+  rowNew: { backgroundColor: colors.accentSoft },
+  rowRank: { width: 22, fontSize: 15, fontWeight: fontWeight.semibold, color: colors.muted, fontVariant: ["tabular-nums"] },
+  rowRankNew: { color: colors.accent },
+  rowName: { flex: 1, fontSize: 15, lineHeight: 20, color: colors.fg },
   rowNameNew: { fontWeight: fontWeight.semibold },
-  newMark: { color: colors.accent },
-  more: { paddingHorizontal: spacing.sm, paddingVertical: spacing.sm },
+  rowScore: { fontSize: 15, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
+  more: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
 });

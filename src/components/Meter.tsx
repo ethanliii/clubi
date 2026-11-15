@@ -20,7 +20,7 @@ export function Meter({ label, value, max = 100, valueLabel, color = colors.acce
   return (
     <View accessibilityLabel={`${label} ${shown}`} style={styles.wrap}>
       <View style={styles.labels}>
-        <Text variant="caption" muted>
+        <Text style={styles.label}>
           {label}
         </Text>
         <Text variant="caption" style={styles.value}>
@@ -35,9 +35,10 @@ export function Meter({ label, value, max = 100, valueLabel, color = colors.acce
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.xs },
+  wrap: { gap: spacing.sm },
   labels: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
-  value: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
-  track: { height: 6, borderRadius: radius.pill, backgroundColor: colors.surface, overflow: "hidden" },
+  label: { color: colors.fg },
+  value: { color: colors.muted, fontWeight: fontWeight.medium, fontVariant: ["tabular-nums"] },
+  track: { height: 4, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
   fill: { height: "100%", borderRadius: radius.pill },
 });

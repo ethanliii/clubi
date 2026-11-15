@@ -539,6 +539,7 @@ export async function scoreCandidate(
       matchPct: matchPct(score),
       why: withTag(reason, tag),
       imageUrl: doc.imageUrl,
+      imageAttribution: c.kind === "place" ? c.doc.imageAttribution : undefined,
       blurb: doc.blurb,
       priceLevel: price as NearbyItem["priceLevel"],
       openNow: time.openNow,

@@ -1,7 +1,6 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
 import { useState } from "react";
-import { StyleSheet } from "react-native";
 import { Button, Sheet, Text, TextField } from "../../components";
 import { api } from "../../lib/api";
 import { errorMessage } from "../../lib/errors";
@@ -55,7 +54,7 @@ export function DeleteAccountSheet({
 
   return (
     <Sheet visible={visible} onClose={close} title="Delete account">
-      <Text>
+      <Text variant="bodyLg" soft>
         This removes your rankings, posts, friendships and answers for good. It can&apos;t be undone.
       </Text>
       <TextField
@@ -71,15 +70,11 @@ export function DeleteAccountSheet({
       <Button
         title="Delete forever"
         accessibilityLabel="Delete forever"
+        variant="destructive"
         disabled={!matches || pending}
-        style={styles.danger}
         onPress={() => void submit()}
       />
-      <Button title="Keep my account" accessibilityLabel="Keep my account" variant="ghost" disabled={pending} onPress={close} />
+      <Button title="Keep my account" accessibilityLabel="Keep my account" variant="quiet" disabled={pending} onPress={close} />
     </Sheet>
   );
 }
-
-const styles = StyleSheet.create({
-  danger: { backgroundColor: "#d9364f" },
-});

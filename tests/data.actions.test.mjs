@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { getFunctionName } from "convex/server";
 import { actionCtx, fakeCtx, run } from "./fixtures/fakeDb.mjs";
 import { fixture, jsonFixture, load } from "./fixtures/load.mjs";
 
@@ -243,4 +244,118 @@ test("OpenStreetMap: one Overpass answer becomes places, and the area is marked 
   assert.equal(requests[0].method, "POST");
   assert.equal(db.all("appConfig").find((c) => c.key === "osmArea:1888:-6122").value.places, 9);
   assert.ok(db.all("places").find((p) => p.name === "Delfina").website);
+});
+
+/** An action ctx with file storage, whose `discover.nearby` answers with the given places at the top of every list. */
+function photoCtx(db, nearbyIds) {
+  const base = actionCtx(db);
+  const stored = [];
+  db.storage = { delete: async (id) => void stored.splice(stored.indexOf(id), 1) };
+  return {
+    ...base,
+    stored,
+    runQuery: (reference, args) =>
+      getFunctionName(reference) === "discover:nearby"
+        ? { items: [{ kind: "event", id: "events:1" }, ...nearbyIds.map((id) => ({ kind: "place", id }))] }
+        : base.runQuery(reference, args),
+    storage: {
+      store: async (blob) => (stored.push(`_storage:${blob.type}:${blob.size}`), stored[stored.length - 1]),
+      getUrl: async (id) => "https://files.test/" + id,
+    },
+  };
+}
+const jpeg = () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), { status: 200, headers: { "Content-Type": "image/jpeg" } });
+const photos = [
+  { name: "places/ChIJexample0000000000000001/photos/tall", widthPx: 3000, heightPx: 4000, authorAttributions: [{ displayName: "Someone Else" }] },
+  { name: "places/ChIJexample0000000000000001/photos/wide", widthPx: 4000, heightPx: 3000, authorAttributions: [{ displayName: "Ana Lopez" }] },
+];
+/** Google, answering a Text Search, a Place Details and a photo download. */
+const googleWithPhotos = ({ url }) => {
+  if (url.endsWith("/media?maxWidthPx=800")) return jpeg();
+  if (url.endsWith("places:searchText")) {
+    const body = jsonFixture("google-textsearch.json");
+    body.places[0].photos = photos;
+    return page(200, body);
+  }
+  return page(200, { id: "g-known", photos: [photos[0]] });
+};
+
+test("Google photos: one lookup and one download per place, stored in file storage, the key only ever in a header", async () => {
+  const db = await seededDb();
+  const place = (over) => db.db.insert("places", { name: "P", category: "nightlife", lat: 37.77, lng: -122.4221, source: "osm", city: "San Francisco", ...over });
+  const known = await place({ name: "Known to Google", googlePlaceId: "g-known" });
+  const handSet = await place({ name: "Hand-set image", imageUrl: "https://hand.example/a.jpg" });
+  const stranger = await place({ name: "Elbo Room" });
+  const popup = await place({ name: "Dogpatch Vinyl Swap (demo pop-up)", tags: ["demo"] });
+  const ctx = photoCtx(db, [popup, known, handSet, stranger]);
+
+  const { result, requests } = await online(googleWithPhotos, () => run(google.enrichPhotos, ctx, {}), KEYS);
+  assert.deepEqual(result, {
+    planned: 3, waiting: 3, searches: 2, details: 1, photoFetches: 2, stored: 2, noMatch: 1, noPhoto: 0,
+    misses: ['Elbo Room: nearest is "Zeitgeist" at 7 m'],
+    budget: { lookups: 3, photos: 2, maxLookups: 250, maxPhotos: 250 },
+  });
+  assert.deepEqual(requests.map((r) => r.url), [
+    "https://places.googleapis.com/v1/places:searchText",
+    "https://places.googleapis.com/v1/places/ChIJexample0000000000000001/photos/wide/media?maxWidthPx=800",
+    "https://places.googleapis.com/v1/places/g-known",
+    "https://places.googleapis.com/v1/places/ChIJexample0000000000000001/photos/tall/media?maxWidthPx=800",
+    "https://places.googleapis.com/v1/places:searchText",
+  ]);
+  assert.ok(requests.every((r) => r.headers["X-Goog-Api-Key"] === "test-google-key" && !r.url.includes("test-google-key")));
+  assert.ok(requests[0].headers["X-Goog-FieldMask"].split(",").includes("places.photos"));
+  assert.equal(requests[2].headers["X-Goog-FieldMask"], "id,photos");
+
+  const [zeitgeist, ...rest] = db.all("places");
+  // The search that found the photo also filled in what the hours enrichment fills in.
+  assert.deepEqual([zeitgeist.imageUrl, zeitgeist.imageAttribution, zeitgeist.hours, zeitgeist.externalRating, zeitgeist.googlePlaceId],
+    ["https://files.test/_storage:image/jpeg:4", "Photo: Ana Lopez", "Mo-Su 09:00-02:00", 4.4, "ChIJexample0000000000000001"]);
+  assert.equal(zeitgeist.imageStorageId, "_storage:image/jpeg:4");
+  assert.deepEqual(rest.map((p) => [p.name, p.imageUrl, p.imageAttribution]), [
+    ["Known to Google", "https://files.test/_storage:image/jpeg:4", "Photo: Someone Else"],
+    ["Hand-set image", "https://hand.example/a.jpg", undefined],
+    ["Elbo Room", undefined, undefined],
+    ["Dogpatch Vinyl Swap (demo pop-up)", undefined, undefined],
+  ]);
+  assert.ok(!JSON.stringify(db.all("places")).includes("test-google-key"));
+
+  // Every place is settled: a second run asks Google nothing and spends nothing.
+  const again = await online(googleWithPhotos, () => run(google.enrichPhotos, ctx, {}), KEYS);
+  assert.deepEqual([again.requests.length, again.result.planned, again.result.budget.lookups, again.result.budget.photos], [0, 0, 3, 2]);
+  // And the hours enrichment does not search for a place the photo run already searched for.
+  const hoursRun = await online(googleWithPhotos, () => run(google.enrichPlaces, actionCtx(db), {}), KEYS);
+  assert.equal(hoursRun.requests.length, 0);
+});
+
+test("Google photos stop at the budget, skip when frozen or without a key, and retry a failed download", async () => {
+  const spent = await seededDb();
+  await spent.db.insert("appConfig", { key: "googlePhotoBudget", value: { lookups: 250, photos: 0 } });
+  const capped = await online(googleWithPhotos, () => run(google.enrichPhotos, photoCtx(spent, []), {}), KEYS);
+  assert.deepEqual([capped.requests.length, capped.result.stopped, capped.result.stored], [0, "lookup budget spent", 0]);
+
+  const noPhotosLeft = await seededDb();
+  await noPhotosLeft.db.insert("appConfig", { key: "googlePhotoBudget", value: { lookups: 0, photos: 250 } });
+  const searchOnly = await online(googleWithPhotos, () => run(google.enrichPhotos, photoCtx(noPhotosLeft, []), {}), KEYS);
+  assert.deepEqual([searchOnly.requests.length, searchOnly.result.stopped, searchOnly.result.photoFetches], [1, "photo budget spent", 0]);
+  assert.deepEqual([noPhotosLeft.all("places")[0].hours, noPhotosLeft.all("places")[0].imageUrl], ["Mo-Su 09:00-02:00", undefined]);
+
+  const frozen = await seededDb();
+  await run(setIngestFrozen, frozen, { frozen: true });
+  const held = await online(googleWithPhotos, () => run(google.enrichPhotos, photoCtx(frozen, []), {}), KEYS);
+  assert.deepEqual([held.requests.length, held.result], [0, { skipped: "ingest frozen" }]);
+  const keylessCtx = photoCtx(await seededDb(), []);
+  const keyless = await online(googleWithPhotos, () => run(google.enrichPhotos, keylessCtx, {}));
+  assert.deepEqual([keyless.requests.length, keyless.result], [0, { skipped: "no GOOGLE_MAPS_KEY" }]);
+
+  // The download fails (an HTML page, then a 500): the place keeps its Google id and is tried again, by id.
+  const flaky = await seededDb();
+  const ctx = photoCtx(flaky, []);
+  const htmlPicture = (request) => (request.url.includes("/media") ? page(200, "<html>", "text/html") : googleWithPhotos(request));
+  const first = await online(htmlPicture, () => run(google.enrichPhotos, ctx, {}), KEYS);
+  assert.deepEqual([first.result.error, first.result.stored, flaky.all("places")[0].imageUrl, ctx.stored.length], ["Google Places sent no usable picture", 0, undefined, 0]);
+  const second = await online((request) => (request.url.includes("/media") ? page(500, {}) : googleWithPhotos(request)), () => run(google.enrichPhotos, ctx, {}), KEYS);
+  assert.deepEqual([second.result.error, second.result.details, second.result.searches], ["Google Places answered 500", 1, 0]);
+  const third = await online(googleWithPhotos, () => run(google.enrichPhotos, ctx, {}), KEYS);
+  assert.deepEqual([third.result.stored, third.result.budget.lookups, third.result.budget.photos], [1, 3, 3]);
+  assert.ok(flaky.all("places")[0].imageUrl.startsWith("https://files.test/"));
 });

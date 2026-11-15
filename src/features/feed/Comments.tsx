@@ -1,8 +1,8 @@
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState, type Ref } from "react";
-import { FlatList, Pressable, StyleSheet, View, type TextInputInstance } from "react-native";
-import { Avatar, Button, IconButton, Sheet, SkeletonRows, Text, TextField } from "../../components";
+import { FlatList, Pressable, StyleSheet, TextInput, View, type TextInputInstance } from "react-native";
+import { Avatar, Icon, IconButton, Sheet, SkeletonRows, Text } from "../../components";
 import { api, type CommentItem, type Id } from "../../lib/api";
 import { formatRelativeTime } from "../../lib/format";
 import { userPath } from "../../lib/links";
@@ -12,6 +12,7 @@ import { colors, fontWeight, spacing } from "../../theme";
 
 /** The backend's limit (`COMMENT_MAX` in convex/lib/social.ts). */
 const COMMENT_MAX = 500;
+const DANGER = "#ff6b6b";
 
 /**
  * One comment. Long-press (or the "⋯" beside it) shows "Delete" on a comment I may remove:
@@ -42,10 +43,11 @@ export function CommentRow({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${author.displayName}'s profile`}
+        hitSlop={6}
         onPress={openAuthor}
         style={({ pressed }) => pressed && styles.pressed}
       >
-        <Avatar name={author.displayName} uri={author.avatarUrl} size={32} />
+        <Avatar name={author.displayName} uri={author.avatarUrl} size={36} />
       </Pressable>
       <View style={styles.body}>
         <Pressable
@@ -59,7 +61,7 @@ export function CommentRow({
             <Text numberOfLines={1} style={styles.name}>
               {author.displayName}
             </Text>
-            <Text variant="caption" muted>
+            <Text muted style={styles.time}>
               {formatRelativeTime(comment.createdAt, now)}
             </Text>
           </View>
@@ -67,32 +69,38 @@ export function CommentRow({
         </Pressable>
         {armed ? (
           <View style={styles.armed}>
-            <Button
-              title="Delete"
+            <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Delete"
-              variant="ghost"
               disabled={pending}
+              hitSlop={10}
               onPress={() => void remove({ commentId: comment.id })}
-              style={styles.small}
-            />
-            <Button
-              title="Cancel"
+              style={({ pressed }) => [styles.choice, (pressed || pending) && styles.pressed]}
+            >
+              <Text style={styles.delete}>Delete</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Cancel"
-              variant="link"
+              hitSlop={10}
               onPress={() => setArmed(false)}
-              style={styles.small}
-            />
+              style={({ pressed }) => [styles.choice, pressed && styles.pressed]}
+            >
+              <Text muted style={styles.cancel}>
+                Cancel
+              </Text>
+            </Pressable>
           </View>
         ) : null}
       </View>
       {canDelete && !armed ? (
-        <IconButton icon="more" accessibilityLabel="Comment options" size={32} plain color={colors.muted} onPress={() => setArmed(true)} />
+        <IconButton icon="more" accessibilityLabel="Comment options" size={36} plain color={colors.muted} onPress={() => setArmed(true)} />
       ) : null}
     </View>
   );
 }
 
-/** The comment box and "Send". Clears itself when the comment is saved; the list updates by itself. */
+/** The comment box and its send button. Clears itself when the comment is saved; the list updates by itself. */
 export function CommentComposer({ postId, inputRef }: { postId: Id<"posts">; inputRef?: Ref<TextInputInstance> }) {
   const [text, setText] = useState("");
   const { run: addComment, pending } = useMutationToast(api.posts.addComment);
@@ -104,9 +112,11 @@ export function CommentComposer({ postId, inputRef }: { postId: Id<"posts">; inp
   };
   return (
     <View style={styles.composer}>
-      <TextField
+      <TextInput
         ref={inputRef}
         placeholder="Add a comment"
+        placeholderTextColor={colors.muted}
+        selectionColor={colors.accent}
         accessibilityLabel="Comment"
         value={text}
         onChangeText={setText}
@@ -116,7 +126,16 @@ export function CommentComposer({ postId, inputRef }: { postId: Id<"posts">; inp
         onSubmitEditing={() => void send()}
         style={styles.input}
       />
-      <Button title="Send" accessibilityLabel="Send" disabled={!ready} onPress={() => void send()} style={styles.send} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Send"
+        accessibilityState={{ disabled: !ready }}
+        disabled={!ready}
+        onPress={() => void send()}
+        style={({ pressed }) => [styles.send, ready && styles.sendReady, pressed && styles.pressed]}
+      >
+        <Icon name="send" size={20} color={ready ? colors.white : colors.muted} />
+      </Pressable>
     </View>
   );
 }
@@ -124,8 +143,8 @@ export function CommentComposer({ postId, inputRef }: { postId: Id<"posts">; inp
 /** What a comment list says when there is nothing in it. */
 export function NoComments() {
   return (
-    <Text variant="caption" muted center style={styles.none}>
-      No comments yet. Say something.
+    <Text muted center style={styles.none}>
+      No comments yet
     </Text>
   );
 }
@@ -153,7 +172,7 @@ export function CommentsSheet({
     <Sheet visible={visible} onClose={onClose} title="Comments" scroll={false}>
       {comments === undefined ? (
         <View style={styles.sheetList}>
-          <SkeletonRows count={2} />
+          <SkeletonRows count={3} />
         </View>
       ) : (
         <FlatList
@@ -164,6 +183,7 @@ export function CommentsSheet({
           )}
           ListEmptyComponent={<NoComments />}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
           style={styles.sheetList}
           contentContainerStyle={styles.sheetListContent}
         />
@@ -174,19 +194,40 @@ export function CommentsSheet({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  body: { flex: 1, gap: spacing.sm },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  body: { flex: 1, gap: spacing.xs },
   meta: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-  name: { flexShrink: 1, fontWeight: fontWeight.bold },
-  // Bryan's body size (14 / 20), as in his feed notes.
-  text: {},
-  armed: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  small: { width: "auto", paddingVertical: spacing.sm, paddingHorizontal: spacing.md, minHeight: 40 },
+  name: { flexShrink: 1, fontSize: 14, lineHeight: 19, fontWeight: fontWeight.semibold },
+  time: { fontSize: 13, lineHeight: 18 },
+  text: { fontSize: 15, lineHeight: 21 },
+  armed: { flexDirection: "row", alignItems: "center", gap: spacing.xl },
+  choice: { minHeight: 36, justifyContent: "center" },
+  delete: { fontWeight: fontWeight.semibold, color: DANGER },
+  cancel: { fontWeight: fontWeight.medium },
   pressed: { opacity: 0.6 },
-  composer: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  input: { flex: 1, width: "auto" },
-  send: { width: "auto", minHeight: 48, paddingVertical: spacing.md },
-  none: { paddingVertical: spacing.xl },
-  sheetList: { flexGrow: 0, flexShrink: 1, minHeight: 140 },
-  sheetListContent: { gap: spacing.lg, paddingBottom: spacing.sm },
+  composer: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  // 16 keeps iOS Safari from zooming the page when the box is focused.
+  input: {
+    flex: 1,
+    minHeight: 46,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 23,
+    backgroundColor: colors.surface,
+    color: colors.fg,
+    fontSize: 16,
+  },
+  send: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
+  sendReady: { backgroundColor: colors.accent },
+  none: { paddingVertical: spacing.xxl },
+  // Tall enough to read a thread; the sheet itself stops short of the top of the screen.
+  sheetList: { flexGrow: 0, flexShrink: 1, minHeight: 260 },
+  sheetListContent: { gap: spacing.lg + 2, paddingTop: spacing.xs, paddingBottom: spacing.md },
 });

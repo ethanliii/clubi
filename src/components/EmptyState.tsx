@@ -20,19 +20,19 @@ export function EmptyState({ title, body, icon, actionLabel, onAction, style }: 
     <View style={[styles.wrap, style]}>
       {icon ? (
         <View style={styles.icon}>
-          <Icon name={icon} size={20} color={colors.muted} />
+          <Icon name={icon} size={26} color={colors.low} />
         </View>
       ) : null}
-      <Text variant="title" center>
+      <Text variant="headline" center style={styles.title}>
         {title}
       </Text>
       {body ? (
-        <Text muted center>
+        <Text muted center style={styles.body}>
           {body}
         </Text>
       ) : null}
       {actionLabel && onAction ? (
-        <Button title={actionLabel} accessibilityLabel={actionLabel} onPress={onAction} style={styles.button} />
+        <Button title={actionLabel} accessibilityLabel={actionLabel} size="md" onPress={onAction} style={styles.button} />
       ) : null}
     </View>
   );
@@ -41,18 +41,13 @@ export function EmptyState({ title, body, icon, actionLabel, onAction, style }: 
 const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.xxl,
+    gap: 6,
+    paddingVertical: spacing.xxl + spacing.sm,
     paddingHorizontal: spacing.lg,
   },
-  icon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.xs,
-  },
-  button: { marginTop: spacing.md, maxWidth: 360 },
+  // The icon stands on its own: no disc behind it.
+  icon: { marginBottom: spacing.sm },
+  title: { fontSize: 18, lineHeight: 24, fontWeight: "600", letterSpacing: -0.2, maxWidth: 300 },
+  body: { fontSize: 15, lineHeight: 21, maxWidth: 290 },
+  button: { marginTop: spacing.lg, width: "auto", minWidth: 168 },
 });

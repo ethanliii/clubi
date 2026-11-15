@@ -162,6 +162,7 @@ export function feedItemBuilder(ctx: QueryCtx, viewer: PostViewer) {
         id: post.targetId,
         name: target.name,
         category: target.category,
+        imageUrl: target.imageUrl,
       },
       score,
       position,

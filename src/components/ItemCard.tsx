@@ -1,19 +1,19 @@
 import { router } from "expo-router";
-import { useState, type ReactNode } from "react";
-import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import type { ReactNode } from "react";
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import type { NearbyItem } from "../../convex/lib/contract";
-import { categoryHue, categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../lib/format";
+import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../lib/format";
 import { venuePath } from "../lib/links";
-import { colors, fontWeight, radius, ratingColor, spacing } from "../theme";
-import { Avatar } from "./Avatar";
+import { colors, elevation, fontWeight, layout, palette, radius, ratingColor, spacing } from "../theme";
+import { AvatarStack } from "./Avatar";
+import { Photo } from "./Photo";
 import { ScoreBadge } from "./ScoreBadge";
 import { Text } from "./Text";
-import { VenuePhoto } from "./VenuePhoto";
 
 export type ItemCardProps = {
   /** Anything shaped like a `NearbyItem`: map and home items, plan stops, group picks, search results. */
   item: NearbyItem;
-  /** `row` (default): one line of a list. `card`: a picture card for sideways rows. */
+  /** `row` (default): one line of a list. `card`: a photo card for sideways rows. */
   variant?: "row" | "card";
   /** Defaults to opening the venue page for this item. */
   onPress?: () => void;
@@ -27,8 +27,9 @@ export type ItemCardProps = {
 };
 
 /** "Cafe · $$ · 350 m · Open now" from what the backend sent. */
-function metaLine(item: NearbyItem): string {
+function metaLine(item: NearbyItem, withMatch: boolean): string {
   return [
+    withMatch ? `${item.matchPct}% match` : "",
     categoryLabel(item.category, item.subcategory),
     formatPrice(item.priceLevel),
     formatDistance(item.distanceMeters),
@@ -39,42 +40,33 @@ function metaLine(item: NearbyItem): string {
     .join(" · ");
 }
 
-function Picture({ item, height, round }: { item: NearbyItem; height: number; round: number }) {
-  const [failed, setFailed] = useState(false);
-  if (item.imageUrl && !failed) {
-    return (
-      <Image
-        source={{ uri: item.imageUrl }}
-        resizeMode="cover"
-        onError={() => setFailed(true)}
-        style={[styles.image, { height, borderRadius: round }]}
-      />
-    );
-  }
-  return <VenuePhoto hue={categoryHue(item.category)} height={height} style={{ borderRadius: round }} />;
-}
-
+/** Friends who ranked it: their faces, then "Maya 8.2 · Sam 7.5" with each score in its rating colour. */
 function Friends({ item }: { item: NearbyItem }) {
   if (item.friends.length === 0) return null;
+  const shown = item.friends.slice(0, 3);
   return (
     <View style={styles.friends}>
-      {item.friends.map((friend, index) => (
-        <View key={`${friend.displayName}-${index}`} style={[styles.pill, { borderColor: ratingColor(friend.score) }]}>
-          <Avatar name={friend.displayName} uri={friend.avatarUrl} size={18} style={styles.pillAvatar} />
-          <Text numberOfLines={1} style={styles.pillName}>
-            {friend.displayName.split(" ")[0]}
+      <AvatarStack people={shown} size={20} />
+      <Text variant="caption" muted numberOfLines={1} style={styles.flex}>
+        {shown.map((friend, index) => (
+          <Text key={`${friend.displayName}-${index}`} variant="caption" muted>
+            {index > 0 ? "  ·  " : ""}
+            {friend.displayName.split(" ")[0]}{" "}
+            <Text variant="caption" style={[styles.friendScore, { color: ratingColor(friend.score) }]}>
+              {formatScore(friend.score)}
+            </Text>
           </Text>
-          <Text style={[styles.pillScore, { color: ratingColor(friend.score) }]}>{formatScore(friend.score)}</Text>
-        </View>
-      ))}
+        ))}
+        {item.friends.length > shown.length ? `  +${item.friends.length - shown.length}` : ""}
+      </Text>
     </View>
   );
 }
 
 /**
- * One place or event, drawn from a `NearbyItem` exactly as the backend returned it:
- * name, what it is, the score with its `why` line, distance, friends' avatars and scores,
- * and for events the start time and who is playing.
+ * One place or event, drawn from a `NearbyItem` exactly as the backend returned it: its photo, name,
+ * what it is, the score with its `why` line, distance, the friends who ranked it, and for events
+ * the start time and who is playing.
  */
 export function ItemCard({ item, variant = "row", onPress, showRank = false, width = 240, children, style }: ItemCardProps) {
   const open = onPress ?? (() => router.push(venuePath(item.kind, item.id)));
@@ -90,25 +82,27 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
         onPress={open}
         style={({ pressed }) => [styles.card, { width }, pressed && styles.pressed, style]}
       >
-        <Picture item={item} height={Math.round(width * 0.5)} round={0} />
-        <View style={styles.cardBody}>
-          <Text numberOfLines={1} style={styles.cardName}>
-            {item.name}
-          </Text>
-          <View style={styles.metaRow}>
-            <ScoreBadge score={item.score} size="sm" />
-            <Text variant="caption" muted numberOfLines={1} style={styles.flex}>
-              {`${item.matchPct}% match · ${metaLine(item)}`}
-            </Text>
+        {/* The photo carries the name and the score; the reason reads underneath it. */}
+        <Photo uri={item.imageUrl} category={item.category} height={Math.round(width * 1.08)} scrim="bottom">
+          <View style={styles.onPhoto}>
+            <ScoreBadge score={item.score} style={styles.cardScore} />
+            <View style={styles.cardTitles}>
+              <Text numberOfLines={2} style={styles.cardName}>
+                {item.name}
+              </Text>
+              <Text variant="caption" numberOfLines={1} style={styles.cardMeta}>
+                {when ?? metaLine(item, false)}
+              </Text>
+            </View>
           </View>
-          <Text variant="caption" numberOfLines={2} style={styles.why}>
+        </Photo>
+        <View style={styles.cardBody}>
+          <Text soft numberOfLines={2}>
             {item.why}
           </Text>
-          {when ? (
-            <Text variant="caption" numberOfLines={1} style={styles.when}>
-              {when}
-            </Text>
-          ) : null}
+          <Text variant="caption" muted numberOfLines={1}>
+            {when ? metaLine(item, true) : `${item.matchPct}% match`}
+          </Text>
           {performers ? (
             <Text variant="caption" muted numberOfLines={1}>
               {performers}
@@ -133,9 +127,13 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
           {item.rank}
         </Text>
       ) : null}
-      <View style={styles.thumb}>
-        <Picture item={item} height={56} round={radius.lg} />
-      </View>
+      <Photo
+        uri={item.imageUrl}
+        category={item.category}
+        width={layout.rowThumb}
+        height={layout.rowThumb}
+        round={radius.lg}
+      />
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
           <Text numberOfLines={1} style={styles.rowName}>
@@ -143,11 +141,11 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
           </Text>
           <ScoreBadge score={item.score} />
         </View>
-        <Text variant="caption" numberOfLines={2} style={styles.why}>
+        <Text soft numberOfLines={2} style={styles.why}>
           {item.why}
         </Text>
         <Text variant="caption" muted numberOfLines={1}>
-          {`${item.matchPct}% match · ${metaLine(item)}`}
+          {metaLine(item, true)}
         </Text>
         {when ? (
           <Text variant="caption" numberOfLines={1} style={styles.when}>
@@ -163,46 +161,33 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  pressed: { opacity: 0.7 },
-  image: { width: "100%", backgroundColor: colors.raised },
-  why: { color: colors.fg, opacity: 0.85 },
-  when: { color: colors.mid, fontWeight: fontWeight.semibold },
-  // Bryan's friend-score pills: avatar and score, outlined in the score's colour.
-  friends: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 2 },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingLeft: 2,
-    paddingRight: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    backgroundColor: colors.surface,
-    maxWidth: "100%",
-  },
-  pillAvatar: { borderWidth: 0 },
-  pillName: { fontSize: 12, lineHeight: 15, color: colors.muted, flexShrink: 1 },
-  pillScore: { fontSize: 12, lineHeight: 15, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
+  pressed: { opacity: 0.6 },
+  friends: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
+  friendScore: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
 
-  // Bryan's venue card: filled surface, 18 radius, no border, photo flush to the top.
-  card: { backgroundColor: colors.surface, borderRadius: radius.xl, overflow: "hidden" },
-  cardBody: { padding: spacing.md, gap: 6 },
-  cardName: { fontWeight: fontWeight.semibold },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  // Card: no box. A tall photo with the name on it, the reason under it.
+  card: { gap: spacing.sm + 2 },
+  onPhoto: { flex: 1, justifyContent: "space-between", padding: spacing.md },
+  cardScore: { ...elevation.card },
+  cardTitles: { gap: 2 },
+  cardName: { fontSize: 19, lineHeight: 23, fontWeight: fontWeight.bold, letterSpacing: -0.4, color: palette.onPhoto },
+  cardMeta: { color: palette.onPhotoMuted },
+  cardBody: { gap: spacing.xs, paddingHorizontal: 2 },
 
+  // Row: photo, then name and score on one line, the reason, and the facts.
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.md + 2,
     minHeight: 72,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.hairline,
   },
-  rank: { width: 22, textAlign: "center", fontWeight: fontWeight.bold, marginTop: 18 },
-  thumb: { width: 56, height: 56 },
-  rowBody: { flex: 1, gap: 4 },
+  rank: { width: 22, textAlign: "center", fontWeight: fontWeight.semibold, fontVariant: ["tabular-nums"], lineHeight: layout.rowThumb, color: colors.low },
+  rowBody: { flex: 1, gap: 3, minHeight: layout.rowThumb, justifyContent: "center" },
   rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  rowName: { flex: 1, fontWeight: fontWeight.bold },
+  rowName: { flex: 1, fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, letterSpacing: -0.2 },
+  why: { lineHeight: 19 },
+  when: { color: colors.fg, fontWeight: fontWeight.semibold },
 });

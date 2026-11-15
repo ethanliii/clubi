@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radius, spacing } from "../theme";
+import { elevation, palette, radius, spacing } from "../theme";
 import { IconButton } from "./IconButton";
 import { Text } from "./Text";
 import { ToastViewport, useToastInSheet } from "./Toast";
@@ -37,10 +37,10 @@ export function Sheet({ visible, onClose, title, children, scroll = true }: Shee
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
           <View style={styles.handle} />
           <View style={styles.header}>
-            <Text variant="title" accessibilityRole="header" numberOfLines={1} style={styles.title}>
+            <Text variant="headline" accessibilityRole="header" numberOfLines={1} style={styles.title}>
               {title ?? ""}
             </Text>
-            <IconButton icon="close" accessibilityLabel="Close sheet" size={32} onPress={onClose} />
+            <IconButton icon="close" accessibilityLabel="Close sheet" size={32} color="#9a92a9" onPress={onClose} />
           </View>
           {scroll ? (
             <ScrollView
@@ -62,26 +62,29 @@ export function Sheet({ visible, onClose, title, children, scroll = true }: Shee
 
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end", alignItems: "center" },
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.45)" },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: palette.backdrop },
   sheet: {
     width: "100%",
     maxWidth: 520,
     maxHeight: "88%",
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
+    // A step lighter than the page, so the sheet reads as a layer above it.
+    backgroundColor: "#19151f",
+    borderTopLeftRadius: radius.xxl + 6,
+    borderTopRightRadius: radius.xxl + 6,
     paddingTop: spacing.sm,
+    ...elevation.floating,
   },
-  handle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: colors.line },
+  handle: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.16)" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    minHeight: 56,
   },
-  title: { flex: 1 },
+  title: { flex: 1, fontSize: 20, lineHeight: 25 },
   scroller: { flexGrow: 0 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
   fill: { flexShrink: 1 },

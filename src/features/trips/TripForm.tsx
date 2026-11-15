@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, Text, TextField } from "../../components";
+import { Button, TextField } from "../../components";
 import { api, type Id, type TripDetail } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { useMutationToast } from "../../lib/useMutationToast";
@@ -9,6 +9,7 @@ import { spacing } from "../../theme";
 import { citySpot } from "./city";
 import { DateRangeField, type DateRange } from "./DateRangeField";
 import { FriendChips, toggleId } from "./FriendChips";
+import { FieldLabel } from "./ScreenTop";
 import { VibeChips, type Vibe } from "./vibes";
 
 const NAME_MAX = 60;
@@ -94,8 +95,8 @@ export function TripForm({
   return (
     <View style={styles.form}>
       <TextField
-        label="Name"
-        placeholder="Friday night"
+        accessibilityLabel="Name"
+        placeholder="Name it, like Friday night"
         value={name}
         onChangeText={(text) => {
           setName(text);
@@ -105,24 +106,9 @@ export function TripForm({
         maxLength={NAME_MAX}
         returnKeyType="done"
       />
-      <TextField
-        label="City"
-        placeholder="Optional"
-        hint={editing ? undefined : "Leave empty for a night out near you."}
-        value={city}
-        onChangeText={setCity}
-        maxLength={CITY_MAX}
-        autoCapitalize="words"
-        returnKeyType="done"
-      />
-      <DateRangeField value={dates} onChange={setDates} allowClear={!editing} />
-      <View style={styles.group}>
-        <Text variant="label">Vibe</Text>
-        <VibeChips value={vibe} onChange={pickVibe} />
-      </View>
       {editing ? null : (
         <View style={styles.group}>
-          <Text variant="label">{"Who's coming"}</Text>
+          <FieldLabel>{"Who's coming"}</FieldLabel>
           <FriendChips
             friends={friends?.friends}
             selected={memberIds}
@@ -131,6 +117,23 @@ export function TripForm({
           />
         </View>
       )}
+      <View style={styles.group}>
+        <FieldLabel>Vibe</FieldLabel>
+        <VibeChips value={vibe} onChange={pickVibe} />
+      </View>
+      <View style={styles.group}>
+        <FieldLabel>Where</FieldLabel>
+        <TextField
+          accessibilityLabel="City"
+          placeholder={editing ? "City" : "Near me, or type a city"}
+          value={city}
+          onChangeText={setCity}
+          maxLength={CITY_MAX}
+          autoCapitalize="words"
+          returnKeyType="done"
+        />
+      </View>
+      <DateRangeField value={dates} onChange={setDates} allowClear={!editing} />
       <Button
         title={editing ? "Save" : "Create trip"}
         accessibilityLabel={editing ? "Save" : "Create trip"}
@@ -143,7 +146,7 @@ export function TripForm({
 }
 
 const styles = StyleSheet.create({
-  form: { gap: spacing.lg },
+  form: { gap: spacing.lg + 2 },
   group: { gap: spacing.sm },
-  submit: { marginTop: spacing.xs },
+  submit: { marginTop: spacing.xs, borderRadius: 999 },
 });

@@ -1,6 +1,7 @@
 import { Platform, StyleSheet, Switch, View } from "react-native";
 import { Text } from "../../components";
-import { colors, fontWeight, spacing } from "../../theme";
+import { colors, spacing } from "../../theme";
+import { ROW_INSET } from "./Group";
 
 /** react-native-web paints an "on" switch teal unless told otherwise; native ignores these. */
 const WEB_SWITCH = Platform.OS === "web" ? { activeThumbColor: colors.white, activeTrackColor: colors.accent } : null;
@@ -8,27 +9,20 @@ const WEB_SWITCH = Platform.OS === "web" ? { activeThumbColor: colors.white, act
 /** A labelled on/off switch. The switch carries the label, so tests and screen readers find it by name. */
 export function SwitchRow({
   label,
-  hint,
   value,
   onValueChange,
   disabled,
 }: {
   label: string;
-  hint?: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
 }) {
   return (
     <View style={styles.row}>
-      <View style={styles.text}>
-        <Text style={styles.label}>{label}</Text>
-        {hint ? (
-          <Text variant="caption" muted>
-            {hint}
-          </Text>
-        ) : null}
-      </View>
+      <Text variant="bodyLg" style={styles.label}>
+        {label}
+      </Text>
       <Switch
         accessibilityLabel={label}
         value={value}
@@ -49,10 +43,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     minHeight: 52,
+    paddingHorizontal: ROW_INSET,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
   },
-  text: { flex: 1, gap: 2 },
-  label: { fontWeight: fontWeight.semibold },
+  label: { flex: 1 },
 });

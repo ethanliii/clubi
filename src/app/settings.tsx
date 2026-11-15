@@ -1,12 +1,17 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
+import Constants from "expo-constants";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { BackButton, Button, Chip, ChipRow, Screen, Skeleton, SkeletonRows, Text, useToast } from "../components";
+import { Header, Screen, Skeleton, Text, useToast } from "../components";
 import {
   DeleteAccountSheet,
   PasswordSheet,
   ProfileForm,
+  ROW_INSET,
+  Segmented,
+  SettingsGroup,
+  SettingsRow,
   SwitchRow,
   useSettingsToggle,
 } from "../features/settings";
@@ -30,7 +35,9 @@ const NOTIFICATIONS: { key: keyof NotifPrefs; label: string }[] = [
   { key: "reactions", label: "Likes and comments" },
 ];
 
-/** Profile, privacy, notifications and account, from `api.settings.get`. Switches and chips save on tap. */
+const VERSION = Constants.expoConfig?.version;
+
+/** Profile, privacy, notifications and account, from `api.settings.get`. Switches and the visibility choice save on tap. */
 export default function SettingsScreen() {
   const settings = useQuery(api.settings.get, {});
   const { signOut } = useAuthActions();
@@ -55,10 +62,7 @@ export default function SettingsScreen() {
 
   return (
     <Screen scroll={false}>
-      <BackButton />
-      <Text variant="heading" accessibilityRole="header">
-        Settings
-      </Text>
+      <Header title="Settings" />
       <ScrollView
         style={styles.scroller}
         contentContainerStyle={styles.content}
@@ -68,100 +72,76 @@ export default function SettingsScreen() {
       >
         {/* null only while signing out or after deleting the account; the gate moves the user on. */}
         {settings === undefined || settings === null ? (
-          <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.section}>
-            <Skeleton width={86} height={86} round={43} />
-            <Skeleton height={48} round={radius.lg} />
-            <Skeleton height={96} round={radius.lg} />
-            <Skeleton height={48} round={radius.lg} />
-            <SkeletonRows count={4} avatar={false} />
+          <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
+            <View style={styles.loadingFace}>
+              <Skeleton width={96} height={96} round={48} />
+              <Skeleton width={140} height={20} />
+            </View>
+            <Skeleton height={210} round={radius.xl} />
+            <Skeleton height={150} round={radius.xl} />
+            <Skeleton height={260} round={radius.xl} />
           </View>
         ) : (
           <>
             <ProfileForm settings={settings} />
 
-            <View style={styles.section}>
-              <Text variant="label" accessibilityRole="header">
-                Who sees my posts
-              </Text>
-              <ChipRow>
-                {VISIBILITY.map((option) => (
-                  <Chip
-                    key={option.value}
-                    label={option.label}
-                    accessibilityLabel={option.label}
-                    selected={settings.defaultVisibility === option.value}
-                    onPress={() => {
-                      if (settings.defaultVisibility !== option.value) void toggle({ defaultVisibility: option.value });
-                    }}
-                  />
-                ))}
-              </ChipRow>
-              <Text variant="caption" muted>
-                The starting choice for new posts. You can change it on each one.
-              </Text>
-            </View>
-
-            <View>
+            <SettingsGroup title="Privacy">
+              <View style={styles.choice}>
+                <View style={styles.choiceText}>
+                  <Text variant="bodyLg">Who sees my posts</Text>
+                  <Text variant="caption" muted>
+                    You can change it on each post.
+                  </Text>
+                </View>
+                <Segmented
+                  options={VISIBILITY}
+                  value={settings.defaultVisibility}
+                  onChange={(defaultVisibility) => {
+                    if (settings.defaultVisibility !== defaultVisibility) void toggle({ defaultVisibility });
+                  }}
+                />
+              </View>
               <SwitchRow
                 label="Show me in search and suggestions"
                 value={settings.discoverable}
                 onValueChange={(discoverable) => void toggle({ discoverable })}
               />
-            </View>
+            </SettingsGroup>
 
-            <View style={styles.section}>
-              <Text variant="label" accessibilityRole="header">
-                Notifications
-              </Text>
-              <View>
-                {NOTIFICATIONS.map((item) => (
-                  <SwitchRow
-                    key={item.key}
-                    label={item.label}
-                    value={settings.notifPrefs[item.key]}
-                    onValueChange={(on) => void toggle({ notifPrefs: { ...settings.notifPrefs, [item.key]: on } })}
-                  />
-                ))}
-              </View>
-            </View>
+            <SettingsGroup title="Notifications">
+              {NOTIFICATIONS.map((item) => (
+                <SwitchRow
+                  key={item.key}
+                  label={item.label}
+                  value={settings.notifPrefs[item.key]}
+                  onValueChange={(on) => void toggle({ notifPrefs: { ...settings.notifPrefs, [item.key]: on } })}
+                />
+              ))}
+            </SettingsGroup>
 
-            <View style={styles.section}>
-              <Text variant="label" accessibilityRole="header">
-                Location
-              </Text>
-              <SwitchRow
-                label="Demo location"
-                hint="Pretend to be at the demo spot in San Francisco. Nothing is sent. It stays on while your real location isn't available."
-                value={isDemo}
-                onValueChange={setDemo}
-              />
-            </View>
+            <SettingsGroup
+              title="Location"
+              footer="Puts you at the demo spot in San Francisco. It stays on while your real location isn't available."
+            >
+              <SwitchRow label="Demo location" value={isDemo} onValueChange={setDemo} />
+            </SettingsGroup>
 
-            <View style={styles.section}>
-              <Text variant="label" accessibilityRole="header">
-                Account
-              </Text>
-              <Text muted>{`Signed in as @${settings.username}`}</Text>
-              <Button
-                title="Change password"
-                accessibilityLabel="Change password"
-                variant="ghost"
-                onPress={() => setPasswordOpen(true)}
-              />
-              <Button
-                title="Sign out"
-                accessibilityLabel="Sign out"
-                variant="ghost"
-                disabled={signingOut}
-                onPress={() => void onSignOut()}
-              />
-              <Button
-                title="Delete account"
-                accessibilityLabel="Delete account"
-                variant="ghost"
-                style={styles.danger}
-                onPress={() => setDeleteOpen(true)}
-              />
+            <SettingsGroup title="Account">
+              <SettingsRow label="Username" value={`@${settings.username}`} />
+              <SettingsRow label="Change password" onPress={() => setPasswordOpen(true)} />
+              <SettingsRow label="Sign out" chevron={false} disabled={signingOut} onPress={() => void onSignOut()} />
+            </SettingsGroup>
+
+            {VERSION ? (
+              <SettingsGroup title="About">
+                <SettingsRow label="Version" value={VERSION} />
+              </SettingsGroup>
+            ) : null}
+
+            <View style={styles.apart}>
+              <SettingsGroup>
+                <SettingsRow label="Delete account" tone="danger" chevron={false} onPress={() => setDeleteOpen(true)} />
+              </SettingsGroup>
             </View>
 
             <PasswordSheet visible={passwordOpen} onClose={() => setPasswordOpen(false)} />
@@ -179,7 +159,10 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   scroller: { flex: 1 },
-  content: { gap: spacing.xl, paddingBottom: spacing.xxl },
-  section: { gap: spacing.md },
-  danger: { borderColor: "#d9364f" },
+  content: { gap: spacing.xl + spacing.xs, paddingBottom: spacing.xxl * 2 },
+  loading: { gap: spacing.xl },
+  loadingFace: { alignItems: "center", gap: spacing.md, paddingBottom: spacing.sm },
+  choice: { gap: spacing.md, paddingHorizontal: ROW_INSET, paddingTop: 14, paddingBottom: ROW_INSET },
+  choiceText: { gap: 2 },
+  apart: { marginTop: spacing.md },
 });

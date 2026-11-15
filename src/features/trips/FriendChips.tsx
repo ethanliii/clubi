@@ -1,14 +1,16 @@
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { View } from "react-native";
-import { Avatar, Button, Chip, ChipRow, Skeleton, Text } from "../../components";
+import { StyleSheet, View } from "react-native";
+import { Button, Skeleton, Text } from "../../components";
 import type { FriendItem, Id } from "../../lib/api";
 import { paths } from "../../lib/links";
-import { radius, spacing } from "../../theme";
+import { spacing } from "../../theme";
+import { Face, FaceRow } from "./Faces";
+import { GUTTER } from "./Page";
 
 /**
- * "Who's coming": one chip per friend from `api.friends.list`, tap to add or take away.
- * `leading` goes first (the "You" chip). `onNavigate` runs before "Find friends" leaves the screen,
+ * "Who's coming": one face per friend from `api.friends.list`, tap to add or take away.
+ * `leading` goes first (my own face). `onNavigate` runs before "Find friends" leaves the screen,
  * so a sheet can close itself.
  */
 export function FriendChips({
@@ -17,6 +19,7 @@ export function FriendChips({
   onToggle,
   leading,
   onNavigate,
+  inset = GUTTER,
 }: {
   /** undefined while `friends.list` is loading. */
   friends: FriendItem[] | undefined;
@@ -24,21 +27,23 @@ export function FriendChips({
   onToggle: (userId: Id<"users">) => void;
   leading?: ReactNode;
   onNavigate?: () => void;
+  /** The side margin of whatever holds the row, so it can run off both edges. */
+  inset?: number;
 }) {
   if (friends === undefined) {
     return (
-      <ChipRow>
+      <View style={styles.loading}>
         {leading}
-        <Skeleton width={96} height={40} round={radius.pill} />
-        <Skeleton width={120} height={40} round={radius.pill} />
-        <Skeleton width={88} height={40} round={radius.pill} />
-      </ChipRow>
+        <Skeleton width={56} height={56} round={28} />
+        <Skeleton width={56} height={56} round={28} />
+        <Skeleton width={56} height={56} round={28} />
+      </View>
     );
   }
   if (friends.length === 0) {
     return (
-      <View style={{ gap: spacing.sm }}>
-        {leading ? <ChipRow>{leading}</ChipRow> : null}
+      <View style={styles.none}>
+        {leading ? <View style={styles.loading}>{leading}</View> : null}
         <Text muted>Add friends to bring them along.</Text>
         <Button
           title="Find friends"
@@ -53,19 +58,18 @@ export function FriendChips({
     );
   }
   return (
-    <ChipRow>
+    <FaceRow inset={inset}>
       {leading}
       {friends.map((friend) => (
-        <Chip
+        <Face
           key={friend.userId}
-          label={friend.displayName}
-          accessibilityLabel={friend.displayName}
+          name={friend.displayName}
+          uri={friend.avatarUrl}
           selected={selected.includes(friend.userId)}
-          leading={<Avatar name={friend.displayName} uri={friend.avatarUrl} size={22} />}
           onPress={() => onToggle(friend.userId)}
         />
       ))}
-    </ChipRow>
+    </FaceRow>
   );
 }
 
@@ -73,3 +77,8 @@ export function FriendChips({
 export function toggleId(list: Id<"users">[], userId: Id<"users">): Id<"users">[] {
   return list.includes(userId) ? list.filter((id) => id !== userId) : [...list, userId];
 }
+
+const styles = StyleSheet.create({
+  loading: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  none: { gap: spacing.sm },
+});
