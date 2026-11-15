@@ -80,8 +80,17 @@ const GENERIC_WORDS = new Set(
     "reception tour tasting sale swap bazaar fair expo conference summit panel talk talks lecture seminar webinar " +
     "course bootcamp hackathon demo game games tournament league bingo quiz crawl cruise picnic potluck bbq " +
     "beginner beginners intro introduction every bar pub lounge rooftop patio jam cypher battle competition contest " +
-    "awards ceremony recital residency takeover special various artists lineup djs bands silent disco sf bay area " +
-    "day evening morning afternoon sunset sunrise midnight"
+    "awards ceremony recital residency takeover special various artists lineup djs bands silent disco " +
+    "day evening morning afternoon sunset sunrise midnight headline " +
+    // words of a sentence, not of a name: "Love Is a Place", "Finding Your Voice"
+    "is are your my our we you this that it its for to how why what who"
+  ).split(" "),
+);
+// A piece that starts with a genre or scene word is a night, not an act: "Latin Sundays", "Bachata in North Beach".
+const GENRE_LEADS = new Set(
+  (
+    "bachata salsa latin jazz blues techno house disco reggaeton hip hiphop rnb soul funk comedy improv emo indie " +
+    "rock punk metal country kpop afrobeats edm trance dnb queer gay lesbian drag burlesque open local all"
   ).split(" "),
 );
 const GENERIC_PHRASES = /^(special guests?|and more|many more|more tba|friends|guests|support|tba|tbd|local support|surprise guests?|open decks)$/;
@@ -90,7 +99,7 @@ const BRACKETS = /\s*[([{][^)\]}]*[)\]}]\s*/g;
 const PRESENTS = /^(.*?)\bpresents?\b:?\s+(.+)$/i;
 const VENUE_CUT = /\s+(?:at|@)\s+|\s*@\s*|\s+[|—–-]\s+|\s*[|:]\s+|\s+live in\s+|\s+in concert\b/i;
 const TRAILERS =
-  /[\s,.:!-]+(?:live!?|tour|world tour|north american tour|us tour|album release|sold out|21\s?\+|18\s?\+|all ages|(?:19|20)\d\d|dj set|live set|& friends|and friends|\+ friends)$/i;
+  /[\s,.:!-]+(?:live!?|headline show|tour|world tour|north american tour|us tour|album release|sold out|21\s?\+|18\s?\+|all ages|(?:19|20)\d\d|dj set|live set|& friends|and friends|\+ friends)$/i;
 const STRONG_SPLIT = /\s+(?:b2b|b3b|w\/|feat\.?|ft\.?|featuring|vs\.?)\s+/i;
 // Lowercase "x" only, so "DJ X" stays a name.
 const WEAK_SPLIT = /\s+(?:with|and)\s+|\s+[+&×]\s+|\s+x\s+|\s*,\s*|\s+\/\s+/;
@@ -102,7 +111,10 @@ function isGenericPiece(piece: string): boolean {
   if (GENERIC_PHRASES.test(key)) return true;
   const tokens = key.split(" ");
   if (tokens.length > MAX_NAME_WORDS) return true;
-  return tokens.some((token) => GENERIC_WORDS.has(token) || /^\d+(st|nd|rd|th)$/.test(token));
+  if (GENRE_LEADS.has(tokens[0])) return true;
+  return tokens.some(
+    (token) => GENERIC_WORDS.has(token) || GENERIC_WORDS.has(token.replace(/s$/, "")) || /^\d+(st|nd|rd|th|yr|hr)$/.test(token),
+  );
 }
 
 function stripTrailers(text: string): string {

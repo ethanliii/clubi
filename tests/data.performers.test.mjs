@@ -62,6 +62,15 @@ test("parsePerformers is conservative", () => {
     "Run Club & Coffee",
     "Dinner at Nopa",
     "Friday Night Live - DJ Snake",
+    // real Eventbrite titles, 2026-11-15
+    "Latin Sundays at Providence Bar",
+    "Bachata in North Beach | Fall Bash",
+    "ASTIG Sound 8yr Anniversary w/ Manila Sound LA",
+    "A CLUB CALLED RHONDA w/ DRAMA ( DJ Set) - More TBA",
+    "It's A New DAY + Breakfast Of Champions 2027 Block Party",
+    "Love is a place: Resound Ensemble Fall 2026 Concert (Monday)",
+    "Dante's New Year's Eve Gala — A Night for Saints & Sinners",
+    "Salsa and Bachata Dancing, Dance Fridays Dance Lessons, Bar",
     "",
     "   ",
     "(21+)",
@@ -72,6 +81,11 @@ test("parsePerformers is conservative", () => {
 
 test("parsePerformers: solo, filler, known names, the cap of 5 and duplicates", () => {
   assert.deepEqual(parsePerformers("Khruangbin", { solo: true }), ["Khruangbin"]);
+  assert.deepEqual(parsePerformers("VALÉ Headline Show", { solo: true }), ["VALÉ"]);
+  assert.deepEqual(parsePerformers("The Foundry & BounceSF Presents: Mija (3hr DJ Set)"), ["Mija"]);
+  assert.deepEqual(parsePerformers("[Concert] Bay Puddles Women's Jazz Band feat. Yiying"), ["Bay Puddles Women's Jazz Band", "Yiying"]);
+  assert.deepEqual(parsePerformers("Jaime French @ The Faight"), ["Jaime French"]);
+  assert.deepEqual(parsePerformers("Golden Gate Blues Society IBC Regional Challenge", { solo: true }), []);
   assert.deepEqual(parsePerformers("Emo Night Brooklyn", { solo: true }), []);
   assert.deepEqual(parsePerformers("Beginner Guitar Lessons", { solo: true }), []);
   assert.deepEqual(parsePerformers("Disclosure + special guests at The Greek"), ["Disclosure"]);

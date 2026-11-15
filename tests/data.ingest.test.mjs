@@ -8,7 +8,9 @@ const performers = await load("performers");
 const { recordPerformerAffinity, notifyPerformerFans } = performers;
 
 const DAY = 24 * 60 * 60 * 1000;
-const soon = (days) => Date.now() + days * DAY;
+// One clock reading for the whole file, so the same show() is the same row every time.
+const T0 = Date.now();
+const soon = (days) => T0 + days * DAY;
 const MIDWAY = { lat: 37.7494, lng: -122.3866 };
 
 const show = (over = {}) => ({
@@ -241,4 +243,18 @@ test("imports never touch what Brain owns, and unchanged rows are left alone", a
   assert.deepEqual([after.elo, after.nComparisons, after.learnedVector, after.createdAt], [1.5, 4, [1, 2, 3], event.createdAt]);
   const dropped = await events(ctx, [show({ sourceId: "old", start: Date.now() - 2 * DAY }), show({ sourceId: "nameless", name: " " })]);
   assert.equal(dropped.dropped, 2);
+});
+
+test("a later, thinner read of the same event keeps the price and image it had", async () => {
+  const ctx = fakeCtx();
+  const { knownSourceIds } = await load("ingest");
+  await events(ctx, [show({ source: "eventbrite", sourceId: "eb-9", price: 25, imageUrl: "https://img.example/a.jpg" })]);
+  assert.equal((await events(ctx, [show({ source: "eventbrite", sourceId: "eb-9" })])).unchanged, 1);
+  assert.equal((await events(ctx, [show({ source: "eventbrite", sourceId: "eb-9", price: 30 })])).updated, 1);
+  const [event] = ctx.all("events");
+  assert.deepEqual([event.price, event.imageUrl], [30, "https://img.example/a.jpg"]);
+  assert.deepEqual(
+    await run(knownSourceIds, ctx, { kind: "event", source: "eventbrite", sourceIds: ["eb-9", "eb-10", "eb-9"] }),
+    ["eb-9"],
+  );
 });

@@ -441,8 +441,22 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     .withIndex("by_source", (q) => q.eq("source", row.source).eq("sourceId", row.sourceId))
     .first();
   if (same) {
-    if (!differs(same, fields)) return "unchanged";
-    await ctx.db.patch(same._id, fields);
+    // A source can answer with less on a later read (Eventbrite's listing has no price, its
+    // detail call does): what it told us before stays until it says something else.
+    const merged = {
+      ...fields,
+      end: fields.end ?? same.end,
+      price: fields.price ?? same.price,
+      imageUrl: fields.imageUrl ?? same.imageUrl,
+      ticketUrl: fields.ticketUrl ?? same.ticketUrl,
+      blurb: fields.blurb ?? same.blurb,
+      venueName: fields.venueName ?? same.venueName,
+      // The vector was built with the price: a read without one must not undo that.
+      venueVector:
+        fields.price === undefined && same.price !== undefined ? (same.venueVector ?? fields.venueVector) : fields.venueVector,
+    };
+    if (!differs(same, merged)) return "unchanged";
+    await ctx.db.patch(same._id, merged);
     await afterUpdate(same);
     return "updated";
   }
@@ -520,6 +534,28 @@ export const upsertBatch = internalMutation({
       ]++;
     }
     return counts;
+  },
+});
+
+const MAX_KNOWN_IDS = 300;
+
+/** Which of these source ids are already stored, so an import only fetches details for new ones. */
+export const knownSourceIds = internalQuery({
+  args: {
+    kind: v.union(v.literal("place"), v.literal("event")),
+    source: sourceValidator,
+    sourceIds: v.array(v.string()),
+  },
+  handler: async (ctx, { kind, source, sourceIds }): Promise<string[]> => {
+    const known: string[] = [];
+    for (const sourceId of [...new Set(sourceIds)].slice(0, MAX_KNOWN_IDS)) {
+      const row = await ctx.db
+        .query(kind === "place" ? "places" : "events")
+        .withIndex("by_source", (q) => q.eq("source", source).eq("sourceId", sourceId))
+        .first();
+      if (row) known.push(sourceId);
+    }
+    return known;
   },
 });
 
