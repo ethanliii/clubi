@@ -17,6 +17,8 @@ export const DISTANCE_D0_METERS = 400;
 export const DISTANCE_DELTA = 1;
 export const TIME_TAU = 0.5;
 export const QUIZ_BASELINE = 0.3;
+export const FEATURE_BASELINE = 0.15;
+export const UNKNOWN_SIMILARITY = 0.5;
 export const NEUTRAL_TASTE: number[] = FEATURES.map(() => 0.5);
 
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
@@ -24,6 +26,17 @@ const dot = (a: number[], b: number[]) => a.reduce((s, x, k) => s + x * (b[k] ??
 const norm = (a: number[]) => Math.sqrt(dot(a, a)) || 1e-9;
 export const cosine = (a: number[], b: number[]) => dot(a, b) / (norm(a) * norm(b));
 export const clip = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
+
+/**
+ * Cosine measured from the "no signal" baseline instead of from zero. Raw cosine of two all-positive
+ * vectors sits near 1 for every pair, which squeezes every score into 9-10 and cannot tell places apart.
+ */
+export function similarity(a: number[], b: number[]): number {
+  const ca = a.map((x) => x - FEATURE_BASELINE);
+  const cb = b.map((x) => x - FEATURE_BASELINE);
+  if (dot(ca, ca) < 1e-9 || dot(cb, cb) < 1e-9) return UNKNOWN_SIMILARITY;
+  return cosine(ca, cb);
+}
 
 /** 8.1: one BT/logistic step on the user's taste after "winner beat loser". */
 export function updateTaste(t: number[], prior: number[], fW: number[], fL: number[],
@@ -40,7 +53,7 @@ export function updateElo(bW: number, bL: number, nW: number, nL: number, K0 = E
 }
 
 /** 8.4: the content-only score, 1 to 10. */
-export const contentScore = (t: number[], f: number[]) => 1 + 4.5 * (1 + cosine(t, f));
+export const contentScore = (t: number[], f: number[]) => 1 + 4.5 * (1 + similarity(t, f));
 
 /** The features with the largest taste x venue contribution, best first. */
 export function topFeatures(t: number[], f: number[], n = 2): Feature[] {
@@ -151,7 +164,7 @@ export function predict(tU: number[], fI: number[], eloI: number, raters: Rater[
   let num = PSEUDO_VOTES * GLOBAL_MEAN, den = PSEUDO_VOTES, wSum = 0;
   let best: { name: string; score: number; w: number; local: boolean; friend: boolean } | null = null;
   for (const v of raters) {
-    const w = Math.max(0, cosine(tU, v.taste)) * (1 + alpha * +v.local) * (1 + BETA_FRIEND * +v.friend);
+    const w = Math.max(0, similarity(tU, v.taste)) * (1 + alpha * +v.local) * (1 + BETA_FRIEND * +v.friend);
     num += w * v.score; den += w; wSum += w;
     if (!best || w > best.w) best = { name: v.name, score: v.score, w, local: v.local, friend: v.friend };
   }
