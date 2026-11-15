@@ -1,30 +1,99 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import type { RankResult } from "./lib/contract";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import type { Bucket, Category, RankResult } from "./lib/contract";
 import { categoryValidator } from "./tables/catalog";
 import { bucketValidator } from "./tables/people";
 
+const BUCKET_ORDER: Bucket[] = ["loved", "fine", "didnt"];
+const BUCKET_RANGE: Record<Bucket, [number, number]> = {
+  loved: [6.7, 10],
+  fine: [3.4, 6.7],
+  didnt: [0, 3.3],
+};
+const CATEGORY_NOUN: Record<Category, string> = {
+  nightlife: "bars",
+  food: "food spots",
+  culture: "culture spots",
+  outdoors: "outdoor spots",
+  live: "shows",
+  popup: "pop-ups",
+};
+const LOCAL_CITIES = ["san francisco", "sf"];
+const LOCAL_UTC_OFFSET_HOURS = -8;
+const MAX_COMPARISONS = 20;
+
+const vKind = v.union(v.literal("place"), v.literal("event"));
 const vTargetId = v.union(v.id("places"), v.id("events"));
 
+type TargetId = Id<"places"> | Id<"events">;
 type BucketItem = {
-  id: Id<"places"> | Id<"events">;
+  id: TargetId;
   kind: "place" | "event";
   name: string;
   score: number;
   position: number;
 };
 
+function bucketScore(bucket: Bucket, position: number, count: number) {
+  const [low, high] = BUCKET_RANGE[bucket];
+  const score = high - ((position - 0.5) * (high - low)) / count;
+  return Math.round(score * 10) / 10;
+}
+
+async function loadTarget(
+  ctx: QueryCtx,
+  kind: "place" | "event",
+  id: TargetId,
+): Promise<{ name: string; category: Category } | null> {
+  if (kind === "place") {
+    const place = await ctx.db.get("places", id as Id<"places">);
+    return place && { name: place.name, category: place.category };
+  }
+  const event = await ctx.db.get("events", id as Id<"events">);
+  return event && { name: event.title, category: event.category };
+}
+
 export const listInBucket = query({
   args: { category: categoryValidator, bucket: bucketValidator },
-  handler: async (): Promise<BucketItem[]> => {
-    return [];
+  handler: async (ctx, { category, bucket }): Promise<BucketItem[]> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      return [];
+    }
+    const rankings = await ctx.db
+      .query("rankings")
+      .withIndex("by_user_category", (q) =>
+        q.eq("userId", userId).eq("category", category),
+      )
+      .collect();
+    const inBucket = rankings
+      .filter((ranking) => ranking.bucket === bucket)
+      .sort((a, b) => a.position - b.position);
+    const items: BucketItem[] = [];
+    for (const ranking of inBucket) {
+      const kind = ranking.placeId !== undefined ? "place" : "event";
+      const id = ranking.placeId ?? ranking.eventId;
+      const target = id === undefined ? null : await loadTarget(ctx, kind, id);
+      if (id === undefined || target === null) {
+        continue;
+      }
+      items.push({
+        id,
+        kind,
+        name: target.name,
+        score: ranking.score,
+        position: ranking.position,
+      });
+    }
+    return items;
   },
 });
 
 export const rank = mutation({
   args: {
-    kind: v.union(v.literal("place"), v.literal("event")),
+    kind: vKind,
     id: vTargetId,
     bucket: bucketValidator,
     position: v.number(),
@@ -33,7 +102,146 @@ export const rank = mutation({
     caption: v.optional(v.string()),
     photoStorageId: v.optional(v.id("_storage")),
   },
-  handler: async (): Promise<RankResult> => {
-    throw new Error("not yet");
+  handler: async (ctx, args): Promise<RankResult> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not signed in");
+    }
+    const { kind, id, bucket, comparisons, tags } = args;
+    if (comparisons.length > MAX_COMPARISONS) {
+      throw new Error("Too many comparisons");
+    }
+    const target = await loadTarget(ctx, kind, id);
+    if (target === null) {
+      throw new Error("That place or event no longer exists");
+    }
+    const user = await ctx.db.get("users", userId);
+    const { category } = target;
+    const now = Date.now();
+    const local = new Date(now + LOCAL_UTC_OFFSET_HOURS * 3600 * 1000);
+    const dayOfWeek = local.getUTCDay();
+    const hour = local.getUTCHours();
+
+    const mine = await ctx.db
+      .query("rankings")
+      .withIndex("by_user_category", (q) =>
+        q.eq("userId", userId).eq("category", category),
+      )
+      .collect();
+    const existing = mine.find(
+      (ranking) => (ranking.placeId ?? ranking.eventId) === id,
+    );
+    const others = mine.filter((ranking) => ranking !== existing);
+
+    const fields = {
+      bucket,
+      position: 0,
+      score: 0,
+      tags,
+      visitedAt: now,
+      wasLocal: LOCAL_CITIES.includes(
+        (user?.homeCity ?? "").trim().toLowerCase(),
+      ),
+      dayOfWeek,
+      hour,
+    };
+    let rankingId: Id<"rankings">;
+    if (existing !== undefined) {
+      rankingId = existing._id;
+      await ctx.db.patch("rankings", rankingId, fields);
+    } else if (kind === "place") {
+      rankingId = await ctx.db.insert("rankings", {
+        userId,
+        placeId: id as Id<"places">,
+        category,
+        ...fields,
+      });
+    } else {
+      rankingId = await ctx.db.insert("rankings", {
+        userId,
+        eventId: id as Id<"events">,
+        category,
+        ...fields,
+      });
+    }
+
+    let score = 0;
+    let position = 0;
+    let rankedAbove = 0;
+    for (const current of BUCKET_ORDER) {
+      const ordered: { _id: Id<"rankings">; position: number; score: number }[] =
+        others
+          .filter((ranking) => ranking.bucket === current)
+          .sort((a, b) => a.position - b.position);
+      if (current === bucket) {
+        const index = Math.min(
+          ordered.length,
+          Math.max(0, Math.round(args.position) - 1),
+        );
+        ordered.splice(index, 0, { _id: rankingId, position: 0, score: 0 });
+      }
+      for (const [index, ranking] of ordered.entries()) {
+        const nextScore = bucketScore(current, index + 1, ordered.length);
+        if (ranking.position !== index + 1 || ranking.score !== nextScore) {
+          await ctx.db.patch("rankings", ranking._id, {
+            position: index + 1,
+            score: nextScore,
+          });
+        }
+        if (ranking._id === rankingId) {
+          score = nextScore;
+          position = rankedAbove + index + 1;
+        }
+      }
+      rankedAbove += ordered.length;
+    }
+
+    for (const { winnerId, loserId } of comparisons) {
+      await ctx.db.insert("comparisons", {
+        userId,
+        winnerId,
+        loserId,
+        category,
+        createdAt: now,
+        dayOfWeek,
+        hour,
+      });
+    }
+
+    // LIVE LEARNING (P5): Captain 1's applyComparison per saved comparison and
+    // one applyBucket go here, after the ranking and comparisons are saved.
+
+    const post = {
+      photos: args.photoStorageId === undefined ? [] : [args.photoStorageId],
+      caption: args.caption,
+      visibility: "friends" as const,
+      createdAt: now,
+    };
+    const previousPost =
+      existing === undefined
+        ? null
+        : await ctx.db
+            .query("posts")
+            .withIndex("by_ranking", (q) => q.eq("rankingId", rankingId))
+            .first();
+    if (previousPost === null) {
+      await ctx.db.insert("posts", {
+        userId,
+        rankingId,
+        targetKind: kind,
+        targetId: id,
+        ...post,
+      });
+    } else {
+      await ctx.db.patch("posts", previousPost._id, post);
+    }
+
+    return {
+      rankingId,
+      score,
+      position,
+      outOf: rankedAbove,
+      label: `#${position} of your ${CATEGORY_NOUN[category]} · ${score.toFixed(1)}`,
+    };
   },
 });
