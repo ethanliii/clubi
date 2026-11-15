@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  FEATURES, NEUTRAL_TASTE, contentScore, matchPct, predict, quizToVector, updateElo, updateTaste,
+  FEATURES, NEUTRAL_TASTE, contentScore, matchPct, nudgeTaste, predict, quizToVector, updateElo, updateTaste,
 } from "../convex/lib/recs.ts";
 
 const loudPop = FEATURES.map((k) => (["energy", "loudness", "pop", "dancing"].includes(k) ? 0.9 : 0.1));
@@ -45,4 +45,11 @@ test("quizToVector returns 13 values in [0, 1] and matchPct is clamped", () => {
   assert.ok(contentScore(taste, loudPop) - contentScore(taste, quietWine) > 2);
   assert.equal(matchPct(0.8), 0);
   assert.equal(matchPct(10), 100);
+});
+
+test("nudgeTaste pulls toward loved items, pushes away from disliked ones and ignores fine", () => {
+  const loud = FEATURES.indexOf("loudness");
+  assert.ok(nudgeTaste(NEUTRAL_TASTE, loudPop, "loved")[loud] > 0.5);
+  assert.ok(nudgeTaste(NEUTRAL_TASTE, loudPop, "didnt")[loud] < 0.5);
+  assert.deepEqual(nudgeTaste(NEUTRAL_TASTE, loudPop, "fine"), NEUTRAL_TASTE);
 });

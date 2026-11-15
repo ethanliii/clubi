@@ -11,7 +11,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:23:30Z
+- **Last updated:** 2026-11-15T20:24:07Z
 
 ## Log
 
@@ -81,6 +81,17 @@ behind one item's score and map position (content, crowd, lambda, Elo, distance
 penalty, time match, per-feature contributions and the weights) so the math can
 be shown live. Convex features: queries, indexes (`convex/lib/discovery.ts`,
 `convex/debug.ts`).
+
+### 2026-11-15 - ebb985c
+Added live learning (hybrid-v3). One helper applies a comparison: a logistic step
+on the user's taste vector toward the winner's features and an Elo step on both
+places. A second applies the bucket alone: loved pulls taste toward the place,
+didn't like pushes it away. The taste step now measures surprise on the
+similarity gap, because the raw dot product saturated and learned nothing when
+the winner simply had more strong features. Both helpers run inside the ranking
+mutation, so nearby lists re-sort through realtime queries with no training job.
+Convex features: mutations, realtime queries (`convex/scoring.ts`,
+`convex/lib/recs.ts`, `tests/recs.test.mjs`).
 
 ### 2026-11-15 - 3df45dd
 In-app notifications are live. Ranking a place now notifies each accepted
