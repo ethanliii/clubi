@@ -53,6 +53,8 @@ This is what `convex/lib/recs.ts` and `convex/lib/discovery.ts` do on `main` now
 
 Loading: up to 200 candidates from the `by_lat` index around the viewer, up to 50 raters per item, plus all rankings by the viewer and their friends.
 
+The table shows the constants v3 shipped with. The simulator in section 9 has since changed three of them: `CROWD_HALF_WEIGHT` 3 → 5, `LOVED_STEP` 0.1 → 0.03 for anyone with a quiz behind their taste (someone who skipped the quiz keeps 0.1, `LOVED_STEP_NO_QUIZ`) and, so the social why line fires at the same crowd weight as before, `WHY_SOCIAL_LAMBDA` 0.4 → 2/7.
+
 **What v3 cannot do, and v4 adds:** venue vectors are keyword guesses that never improve (section 3); it knows nothing about who is performing (section 4); it ignores "people who loved X also loved Y" (section 2); new places with no ratings never get a chance (section 8); groups ignore disagreement and votes (section 5).
 
 ---
@@ -75,13 +77,17 @@ $$
 | $c_{ui}, \lambda_i$ | Crowd score and its share, unchanged. | 1 to 10 |
 | $Q_i = \text{clip}(\gamma\,b_i, -1, 1)$ | Quality from comparisons, now capped so one hot streak can't add more than a point. | ±1 |
 | $P_{ui}$ | Performer affinity, events only, section 4. | −0.75 to +1.5 |
-| $A_{ui}$ | "Also loved", below. | ±0.6 |
-| $E_i = \dfrac{c_E}{\sqrt{1 + n_i}}$ | Exploration bonus, section 8. $n_i$ = rankings + comparisons of the item. Order only. | 0 to 0.6 |
+| $A_{ui}$ | "Also loved", below. **Later:** not built, so $A_{ui} = 0$ everywhere today. `predict()` accepts it and clips it; nothing computes it. | ±0.6 |
+| $E_i = \dfrac{c_E}{\sqrt{1 + n_i}}$ | Exploration bonus, section 8. $n_i$ = rankings + comparisons of the item. Order only. | 0 to 0.4 |
 | $S_{ui} = 0.3\cdot\min(2, \text{friends going or saved})$ | Small social bump from the `saves` table. Order only. | 0 to 0.6 |
 
-Because the three add-ons are bounded (at most +3.1 together, and usually only one fires), the base still decides the score and the final clip rarely bites.
+Because the add-ons are bounded (at most +2.5 together today, +3.1 once "also loved" exists, and usually only one fires), the base still decides the score and the final clip rarely bites.
 
-### 2.1 "Also loved" (item-to-item, from behaviour)
+The crowd share is now $\lambda_i = W/(W+5)$: `CROWD_HALF_WEIGHT` went from 3 to 5 after the simulator runs in section 9.
+
+### 2.1 "Also loved" (item-to-item, from behaviour): **Later**
+
+This term is designed but not built (brief task B7). The design is kept here for whoever builds it.
 
 Taste vectors capture what people say they like. Co-ranking captures what they actually do. A "twin" of $u$ is someone who loved the same places.
 
@@ -110,7 +116,13 @@ export function alsoLovedTerm(raterBuckets: { userId: string; bucket: Bucket }[]
 | `ALSO_IOTA` $\iota$ | 0.6 | size of the also-loved term |
 | `ALSO_PRIOR` | 2 | the "+2" in $\omega$ |
 | `ALSO_MAX_LOVED` / `ALSO_MAX_LOVERS` | 20 / 30 | read limits |
-| `EXPLORE_C` $c_E$ | 0.6 | exploration bonus at zero ratings |
+| `EXPLORE_C` $c_E$ | 0.4 (was 0.6) | exploration bonus at zero ratings; tuned in section 9 |
+| `CROWD_HALF_WEIGHT` | 5 (was 3) | rater weight at which the crowd is half the base score; tuned in section 9 |
+| `LOVED_STEP` | 0.03 (was 0.1) | how far a "loved" pulls taste toward the place's vector, for someone whose taste started from a quiz; tuned in section 9 |
+| `LOVED_STEP_NO_QUIZ` | 0.1 | the same step for someone who skipped the quiz (their prior is `NEUTRAL_TASTE`): the bucket is most of what we know about them, and there is no stated taste to protect. `lovedStepFor(prior)` picks between the two |
+| `AFFINITY_EVIDENCE_PRIOR` | 1 | a learned performer affinity counts $n/(n+1)$ of the way from neutral after $n$ rankings, section 4.1 |
+| `WHY_RATED_MIN_RANKINGS` | 2 | rankings of a performer's events before the reason may say "You rated X 9.4" |
+| `WHY_SOCIAL_WEIGHT` | 2 | rater weight $W$ from which the reason is social; `WHY_SOCIAL_LAMBDA` = 2 / (2 + `CROWD_HALF_WEIGHT`) = 0.29 |
 | `SAVE_BUMP` | 0.3 | per friend going or saved, max 2 |
 | `PERFORMER_RHO` | 1.5 | see section 4 |
 
@@ -120,13 +132,15 @@ The score is a sum, so the reason is the term that moved it most. First rule tha
 
 | # | When | Text |
 | --- | --- | --- |
-| 1 | viewer ranked it | "You ranked it 9.2" |
-| 2 | $P_{ui} \ge 0.5$ | "You rated Calvin Harris 9.4" or "You follow Calvin Harris" |
-| 3 | $\lambda_i > 0.4$ and a friend is the heaviest rater | "Albert gave it 9.1" |
-| 4 | $\lambda_i > 0.4$ and a local rated it | "Locals like you rate it 8.9" |
-| 5 | $A_{ui} \ge 0.25$ | "People who loved Zeitgeist love this too" |
-| 6 | the top feature is measured ($n_k \ge 5$ answers, section 3b) | "Loud + young crowd, say people who went" |
+| 1 | viewer ranked it | "You ranked it 9.2": the score the ranking has, which can be under 1 for a "didn't like" (`shownScore`). Only the math and `NearbyItem.score` clip to 1–10. |
+| 2 | $P_{ui} \ge 0.5$ | "You rated Calvin Harris 9.4" once they ranked at least 2 of that performer's events (`WHY_RATED_MIN_RANKINGS`), or "You follow Calvin Harris". One rated night alone moves the score but is not given as the reason. |
+| 3 | $W > 2$ (that is $\lambda_i > 0.29$, `WHY_SOCIAL_LAMBDA`) and a friend is the heaviest rater | "Albert gave it 9.1", with the score Albert's ranking has |
+| 4 | $W > 2$ and a local rated it | "Locals like you rate it 8.9" |
+| 5 | $A_{ui} \ge 0.25$ | "People who loved Zeitgeist love this too". **Later**, with the also-loved term. |
+| 6 | the top feature is measured ($n_k \ge 5$ answers' weight in `venueStats.observedWeight`, section 3b) | "Loud + young crowd, say people who went" (`whyFromFeatures(features, true)`) |
 | 7 | otherwise | "Loud + pop music" (two top features, as today) |
+
+**A friend's private ranking is never named.** A ranking is as visible as its post (People's rule). When a friend's post for a ranking is "private" (the UI's "Only me"), that ranking still counts in the crowd as an anonymous rater without the friend weight, and it never reaches `friends[]`, `friendRankings`, rule 3 or `tonight.friendsGoing`. In `forGroup` and `plan` a member's ranking the caller may not see (private, or friends-only when that member is on the trip but is not the caller's friend) is replaced by their prediction, so `memberScores` never shows it (`friendMaySee`, `mayShowRanking`).
 
 Tags, first that applies: "On now", "Starts in 2 h", "Open now", "New on clubi" (the exploration slot, section 8), "2 friends going".
 
@@ -134,6 +148,8 @@ Tags, first that applies: "On now", "Starts in 2 h", "Open now", "New on clubi" 
 
 - `predict()` in `convex/lib/recs.ts` gains an optional 6th argument `extras?: { performer?: number; also?: number }` and returns the added terms. Old calls keep working, old tests stay green.
 - `scoreCandidate()` in `convex/lib/discovery.ts` computes the extras, passes them in, uses the blended vector, and adds $E_i + S_{ui}$ to `order`.
+- Loading is bounded everywhere (`loadViewer`): up to 200 candidates; per item its **newest** 50 rankings as the crowd sample (so `ratingCount` on a card stops near 50; `places.get` counts to 500 like `insights.venue`); the viewer's own newest 150 rankings per category; for the first 50 friends an equal share of 1,200 ranking rows (per category, newest first) and of 600 save rows (per type). A friend's older ranking of a busy place can be missed; an index on rankings by user and place (People) would make it exact.
+- `discover.upcoming` can score 200 events, so it chooses them to cover the whole window: first the events of performers the viewer follows or rated above neutral (`eventPerformers.by_performer`), then the soonest events of each of 40 equal parts of the window in turn (`takeAcross`).
 - `debug.explain` returns every new term, so the math can be shown live.
 - Set `ALGO = "hybrid-v4"`.
 
@@ -182,6 +198,8 @@ export type BankQuestion = { id: string; text: string; multi: boolean; categorie
 | `popuptype` | popup | What was it, mostly? | yes | Food & drink → food 0.8 · Art & design → culture 0.8 · Music → liveMusic 0.7 · Market / shopping → culture 0.5 · Meeting people → energy 0.6 |
 | `bestfor` | all (options differ) | Best for… | yes | nightlife: Date night → loudness 0.3 · Big groups · Dancing → dancing 0.9 · Conversation → loudness 0.2 · Pregame · Late night → energy 0.8. food: Date night · Big groups · Quick bite · Special occasion → price 0.8 · Solo. culture: A date · Kids · Solo · A rainy day · Visitors. outdoors: Picnic · Views · Workout → energy 0.8 · Dogs · Sunset. live / popup: Dancing → dancing 0.9 · Hearing the music · Meeting people · A date. |
 
+An option's targets are the ones its **category** gives it: "Date night" says a bar is quiet (loudness 0.3) and says nothing about a restaurant. `observedVector(counts, localCounts, category)` reads `questionsForCategory(category)`, never the union of every category's options.
+
 For a multi-select music or type question, each **selected** option sends its targets with weight 1. For `music` only, each **unselected** genre feature gets target 0.1 with weight 0.5 ("they didn't hear it").
 
 ### 3b. From answers to a measured venue vector
@@ -194,18 +212,21 @@ $$
 
 $f^{\text{prior}}$ is the featurizer's keyword guess (`venueVector` on the row, or the category preset). With no answers this is the prior exactly. After 5 answers it is half measured. After 20 it is 80% measured. This is the same Bayesian-average idea as the crowd score, applied per feature.
 
-Storage (`venueStats`, one row per item, updated inside `insights.submit`): `counts[questionId][optionId]` (raw counts for the distributions), `observedVector` = $\mu_{i}$ (13 numbers), `observedWeight` = $n_i$ (13 numbers). The item's own `venueVector` is never overwritten, so the prior is never lost and a bad batch of answers can be undone.
+**The 5-respondent rule applies to the vector too.** A question's answers feed $n_{ik}$ and $\mu_{ik}$ only once at least `MIN_SHOW` = 5 people have answered that question at that venue (`measuredVector`). Without this, a vector moved by one person can be solved for what they answered: the prior and $n_0$ are known, so $6 f_{ik} - 5 f^{\text{prior}}_{ik}$ is their option's target, and `debug.explain` shows $f_{ik}$. With the rule, "after 5 answers it is half measured" is literally when a feature starts to move: it jumps from the prior to the half-measured value when the fifth person answers. Locals weigh 1.5 but count as one respondent each.
 
-When a user answers again for the same venue, subtract their old answers from the totals before adding the new ones.
+Storage (`venueStats`, one row per item, updated inside `insights.submit`): `counts[questionId][optionId]` (raw counts for the distributions), `observedVector` = $\mu_{i}$ and `observedWeight` = $n_i$ (13 numbers each, from the questions that pass the rule above). The item's own `venueVector` is never overwritten, so the prior is never lost and a bad batch of answers can be undone.
+
+When a user answers again for the same venue, subtract their old answers from the totals before adding the new ones. `forgetAnswers(ctx, userId, targetId?)` in `convex/insights.ts` does the subtraction alone, for a removed ranking or a deleted account; it has to run while the person's `visitAnswers` rows still exist.
 
 ```ts
 // convex/lib/insights.ts
 export const INSIGHT_N0 = 5, LOCAL_ANSWER_WEIGHT = 1.5;
+export function observedVector(counts?: Counts, localCounts?: Counts, category?: Category, minRespondents = 0): { vector: number[]; weight: number[] };
+export const measuredVector = (category, counts, localCounts?) => observedVector(counts, localCounts, category, MIN_SHOW);
 export function blendVector(prior: number[], observed?: number[], weight?: number[], n0 = INSIGHT_N0): number[];
-export function applyAnswers(stats: StatsTotals, category: Category, answers: InsightAnswer[], sign: 1 | -1, local: boolean): StatsTotals;
 ```
 
-Plug-in: `scoreCandidate` loads the `venueStats` row for each candidate (one indexed read by `targetId`) and calls `blendVector(venueVectorOf(doc), stats?.observedVector, stats?.observedWeight)`. The same blended vector is used for the taste step, so answers also make live learning more accurate.
+Plug-in, as built: `insights.submit` writes the blend to `learnedVector` on the place or event, and `venueVectorOf(doc)` returns it, so a list reads no extra row per candidate. `scoreCandidate` reads `venueStats` only for an item that has a `learnedVector`, to know whether its top feature is measured (why line rule 6). The same blended vector is used for the taste step, so answers also make live learning more accurate.
 
 ### 3c. Which questions to ask
 
@@ -251,7 +272,7 @@ export function summarize(category: Category, counts: Counts, nRespondents: numb
 | `buckets` | Counts of loved / fine / didn't. |
 | `visitsByHour`, `visitsByDay` | Histograms of `rankings.hour` (24) and `rankings.dayOfWeek` (7). |
 | `winRate`, `beats` | From `comparisons`: wins ÷ (wins + losses) for this item, and per opponent. The table has no index by item, so today scan the newest 2,000 rows and filter. **Later:** People adds `by_winner` and `by_loser` indexes. |
-| `alsoLoved` | $\text{lift}(i \to j) = \dfrac{P(\text{loved } j \mid \text{loved } i)}{P(\text{loved } j)} = \dfrac{o_{ij}/\lvert L_i\rvert}{\lvert L_j\rvert / N}$, where $o_{ij}$ = users who loved both and $N$ = users with at least one ranking. Compute $o_{ij}$ from the loved lists of up to 50 lovers of $i$; keep $j$ with $o_{ij} \ge$ `ALSO_MIN_SUPPORT` = 2 (3 once there is data); top 5 by lift. |
+| `alsoLoved` | $\text{lift}(i \to j) = \dfrac{P(\text{loved } j \mid \text{loved } i)}{P(\text{loved } j)} = \dfrac{o_{ij}/\lvert L_i\rvert}{\lvert L_j\rvert / N}$, where $o_{ij}$ = users who loved both and $N$ = users with at least one ranking. Compute $o_{ij}$ from the loved lists of up to 50 lovers of $i$ (each lover's newest 20 rankings in $i$'s own category and newest 2 in each other category, because the index is by category first); keep $j$ with $o_{ij} \ge$ `ALSO_MIN_SUPPORT` = 2 (3 once there is data); top 5 by lift. |
 | `trend` | Rankings grouped by week (`visitedAt`): average score and count, last 8 weeks. |
 
 The dashboard reads up to 500 rankings for one item. That is fine for one venue at a time; it is not called from lists.
@@ -264,7 +285,7 @@ The dashboard reads up to 500 rankings for one item. That is fine for one venue 
 - **Comparable.** The same questions across every venue in a category, so "louder than 80% of bars nearby" is a real statement.
 - **Tied to preference.** We know the answer *and* how much the person liked the place *and* their taste, so a venue can see who it works for, not just an average.
 
-**Privacy rule:** answers are stored per user so they can be replaced, but only totals leave the backend. Nothing is shown below 5 respondents. No query returns who answered what.
+**Privacy rule:** answers are stored per user so they can be replaced, but only totals leave the backend. Nothing is shown below 5 respondents, and nothing below 5 respondents moves a venue's vector or score (3b). No query returns who answered what. `insights.dashboard` never names a nightlife venue in `beats` or `alsoLoved` to someone under 21.
 
 ---
 
@@ -294,13 +315,19 @@ $$
 
 Read at most the user's 30 strongest affinities. Spill-over shifts scores but **never** triggers an alert on its own.
 
-**In the score** (events only). Let $a^{*}_{ui}$ be the highest effective affinity among the event's performers:
+**In the score** (events only). A learned affinity is first shrunk toward neutral by the evidence behind it, because one ranking of one event says as much about the venue and the company as about the act:
+
+$$
+\hat a_{up} = 5 + (a_{up} - 5)\,\frac{n_{up}}{n_{up} + 1}, \qquad \tilde a_{up} = \max(\hat a_{up}, 8) \text{ when followed}
+$$
+
+(`learnedAffinity`, `AFFINITY_EVIDENCE_PRIOR` = 1). A lone "didn't like" of 1.65 counts as 3.3, a lone "loved" of 8.35 as 6.7. Let $a^{*}_{ui}$ be the highest effective affinity among the event's performers:
 
 $$
 P_{ui} = \text{clip}\Big(\rho\,\frac{a^{*}_{ui} - 5}{5},\ -0.75,\ 1.5\Big), \qquad \rho = 1.5
 $$
 
-A 9.4 for the headliner adds 1.3 points. A disliked performer drags less than a loved one lifts. No row and no spill-over → 0.
+A 9.4 for the headliner adds 0.66 after one ranking, 0.88 after two and 1.1 after five (1.32 is the limit). A disliked performer drags less than a loved one lifts. No row and no spill-over → 0. The simulator in section 9 measured the unshrunk version as slightly worse than no performer term at all when nobody follows anyone; shrunk, it is never below.
 
 ### 4.2 Alerts
 
@@ -344,6 +371,7 @@ Only **create** a performer from a title when the event's category is `live` or 
 | Constant | Start |
 | --- | --- |
 | `AFFINITY_NEUTRAL` | 5 |
+| `AFFINITY_EVIDENCE_PRIOR` | 1 |
 | `AFFINITY_MIN_STEP` | 0.3 |
 | `SUPPORT_ACT_STEP` | 0.5 |
 | `FOLLOW_FLOOR` | 8 |
@@ -367,10 +395,11 @@ $$
 
 - The average alone lets a majority drag one person somewhere they hate. The minimum alone ("least misery") lets one picky person decide everything. Mixing them is the standard fix (Masthoff, 2004; O'Connor et al., 2001).
 - $\psi\,s$ is the disagreement penalty from Amer-Yahia et al. (2009): of two places with the same average, prefer the one everyone feels the same about.
-- The vote term uses the trip shortlist (`tripVotes`): a thumbs-up from everyone adds $\nu$.
+- The vote term uses the trip shortlist (`tripVotes`): a thumbs-up from everyone adds $\nu$. "Everyone" is every member whose votes were counted: on a trip with more joined members than the 8 that are scored, $\lvert G\rvert$ in the vote term is all of them (`votes.of`), so 8 up-votes on a trip of 20 add 0.4, not 1.
 - `agreement` in `GroupItem` = $1 - \min(1, s/3)$.
+- At most 8 members are scored one by one (the caller first). The under-21 rule and the votes cover every member read (up to 64): if anyone on the trip is under 21, nobody gets nightlife for it. Whether the caller is on the trip is a direct lookup, not a search of a page of members.
 
-The why line for a group item: "Everyone's at 8+ here" (min ≥ 8), else "Best overlap: Ethan 9.1, Bryan 7.8" (highest and lowest member), plus the tag.
+The why line for a group item: "Everyone's at 8+ here" (min ≥ 8), else "Best overlap: Ethan 9.1, Bryan 7.8" (highest and lowest member, rounded to one decimal exactly as `memberScores` on the same card), plus the tag.
 
 ### 5.2 Fairness across stops
 
@@ -480,7 +509,7 @@ export function feedScore(p: { ageMs: number; closeness: number; relevant: boole
 | Case | What we know | What we do |
 | --- | --- | --- |
 | New user | 6 quiz answers | `quizToVector` → $\mathbf t_u$ and the prior $\mathbf t_u^{(0)}$. Every comparison then moves $\mathbf t_u$; the prior pulls back gently so one odd night can't wreck it. |
-| New user, no quiz | nothing | `NEUTRAL_TASTE`: scores come from the crowd, quality and distance. |
+| New user, no quiz | nothing | `NEUTRAL_TASTE`: scores come from the crowd, quality and distance. A "loved" then moves taste 10% toward the place (`LOVED_STEP_NO_QUIZ`) instead of 3%: section 9.3. |
 | New place | category, tags, text | The featurizer's vector is the prior; `blendVector` (3b) replaces it as answers arrive; $\lambda_i = 0$, so the score is content only. |
 | New event | title, performers, venue | Same, plus $P_{ui}$ from performers (section 4) and, if the event is at a known place, that place's blended vector as the prior. |
 | New performer | genres | Performer vector from genres; spill-over from similar performers. |
@@ -488,10 +517,10 @@ export function feedScore(p: { ageMs: number; closeness: number; relevant: boole
 **Exploration bonus.** A place with no ratings can't earn a crowd score unless someone goes, and nobody goes unless it is shown. So unrated places get a small boost in the **order** (never in the shown score), which fades as ratings arrive:
 
 $$
-E_i = \frac{c_E}{\sqrt{1 + n_i}}, \qquad c_E = 0.6
+E_i = \frac{c_E}{\sqrt{1 + n_i}}, \qquad c_E = 0.4
 $$
 
-This is the optimism rule from UCB (Auer et al., 2002; Li et al., 2010): act as if an uncertain option is as good as it plausibly could be, and the uncertainty shrinks like $1/\sqrt{n}$. It is deterministic, which a reactive query needs.
+This is the optimism rule from UCB (Auer et al., 2002; Li et al., 2010): act as if an uncertain option is as good as it plausibly could be, and the uncertainty shrinks like $1/\sqrt{n}$. It is deterministic, which a reactive query needs. $c_E$ started at 0.6. The simulator measured that as costing 0.013 NDCG@10 on the five test worlds of section 9 (0.010 on the 12 tuning worlds), over the budget of 0.01, so it is 0.4: 0.008 on the test worlds (0.006 on the tuning worlds).
 
 **One "new on clubi" slot.** If none of the top 5 has $n_i < 3$ (`NEW_ITEM_MAX_RATINGS`), slot 5 goes to the best-ordered item with $n_i < 3$ and content score ≥ 7 (`NEW_SLOT_MIN_CONTENT`), with the tag "New on clubi". If there is none, the list is left alone.
 
@@ -505,7 +534,7 @@ The ×10 puts similarity on the score's scale. Also allow at most 3 of the 5 fro
 
 ```ts
 // convex/lib/recs.ts
-export const EXPLORE_C = 0.6, MMR_MU = 0.75, NEW_ITEM_MAX_RATINGS = 3;
+export const EXPLORE_C = 0.4, MMR_MU = 0.75, NEW_ITEM_MAX_RATINGS = 3;
 export const exploreBonus = (n: number) => EXPLORE_C / Math.sqrt(1 + n);
 export function mmrPick<T extends { order: number; vector: number[]; category: string }>(pool: T[], k: number): T[];
 ```
@@ -516,42 +545,146 @@ export function mmrPick<T extends { order: number; vector: number[]; category: s
 
 ## 9. Checking that it works
 
-There are no real users yet, so we test against simulated ones whose true taste we know. One file, `tests/sim.test.mjs`, pure functions only, run by `npm test`, under 5 seconds, fixed seed (write a small `mulberry32` generator; never `Math.random()`).
+There are no real users yet, so we test against simulated ones whose true taste we know. One file, `tests/brain.sim.test.mjs`, pure functions only, run by `npm test`. It simulates five worlds from fixed seeds (a small `mulberry32` generator, never `Math.random()`), averages them, prints the tables below and takes about 1.4 seconds. One world alone has only about 340 held-out pairs, which is too few to read a 0.01 difference from. `SIM_SEED=20261120 SIM_WORLDS=12 node --test tests/brain.sim.test.mjs` prints the same report for the 12 "tuning worlds" quoted below.
 
 **The world**
 
-- 200 users. True taste $\boldsymbol\tau_u$ = one of 5 archetypes (club kid, dive-bar regular, foodie, culture-and-outdoors, live-music fan) plus noise (sd 0.12), clipped to $[0,1]$. Home city: 60% locals.
-- 300 venues across the 6 categories. True vector $\boldsymbol\phi_i$, hidden quality $q_i \sim N(0, 0.5)$. **Featurizer guess** = $\boldsymbol\phi_i$ + noise (sd 0.25), clipped: this models bad keyword vectors.
-- True enjoyment: $y_{ui} = \text{contentScore}(\boldsymbol\tau_u, \boldsymbol\phi_i) + q_i + N(0, 0.5)$.
-- 20 performers with genre vectors; 60 of the venues are events with 1–2 performers; a user's true enjoyment gets +1.5 for a favourite performer.
+- 200 users. True taste $\boldsymbol\tau_u$ = one of 5 archetypes (club kid, dive-bar regular, foodie, culture-and-outdoors, live-music fan) plus noise (sd 0.12), clipped to $[0,1]$. 60% are locals. Each has about 4 friends, 70% of them the same archetype.
+- 300 venues: 90 nightlife, 75 food, 40 culture, 35 outdoors, 35 live, 25 pop-up, each one of a few types per category plus noise (sd 0.08). True vector $\boldsymbol\phi_i$, hidden quality $q_i \sim N(0, 0.5)$. **Featurizer guess** = $\boldsymbol\phi_i$ + noise (sd 0.25), clipped: this models bad keyword vectors. Popularity is log-normal, so a few venues get most of the visits.
+- True enjoyment: $y_{ui} = \text{contentScore}(\boldsymbol\tau_u, \boldsymbol\phi_i) + q_i + N(0, 0.5)$, plus the favourite bonus below.
+- 20 performers. The 60 live and pop-up venues are events with 1–2 performers. Each user has 3 favourites and enjoys an event with one of them 0.5 to 2.5 points more (drawn per user and favourite).
+- **Follows are a noisy copy of the favourites.** A user follows each favourite with probability 0.5, and also 0 to 2 performers who are not favourites and carry no bonus (a friend's tip, an old taste). About 60% of follows point at a real favourite. An earlier version followed only true favourites, which handed the model part of the hidden truth.
 
 **What users do**
 
-- The quiz gives a coarse, noisy $\boldsymbol\tau_u$ (round each entry to the nearest of 0.2 / 0.5 / 0.9).
-- Each user ranks 8–15 venues: bucket from $y$ (≥ 7 loved, ≤ 4 didn't, else fine), position by binary insertion using true $y$, which also produces the comparisons.
-- After 40% of rankings they answer the insight questions: each answer is the option whose target is closest to $\phi_{ik}$ + noise (sd 0.15).
-- Run the real update functions in time order: `updateTaste`, `nudgeTaste`, `updateElo`, `applyAnswers`, the affinity step.
+- **The quiz, taken three ways.** 50% are careful: on each card they pick the options that bring `quizToVector()` closest to their own taste (seen with noise, sd 0.1). That is the best answer the quiz can express, so it is an upper bound on a real quiz-taker. 30% are careless: each card is answered at random with probability 0.5. 20% skip it and start from `NEUTRAL_TASTE`. An earlier version made everyone careful, which made any learning after the quiz look like noise.
+- Each user ranks 8–15 venues: bucket from $y$ (≥ 7 loved, ≤ 4 didn't, else fine), position by binary insertion on true $y$ inside the list for that category and bucket, exactly as `rankings.rank` does. The score a ranking gets is the app's bucket-and-position score. This gives only about 0.5 comparisons per ranking, because most of a new user's lists are empty.
+- After 40% of rankings they answer the questions `pickQuestions` chooses: each answer is the option, among those their venue's category offers, whose target is closest to $\phi_{ik}$ + noise (sd 0.15).
+- The real functions run in time order: `updateTaste`, `lovedStepFor`, `nudgeTaste`, `updateElo`, `pickQuestions`, `cleanAnswers`, `addAnswers`, `measuredVector`, `blendVector`, then `predict`, `performerAffinity`, `exploreBonus`, `groupScore`, `groupScoreV2`, `fairWeights`. The affinity step of section 4.1 is written out in the test, because Data's version is not a pure function yet.
 
-**What to measure**, on 20% of each user's venues held out before training:
+**What is measured**, on 20% of each user's venues held out before training:
 
 | Metric | Definition |
 | --- | --- |
-| Pairwise accuracy | of all held-out pairs $(i, j)$ for the same user, the share where the predicted order matches the order of $y$ |
+| Pairwise accuracy | of all held-out pairs $(i, j)$ for the same user, the share where the predicted order matches the order of $y$ (337 pairs per world) |
+| Pairwise* | the same over every pair among a user's held-out venues and 30 never-seen ones (about 101,000 pairs per world): the stable version of the number above |
 | NDCG@10 | per user, over held-out venues plus 30 never-seen ones, gain = $\max(0, y - 5)$, averaged over users (Järvelin & Kekäläinen, 2002) |
+| Favourite in top 10 | of the events in that list with one of the user's favourite performers, the share ranked in the top 10 |
 | Vector error | mean absolute error between the vector the scorer uses and $\boldsymbol\phi_i$ |
-| Group satisfaction | 100 random groups of 2–5; take the top pick; report the mean of true $y$ across members and the minimum |
+| Group satisfaction | 100 random groups of 2–5 per world, 40 candidate venues each; take the top pick; report the mean of true $y$ across members and the minimum |
 
-**Compare** four models: quiz-only cosine, v3, v4, and v4 with one term switched off at a time.
+**Models.** Content only = the content score with nothing else, from the quiz taste and the featurizer's vectors, or from the taste and vectors after training ("learned taste"). v3 = section 1. v4 = section 2 as built (measured vectors, performer term, capped quality; the also-loved term is not built). v3 and v4 run with the same constants, so the gap between them is what v4 adds, not what tuning added. The performer term is also split in two: "follows only" ignores every affinity learned from rankings, "learned affinity only" ignores every follow.
 
-**Targets** (record v3's numbers in the test output first, then assert):
+### 9.1 Results
 
-- v4 pairwise accuracy ≥ v3 + 0.03, and NDCG@10 ≥ v3 + 0.02.
-- Vector error for venues with ≥ 10 answers is at most half of the featurizer's error.
-- For events with a favourite performer: v4 ranks them in the user's top 10 at least twice as often as v3.
-- Group: v4's minimum satisfaction ≥ the average-only strategy + 0.5, while its mean drops by ≤ 0.2.
-- No term makes things worse: switching any single term off must not *raise* pairwise accuracy by more than 0.005. If it does, lower that term's weight.
+Five worlds, seeds 20261115 to 20261119, averaged.
 
-**What to tune, in this order:** `INSIGHT_N0` (3–8), `ALSO_IOTA` (0.3–1.0), `CROWD_HALF_WEIGHT` (2–5), `TASTE_ETA` (0.1–0.3), `GROUP_PSI` (0.3–0.8), `EXPLORE_C` (0.3–0.8; it should cost under 0.01 NDCG). Change one, re-run, keep it only if the target metric improves. Print a small table from the test so the numbers can go on the slide.
+| Model | Pairwise | Pairwise* | NDCG@10 | Favourite in top 10 |
+| --- | --- | --- | --- | --- |
+| Content only (quiz taste) | 0.635 | 0.633 | 0.769 | 0.504 |
+| Content only (learned taste) | 0.631 | 0.637 | 0.775 | 0.501 |
+| v3 | 0.704 | 0.676 | 0.801 | 0.475 |
+| **v4** | **0.704** | **0.681** | **0.812** | **0.705** |
+| v4 without measured vectors | 0.705 | 0.681 | 0.812 | 0.705 |
+| v4 without the performer term | 0.703 | 0.677 | 0.801 | 0.474 |
+| v4, follows only | 0.706 | 0.681 | 0.812 | 0.679 |
+| v4, learned affinity only (every follow off) | 0.701 | 0.677 | 0.803 | 0.516 |
+| v4 without the cap on quality | 0.704 | 0.681 | 0.812 | 0.705 |
+| v4 without the crowd | 0.637 | 0.650 | 0.797 | 0.682 |
+| v4 without the quality term | 0.705 | 0.681 | 0.811 | 0.720 |
+| v4 with exploration in the order | 0.707 | 0.677 | 0.805 | 0.707 |
+
+v4 minus v3: pairwise **+0.000** (per world −0.011 to +0.009: a tie), pairwise* **+0.005** (+0.003 to +0.006), NDCG@10 **+0.012** (+0.009 to +0.015). On the 12 tuning worlds the gaps are +0.003 (−0.027 to +0.017), +0.006 (+0.004 to +0.008) and +0.013 (+0.008 to +0.019): v4 is ahead in all 12 on pairwise* and NDCG@10, and not on the small held-out pairwise set.
+
+**Nearly all of that gap is the follows.** "Follows only" equals full v4 (0.681 / 0.812). With every follow switched off, v4 is 0.677 / 0.803 against v3's 0.676 / 0.801: ahead by 0.001 and 0.002, which is a tie (the test asserts only that it is not behind). So the +0.012 NDCG@10 measures how well follows point at what users enjoy, here 60% of the time, and not something the model learns.
+
+By how the quiz was taken (pairwise* / NDCG@10):
+
+| Quiz | Users per world | Quiz alone | Learned taste alone | v3 | v4 |
+| --- | --- | --- | --- | --- | --- |
+| Careful | 95 | 0.674 / 0.822 | 0.669 / 0.817 | 0.698 / 0.827 | 0.701 / 0.836 |
+| Careless | 61 | 0.608 / 0.742 | 0.614 / 0.750 | 0.660 / 0.788 | 0.665 / 0.798 |
+| Skipped | 44 | 0.578 / 0.691 | 0.600 / 0.719 | 0.654 / 0.763 | 0.660 / 0.782 |
+
+| Venue vector error | Featurizer | Measured blend |
+| --- | --- | --- |
+| All venues, all 13 features | 0.162 | 0.160 |
+| Venues with 10+ respondents (9 per world), all features | 0.156 | 0.128 |
+| The same venues, only the features measured there (a question 5+ people answered) | 0.168 | 0.068 |
+| Measured features with 5+ answers' weight behind them (67 per world) | 0.159 | 0.073 |
+
+| Group pick | Mean | Minimum |
+| --- | --- | --- |
+| Average only | 8.66 | 7.59 |
+| Least misery only | 8.63 | 7.69 |
+| Old `groupScore` (v3) | 8.66 | 7.67 |
+| `groupScoreV2` (v4) | 8.64 | 7.69 |
+| Three stops, equal say (members' average over the night) | 8.57 | 7.94 |
+| Three stops, `fairWeights` | 8.57 | 7.94 |
+
+`groupScoreV2` and the old `groupScore` are equal here to within 0.03 on both numbers (8.68 / 7.75 against 8.71 / 7.75 on the 12 tuning worlds). Both beat plain averaging on the minimum by about 0.1. Votes are not simulated.
+
+### 9.2 The targets, set before any number existed
+
+| Target | Result | |
+| --- | --- | --- |
+| v4 pairwise accuracy ≥ v3 + 0.03 | +0.000 (+0.005 on pairwise*) | **not met** |
+| v4 NDCG@10 ≥ v3 + 0.02 | +0.012, nearly all from follows | **not met** |
+| Vector error for venues with ≥ 10 answers at most half the featurizer's | 0.068 against 0.168 (40%) on the features measured there; 0.128 against 0.156 over all 13 | met on what is measured, **not met** over the whole vector |
+| A favourite performer's event in the top 10 twice as often as v3 | 0.705 against 0.475: 1.5 times | **not met** |
+| Group minimum ≥ average-only + 0.5, mean down by ≤ 0.2 | +0.10, mean −0.02 | **not met** |
+| No term raises pairwise accuracy by more than 0.005 when switched off | no term raises pairwise* by more than 0.001 | met |
+| Exploration costs under 0.01 NDCG@10 | 0.008 | met, after lowering `EXPLORE_C` |
+
+Why v4 is only a little ahead of v3:
+
+- **The performer term is worth what the follows are worth.** It acts on an event with a performer the user follows or has rated: roughly one candidate in twenty. Follows alone give the whole gain (+0.011 NDCG@10 over no performer term) and put favourites' events in the top 10 at 0.679 against 0.474. They cannot double that share: the list is 33 venues long, v3 already gets 47% in, and half of each user's favourites are not followed.
+- **An affinity learned from rankings adds almost nothing yet, and used at full strength it hurt.** Users rank 8–15 venues, so a performer is nearly always known from one night, and that night's score is mostly the venue. Unshrunk, "learned affinity only" was 0.670 / 0.794 against 0.670 / 0.795 with no performer term (pairwise* / NDCG@10, 12 tuning worlds), and it took 0.003 NDCG@10 off full v4. Shrunk by $n/(n+1)$ (section 4.1) it is 0.671 / 0.796 there and 0.677 / 0.803 against 0.677 / 0.801 on the test worlds: never below, and it lifts favourites' events from 0.474 to 0.516.
+- **Measured vectors are almost switched off in this world by the 5-respondent rule.** 705 answer sets land on 223 venues, about 3 each, and a venue's questions rotate, so only about 67 features per world have a question 5 people answered. Where they do, the error falls from 0.159 to 0.073; over the whole catalogue it moves from 0.162 to 0.160, and the ranking does not change (under 0.001). Letting single answers move the vector, as before the rule, was worth +0.002 pairwise* and +0.003 NDCG@10 here: that is what the privacy rule of section 3b costs at this answer density. The term grows with use.
+- **The cap on quality never binds**: with about 6 comparisons per venue no Elo gets near ±3.3.
+- **The group target was out of reach in this world.** Pure least misery only gains 0.10 on the minimum over plain averaging. With 40 candidates there is nearly always a place the whole group likes, so the rules mostly pick the same venue. The disagreement penalty and the fairness weights change very few picks (`GROUP_PSI` 0 against 0.8 moves the mean by 0.07 and the minimum by 0.02; `FAIRNESS_ETA` 20 adds 0.02 for the least happy member over three stops).
+
+### 9.3 What tuning changed
+
+One constant at a time. Gains are for v4, paired, on the 12 tuning worlds (seeds 20261120 to 20261131), which are not in the test.
+
+| Constant | Was | Now | Pairwise | Pairwise* | NDCG@10 | Why it helps |
+| --- | --- | --- | --- | --- | --- | --- |
+| `LOVED_STEP` | 0.1 for everyone | 0.03 with a quiz, 0.1 without (`LOVED_STEP_NO_QUIZ`) | +0.004 | +0.004 | +0.006 | A "loved" pulled the whole taste vector 10% toward one venue's vector, noise included, and a venue vector is not a taste vector. That only pays when there is no stated taste to damage. |
+| `CROWD_HALF_WEIGHT` | 3 | 5 | +0.003 | +0.003 | +0.004 | With a handful of raters the crowd carried over half the score. See the first point of 9.4. |
+| `AFFINITY_EVIDENCE_PRIOR` | none (full strength) | 1 | +0.002 | +0.000 | +0.003 | One ranked night is weak evidence about the act (9.2). |
+| `EXPLORE_C` | 0.6 | 0.4 | | | cost 0.010 → 0.006 (test worlds: 0.013 → 0.008) | The budget above. |
+
+**`LOVED_STEP` by quiz group** (pairwise* / NDCG@10, 12 tuning worlds), because the first tuning pass only had careful quiz-takers:
+
+| Quiz | 0.1 for everyone | 0.03 for everyone | As shipped |
+| --- | --- | --- | --- |
+| Careful | 0.691 / 0.825 | 0.700 / 0.836 | 0.700 / 0.836 |
+| Careless | 0.662 / 0.792 | 0.661 / 0.792 | 0.661 / 0.793 |
+| Skipped | 0.637 / 0.763 | 0.631 / 0.757 | 0.636 / 0.763 |
+
+The small step is right for a careful quiz (+0.009 / +0.011), makes no difference for a careless one, and is wrong for no quiz (−0.006 / −0.006). The backend can tell "no quiz" (the prior is `NEUTRAL_TASTE`) but not "careless", so the rule is by prior. A step that shrinks with the number of rankings, or grows with how badly the taste predicted the place, was tried and was worse for careful users without being better for the others. `LOVED_STEP_NO_QUIZ` 0.2 gains another 0.004 / 0.003 for skipped users on the tuning worlds and nothing on the test worlds, so it stays at the v3 value.
+
+With the three old values back (0.1, 3, 0.6) and everything else as now, v4 is 0.677 / 0.667 / 0.799 on the 12 tuning worlds against 0.678 / 0.675 / 0.808 as shipped, and 0.694 / 0.673 / 0.801 against 0.704 / 0.681 / 0.812 on the five test worlds (v3: 0.691 / 0.668 / 0.788 to 0.704 / 0.676 / 0.801). `WHY_SOCIAL_LAMBDA` follows `CROWD_HALF_WEIGHT` (0.4 → 2/7), so "Albert gave it 9.1" still appears at the same rater weight as before.
+
+Tried and left alone (v4, 12 tuning worlds, pairwise / pairwise* / NDCG@10): `INSIGHT_N0` 3 (0.000 on all three), `TASTE_ETA` 0.15 (−0.001 / +0.001 / +0.001), `GAMMA_ELO` 0.15 (+0.002 / +0.001 / 0.000), `PSEUDO_VOTES` 3 (+0.001 / −0.001 / −0.002), `AFFINITY_EVIDENCE_PRIOR` 2 (+0.001 on all three), `FOLLOW_FLOOR` 9 (+0.001 on all three; it rests on how often a follow is a real favourite, which is a guess here), `GROUP_PSI`, `FAIRNESS_ETA`. Three larger ones were left on purpose: `PSEUDO_VOTES` 1 (+0.001 / +0.001 / +0.003) and `CROWD_HALF_WEIGHT` 8 (+0.004 / +0.001 / +0.002) both change how much a few ratings count, and this world is a poor judge of the crowd (9.5); `LOVED_STEP` 0 for quiz users (+0.003 / +0.001 / +0.001) would leave the bucket with no effect on a first ranking in a list, where there is nothing to compare against.
+
+### 9.4 What the simulator says to build next
+
+1. **Use the crowd as a correction, not as a second score.** Today a rated venue's score is pulled toward its raters' average, which sits on a narrower scale than the content score (a lone "loved" is 8.35), so the best matches lose points for having been rated and unrated venues pass them. Replacing the crowd score by the weighted mean of (rating − that rater's own content score), added to the viewer's content score, is the classic baseline-plus-neighbourhood form (Koren, Bell & Volinsky, 2009). It was tried in a scratch copy in the first version of this world, where every user took the quiz carefully, and gave +0.035 pairwise, +0.019 pairwise* and +0.019 NDCG@10 over v4 there. **It has not been measured again in the mixed world of this section**, where the crowd already matters much more (switching it off costs 0.031 pairwise* and 0.015 NDCG@10, against 0.022 and 0.003 before). It changes `predict()`, the why lines and `debug.explain`, so it is a v5 change.
+2. **Taste learning beats a skipped or careless quiz, and not yet a careful one.** Content score alone, learned taste against quiz taste (pairwise* / NDCG@10): skipped 0.600 / 0.719 against 0.578 / 0.691, careless 0.614 / 0.750 against 0.608 / 0.742, careful 0.669 / 0.817 against 0.674 / 0.822. So for the half of users who answered well, 8–15 rankings still make the taste slightly worse on its own, and everything v3 and v4 gain for them comes from the crowd and the follows. Two causes: the rank flow produces only about 0.5 comparisons per ranking (lists are per category and bucket), and the bucket nudge copies venue noise into the taste. More comparisons per ranking (compare across buckets, or against a friend's list) would give `updateTaste` something to learn from.
+3. **Performers:** the learned half needs more than one night per act to say anything. Counting "going" and saves for an act's events, and the genre spill-over of section 4.1, would give it evidence sooner.
+4. **Groups:** keep `groupScoreV2` for the votes and the agreement value it returns, not for accuracy. To see a difference the simulator would need groups that really disagree (fewer candidates, one member with a hard dislike).
+
+### 9.5 What this test cannot tell us
+
+- **How good real follows are.** Here 60% of follows point at a performer the user really enjoys more, by 0.5 to 2.5 points. The whole v4-over-v3 gap scales with those two guesses; with every follow off, v4 and v3 tie.
+- **How people really take the quiz.** The careful half answers as well as the quiz allows (an oracle), and the 50 / 30 / 20 split is a guess. More careless or skipped quizzes make learning and the crowd worth more and the small `LOVED_STEP` worth less. The backend cannot tell a careless quiz from a careful one.
+- **How many answers a venue gets.** At about 3 answer sets per venue, the 5-respondent rule keeps nearly every vector at its prior, so this test says little about measured vectors beyond "where they exist, the error halves".
+- True enjoyment is built from the same 13 features the content score uses, plus one shared quality number. Real taste has parts no feature captures, and those are what a crowd of similar people knows. So this world flatters the content score and undervalues the crowd; `CROWD_HALF_WEIGHT` was therefore kept inside its planned range.
+- Locals are no better informed than visitors here, so the local weights cannot be judged. Switching them off looks like a gain only because it lowers the crowd share.
+- Only the cost of exploration is measured, not what it buys (ratings for new places).
+- One city, one moment: no distance, opening hours or time of day.
 
 ---
 

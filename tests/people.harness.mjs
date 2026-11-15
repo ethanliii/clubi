@@ -65,6 +65,26 @@ class Query {
     this.conditions = [];
     this.direction = "asc";
     this.searchText = null;
+    this.predicates = [];
+  }
+
+  // `.filter((q) => ...)`: expressions are built as functions of a document.
+  filter(build) {
+    const of = (x) => (typeof x === "function" ? x : () => x);
+    const compare = (test) => (a, b) => (doc) => test(compareValues(of(a)(doc), of(b)(doc)));
+    this.predicates.push(build({
+      field: (name) => (doc) => doc[name],
+      eq: compare((order) => order === 0),
+      neq: compare((order) => order !== 0),
+      lt: compare((order) => order < 0),
+      lte: compare((order) => order <= 0),
+      gt: compare((order) => order > 0),
+      gte: compare((order) => order >= 0),
+      and: (...parts) => (doc) => parts.every((part) => of(part)(doc)),
+      or: (...parts) => (doc) => parts.some((part) => of(part)(doc)),
+      not: (part) => (doc) => !of(part)(doc),
+    }));
+    return this;
   }
 
   withIndex(name, range) {
@@ -151,25 +171,38 @@ class Query {
     return rows.map((row) => structuredClone(row));
   }
 
+  passes(doc) {
+    return this.predicates.every((predicate) => predicate(doc));
+  }
+  filtered() {
+    return this.rows().filter((doc) => this.passes(doc));
+  }
   async collect() {
-    return this.rows();
+    return this.filtered();
   }
   async take(n) {
-    return this.rows().slice(0, n);
+    return this.filtered().slice(0, n);
   }
   async first() {
-    return this.rows()[0] ?? null;
+    return this.filtered()[0] ?? null;
   }
   async unique() {
-    const rows = this.rows();
+    const rows = this.filtered();
     if (rows.length > 1) throw new Error("unique() found more than one row");
     return rows[0] ?? null;
   }
-  async paginate({ numItems, cursor }) {
+  // Like Convex: the cursor is a position in the index, filters run before `numItems` is counted,
+  // and `maximumRowsRead` stops the scan early (the page is then short and not done).
+  async paginate({ numItems, cursor, maximumRowsRead = Infinity }) {
     const rows = this.rows();
     const start = cursor === null || cursor === undefined ? 0 : Number(cursor);
-    const page = rows.slice(start, start + numItems);
-    return { page, isDone: start + numItems >= rows.length, continueCursor: String(start + page.length) };
+    const page = [];
+    let position = start;
+    while (position < rows.length && page.length < numItems && position - start < maximumRowsRead) {
+      if (this.passes(rows[position])) page.push(rows[position]);
+      position += 1;
+    }
+    return { page, isDone: position >= rows.length, continueCursor: String(position) };
   }
 }
 

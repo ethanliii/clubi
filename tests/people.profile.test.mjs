@@ -214,3 +214,13 @@ test("a very large account is deleted in batches: signed out at once, finished i
   assert.equal(await t.db.get(me), null);
   assert.equal(t.all("saves").length, 0);
 });
+
+test("profile counts shown to other people leave out private rankings and posts", async () => {
+  const { t, me, friend, stranger, bars, cafe, rank } = await world();
+  await rank(friend, bars[0], { visibility: "private" });
+  await rank(friend, bars[1]);
+  await rank(friend, cafe, { visibility: "public" });
+  assert.deepEqual((await t.run(profile.get, friend, {})).counts, { ranked: 3, friends: 1, posts: 3 });
+  assert.deepEqual((await t.run(profile.get, me, { userId: friend })).counts, { ranked: 2, friends: 1, posts: 2 });
+  assert.deepEqual((await t.run(profile.get, stranger, { userId: friend })).counts, { ranked: 2, friends: 1, posts: 2 });
+});

@@ -4,12 +4,12 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
-import { internalQuery, mutation, query, QueryCtx } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
 import type { Category, InsightAnswer, InsightQuestion, VenueDashboard, VenueInsights } from "./lib/contract";
 import { Candidate, getCandidate, isUnder21, sameCity, venueVectorOf } from "./lib/discovery";
 import {
   ALSO_LOVED_SIZE, ALSO_MIN_SUPPORT, Counts, MAX_ANSWERS_PER_SUBMIT, addAnswers, audienceProfile, blendVector, bucketCounts,
-  cleanAnswers, coLoved, hasObservations, histogram, lift, observedVector, pickQuestions, removeAnswers, summarize,
+  cleanAnswers, coLoved, hasObservations, histogram, lift, measuredVector, pickQuestions, removeAnswers, summarize,
   weeklyTrend, winRecord,
 } from "./lib/insights";
 import { FEATURES } from "./lib/recs";
@@ -22,7 +22,13 @@ const MAX_AUDIENCE_USERS = 150;
 const COMPARISON_SCAN = 2000;         // comparisons has no index by item yet (ALGORITHM.md 3e)
 const MAX_BEATS = 10;
 const ALSO_MAX_LOVERS = 50;
-const ALSO_LISTS_PER_LOVER = 30;
+/** A lover's rankings read for "also loved": the newest in the venue's own category, and a few in each other one. */
+const ALSO_OWN_CATEGORY_ROWS = 20;
+const ALSO_OTHER_CATEGORY_ROWS = 2;
+const CATEGORIES: Category[] = ["nightlife", "food", "culture", "outdoors", "live", "popup"];
+/** forgetAnswers without a venue: how many of a person's answer rows one call looks at, and how many venues it clears. */
+const FORGET_SCAN_ROWS = 200;
+const FORGET_MAX_TARGETS = 25;
 const ALSO_MAX_CANDIDATES = 8;
 const ALSO_RATERS_PER_CANDIDATE = 150;
 
@@ -44,11 +50,117 @@ function rankingsOf(ctx: QueryCtx, candidate: Candidate, limit: number): Promise
   return ctx.db.query("rankings").withIndex("by_event", (q) => q.eq("eventId", eventId)).order("desc").take(limit);
 }
 
-/** Under-21 users never get nightlife, here as everywhere else. */
-async function hiddenFrom(ctx: QueryCtx, userId: Id<"users"> | null, category: Category): Promise<boolean> {
-  if (category !== "nightlife" || userId === null) return false;
+/** True when this signed-in user is under 21. Under-21 users never get nightlife, here as everywhere else. */
+async function isUnder21User(ctx: QueryCtx, userId: Id<"users"> | null): Promise<boolean> {
+  if (userId === null) return false;
   const user = await ctx.db.get(userId);
   return user !== null && isUnder21(user.birthday, Date.now());
+}
+
+const hiddenFrom = async (ctx: QueryCtx, userId: Id<"users"> | null, category: Category) =>
+  category === "nightlife" && (await isUnder21User(ctx, userId));
+
+/**
+ * What insights.venue returns when there is nothing to say: an id nobody knows, or nightlife for someone
+ * under 21. The contract's shape with nothing in it, so a screen can read `highlights` without a null check.
+ */
+const emptyInsights = (kind: "place" | "event", id: string): VenueInsights => ({
+  kind, id: id as ItemId, nRatings: 0, nAnswers: 0, distributions: [], highlights: [], bestFor: [], confidence: "low",
+});
+
+const emptyDashboard = (kind: "place" | "event", id: string): VenueDashboard => ({
+  ...emptyInsights(kind, id),
+  audience: [], localsPct: 0, buckets: { loved: 0, fine: 0, didnt: 0 },
+  visitsByHour: histogram([], 24), visitsByDay: histogram([], 7), beats: [], alsoLoved: [], trend: [],
+});
+
+/** My answer rows for one venue taken out of its totals and deleted. Returns the totals without them. */
+async function takeBackAnswers(
+  ctx: MutationCtx, userId: Id<"users">, targetId: ItemId, stats: Doc<"venueStats"> | null,
+): Promise<{ counts: Counts; localCounts: Counts; removed: number }> {
+  let counts = addAnswers(stats?.counts as Counts | undefined, []);
+  let localCounts = addAnswers(stats?.localCounts as Counts | undefined, []);
+  const old = await ctx.db
+    .query("visitAnswers")
+    .withIndex("by_user_target", (q) => q.eq("userId", userId).eq("targetId", targetId))
+    .take(MAX_MY_ANSWER_ROWS);
+  for (const row of old) {
+    const earlier: InsightAnswer[] = [{ questionId: row.questionId, optionIds: row.optionIds }];
+    counts = removeAnswers(counts, earlier);
+    if (row.wasLocal === true) localCounts = removeAnswers(localCounts, earlier);
+    await ctx.db.delete(row._id);
+  }
+  return { counts, localCounts, removed: old.length };
+}
+
+/**
+ * Writes a venue's totals and re-measures it: `venueStats`, and the blended vector in `learnedVector` on the
+ * place or event (the only field touched there). Only questions at least MIN_SHOW people answered feed the
+ * vector (measuredVector): one person's answers must not be readable back from a venue's features or score.
+ */
+async function remeasure(
+  ctx: MutationCtx, target: { kind: "place" | "event"; id: ItemId; doc: Candidate["doc"] | null },
+  stats: Doc<"venueStats"> | null, counts: Counts, localCounts: Counts, nAnswers: number, now: number,
+): Promise<void> {
+  const category = target.doc?.category;
+  const observed = category === undefined ? undefined : measuredVector(category, counts, localCounts);
+  const totals = {
+    nAnswers, counts, localCounts, observedVector: observed?.vector, observedWeight: observed?.weight, updatedAt: now,
+  };
+  if (stats === null) await ctx.db.insert("venueStats", { targetKind: target.kind, targetId: target.id, ...totals });
+  else await ctx.db.patch(stats._id, totals);
+  if (target.doc === null || observed === undefined) return;
+
+  // The prior is the featurizer's guess (venueVector or the category preset), never an earlier blend,
+  // so re-submitting cannot compound. With nothing measured the field is cleared and the prior is used.
+  const prior = venueVectorOf({ venueVector: target.doc.venueVector, category: target.doc.category });
+  const learnedVector = hasObservations(observed.weight) && prior.length === FEATURES.length
+    ? blendVector(prior, observed.vector, observed.weight)
+    : undefined;
+  // Nothing measured before and nothing now: leave the catalog row alone, so no list re-runs for it.
+  if (learnedVector === undefined && target.doc.learnedVector === undefined) return;
+  if (target.kind === "place") await ctx.db.patch(target.id as Id<"places">, { learnedVector });
+  else await ctx.db.patch(target.id as Id<"events">, { learnedVector });
+}
+
+/**
+ * Takes a person's answers back out of the venue totals and deletes their rows, then re-measures each venue:
+ * what insights.submit does with an empty answer list. With `targetId`: that one venue. Without: the venues of
+ * the person's first FORGET_SCAN_ROWS answer rows, at most FORGET_MAX_TARGETS per call; call again while `more`.
+ *
+ * INTEGRATION (People): call this BEFORE deleting visitAnswers rows, because the totals can only be corrected
+ * while the rows still say what was answered.
+ *   - users.ts, account deletion: replace the direct delete of `visitAnswers` with
+ *       const forgot = await forgetAnswers(ctx, userId);   // and keep the batch going while forgot.more
+ *   - rankings.remove: `await forgetAnswers(ctx, userId, ranking.placeId ?? ranking.eventId);`
+ */
+export async function forgetAnswers(
+  ctx: MutationCtx, userId: Id<"users">, targetId?: ItemId,
+): Promise<{ removed: number; more: boolean }> {
+  let targets: ItemId[], more = false;
+  if (targetId !== undefined) {
+    targets = [targetId];
+  } else {
+    const rows = await ctx.db
+      .query("visitAnswers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .take(FORGET_SCAN_ROWS);
+    const distinct = [...new Set(rows.map((row) => row.targetId))];
+    targets = distinct.slice(0, FORGET_MAX_TARGETS);
+    more = rows.length === FORGET_SCAN_ROWS || distinct.length > FORGET_MAX_TARGETS;
+  }
+  const now = Date.now();
+  let removed = 0;
+  for (const id of targets) {
+    const stats = await statsOf(ctx, id);
+    const mine = await takeBackAnswers(ctx, userId, id, stats);
+    if (mine.removed === 0) continue;
+    removed += mine.removed;
+    if (stats === null) continue;
+    const doc = await ctx.db.get(id);
+    await remeasure(ctx, { kind: stats.targetKind, id, doc }, stats, mine.counts, mine.localCounts, Math.max(0, stats.nAnswers - 1), now);
+  }
+  return { removed, more };
 }
 
 function insightsOf(candidate: Candidate, stats: Doc<"venueStats"> | null, rankings: Doc<"rankings">[]): VenueInsights {
@@ -81,7 +193,7 @@ export const questionsFor = query({
 /**
  * Saves my answers for one venue, replacing whatever I answered there before, then re-measures the venue:
  * totals in venueStats, and the blended vector in `learnedVector` on the place or event (the only field
- * this touches there).
+ * this touches there). A question starts to move the vector once MIN_SHOW people have answered it here.
  */
 export const submit = mutation({
   args: {
@@ -120,19 +232,7 @@ export const submit = mutation({
     const wasLocal = ranking?.wasLocal ?? sameCity(user.homeCity, doc.city);
 
     const stats = await statsOf(ctx, targetId);
-    let counts = addAnswers(stats?.counts as Counts | undefined, []);
-    let localCounts = addAnswers(stats?.localCounts as Counts | undefined, []);
-
-    const old = await ctx.db
-      .query("visitAnswers")
-      .withIndex("by_user_target", (q) => q.eq("userId", userId).eq("targetId", targetId))
-      .take(MAX_MY_ANSWER_ROWS);
-    for (const row of old) {
-      const earlier: InsightAnswer[] = [{ questionId: row.questionId, optionIds: row.optionIds }];
-      counts = removeAnswers(counts, earlier);
-      if (row.wasLocal === true) localCounts = removeAnswers(localCounts, earlier);
-      await ctx.db.delete(row._id);
-    }
+    const earlier = await takeBackAnswers(ctx, userId, targetId, stats);
 
     const answers = cleanAnswers(doc.category, args.answers);
     const now = Date.now();
@@ -151,50 +251,44 @@ export const submit = mutation({
         hour: ranking?.hour,
       });
     }
-    counts = addAnswers(counts, answers);
-    if (wasLocal) localCounts = addAnswers(localCounts, answers);
-
-    const nAnswers = Math.max(0, (stats?.nAnswers ?? 0) - (old.length > 0 ? 1 : 0) + (answers.length > 0 ? 1 : 0));
-    const observed = observedVector(counts, localCounts);
-    const totals = {
-      nAnswers, counts, localCounts, observedVector: observed.vector, observedWeight: observed.weight, updatedAt: now,
-    };
-    if (stats === null) await ctx.db.insert("venueStats", { targetKind: candidate.kind, targetId, ...totals });
-    else await ctx.db.patch(stats._id, totals);
-
-    // The prior is the featurizer's guess (venueVector or the category preset), never an earlier blend,
-    // so re-submitting cannot compound. With nothing measured the field is cleared and the prior is used.
-    const prior = venueVectorOf({ venueVector: doc.venueVector, category: doc.category });
-    const learnedVector = hasObservations(observed.weight) && prior.length === FEATURES.length
-      ? blendVector(prior, observed.vector, observed.weight)
-      : undefined;
-    if (candidate.kind === "place") await ctx.db.patch(candidate.doc._id, { learnedVector });
-    else await ctx.db.patch(candidate.doc._id, { learnedVector });
+    const counts = addAnswers(earlier.counts, answers);
+    const localCounts = wasLocal ? addAnswers(earlier.localCounts, answers) : earlier.localCounts;
+    const nAnswers = Math.max(0, (stats?.nAnswers ?? 0) - (earlier.removed > 0 ? 1 : 0) + (answers.length > 0 ? 1 : 0));
+    await remeasure(ctx, { kind: candidate.kind, id: targetId, doc }, stats, counts, localCounts, nAnswers, now);
 
     return { saved: answers.length, highlights: summarize(doc.category, counts, nAnswers).highlights };
   },
 });
 
-/** Totals per question, highlights and "best for" for one venue. Nothing is stated under 5 respondents. */
+/**
+ * Totals per question, highlights and "best for" for one venue. Nothing is stated under 5 respondents.
+ * Never null (the contract's shape): an unknown id, or nightlife for someone under 21, comes back empty.
+ */
 export const venue = query({
   args: { kind: kindValidator, id: v.string() },
-  handler: async (ctx, args): Promise<VenueInsights | null> => {
+  handler: async (ctx, args): Promise<VenueInsights> => {
     const candidate = await getCandidate(ctx, args.kind, args.id);
-    if (candidate === null) return null;
-    if (await hiddenFrom(ctx, await getAuthUserId(ctx), candidate.doc.category)) return null;
+    if (candidate === null) return emptyInsights(args.kind, args.id);
+    if (await hiddenFrom(ctx, await getAuthUserId(ctx), candidate.doc.category)) return emptyInsights(args.kind, args.id);
     const stats = await statsOf(ctx, candidate.doc._id);
     return insightsOf(candidate, stats, await rankingsOf(ctx, candidate, MAX_RANKINGS));
   },
 });
 
-/** Everything a venue would want to know about itself (ALGORITHM.md 3e). One venue at a time; never called from a list. */
+/**
+ * Everything a venue would want to know about itself (ALGORITHM.md 3e). One venue at a time; never called
+ * from a list. null only when signed out (contract rule 5): an unknown id, or nightlife for someone under
+ * 21, comes back as an empty dashboard. Someone under 21 never gets a nightlife name in `beats` or `alsoLoved`.
+ */
 export const dashboard = query({
   args: { kind: kindValidator, id: v.string() },
   handler: async (ctx, args): Promise<VenueDashboard | null> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) return null;
     const candidate = await getCandidate(ctx, args.kind, args.id);
-    if (candidate === null || (await hiddenFrom(ctx, userId, candidate.doc.category))) return null;
+    const under21 = await isUnder21User(ctx, userId);
+    const hidden = (category: Category) => under21 && category === "nightlife";
+    if (candidate === null || hidden(candidate.doc.category)) return emptyDashboard(args.kind, args.id);
     const itemId: ItemId = candidate.doc._id;
     const stats = await statsOf(ctx, itemId);
     const rankings = await rankingsOf(ctx, candidate, MAX_RANKINGS);
@@ -213,29 +307,33 @@ export const dashboard = query({
     const beats: VenueDashboard["beats"] = [];
     for (const o of record.opponents.slice(0, MAX_BEATS)) {
       const other = await ctx.db.get(o.id as ItemId);
-      if (other !== null) beats.push({ id: other._id, name: "name" in other ? other.name : other.title, wins: o.wins, losses: o.losses });
+      if (other === null || hidden(other.category)) continue;
+      beats.push({ id: other._id, name: "name" in other ? other.name : other.title, wins: o.wins, losses: o.losses });
     }
 
     // Also loved: what else the people who loved this loved, as lift over how loved those places are anyway.
     const lovedLists: string[][] = [];
     const seenUsers = new Set<Id<"users">>(rankings.map((r) => r.userId));
+    // Each lover's newest rankings are read per category (the index is by category first): mostly the venue's
+    // own category, and a few from each other one so cross-category pairs still show.
+    const ownCategory = candidate.doc.category;
     for (const loverId of loverIds.slice(0, ALSO_MAX_LOVERS)) {
-      const theirs = await ctx.db
+      const theirs = (await Promise.all(CATEGORIES.map((category) => ctx.db
         .query("rankings")
-        .withIndex("by_user_category", (q) => q.eq("userId", loverId))
+        .withIndex("by_user_category", (q) => q.eq("userId", loverId).eq("category", category))
         .order("desc")
-        .take(ALSO_LISTS_PER_LOVER);
+        .take(category === ownCategory ? ALSO_OWN_CATEGORY_ROWS : ALSO_OTHER_CATEGORY_ROWS)))).flat();
       lovedLists.push(theirs.filter((r) => r.bucket === "loved").flatMap((r) => r.placeId ?? r.eventId ?? []));
     }
-    const candidates = coLoved(itemId, lovedLists, ALSO_MIN_SUPPORT).slice(0, ALSO_MAX_CANDIDATES);
     const loaded: { doc: Doc<"places"> | Doc<"events">; kind: "place" | "event"; both: number; lovers: number }[] = [];
-    for (const c of candidates) {
+    for (const c of coLoved(itemId, lovedLists, ALSO_MIN_SUPPORT)) {
+      if (loaded.length >= ALSO_MAX_CANDIDATES) break;
       const placeId = ctx.db.normalizeId("places", c.id);
       const eventId = placeId === null ? ctx.db.normalizeId("events", c.id) : null;
       const other: Candidate | null = placeId !== null
         ? await getCandidate(ctx, "place", placeId)
         : eventId !== null ? await getCandidate(ctx, "event", eventId) : null;
-      if (other === null) continue;
+      if (other === null || hidden(other.doc.category)) continue;
       const theirRatings = await rankingsOf(ctx, other, ALSO_RATERS_PER_CANDIDATE);
       for (const r of theirRatings) seenUsers.add(r.userId);
       const lovers = new Set(theirRatings.filter((r) => r.bucket === "loved").map((r) => r.userId)).size;
@@ -264,6 +362,27 @@ export const dashboard = query({
       alsoLoved,
       trend: weeklyTrend(rankings.map((r) => ({ at: r.visitedAt ?? r._creationTime, score: r.score }))),
     };
+  },
+});
+
+/**
+ * Re-measures every venue that has answers, a page at a time. Run once after deploying the 5-respondent rule:
+ * a `learnedVector` written before it may rest on one person's answers, and it is only rewritten when
+ * someone answers at that venue again. Internal; call with the returned cursor until `isDone`.
+ */
+export const remeasureAll = internalMutation({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const result = await ctx.db.query("venueStats").paginate(args.paginationOpts);
+    const now = Date.now();
+    for (const stats of result.page) {
+      const doc = await ctx.db.get(stats.targetId);
+      await remeasure(
+        ctx, { kind: stats.targetKind, id: stats.targetId, doc }, stats,
+        addAnswers(stats.counts as Counts | undefined, []), addAnswers(stats.localCounts as Counts | undefined, []), stats.nAnswers, now,
+      );
+    }
+    return { isDone: result.isDone, continueCursor: result.continueCursor, remeasured: result.page.length };
   },
 });
 

@@ -60,6 +60,7 @@ function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
           <Pressable
             key={route.key}
             accessibilityRole="tab"
+            accessibilityLabel={tab.label}
             accessibilityState={{ selected: focused }}
             onPress={onPress}
             style={styles.item}

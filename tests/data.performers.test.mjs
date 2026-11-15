@@ -192,3 +192,35 @@ test("alertText and formatEventDay use the event's local day", () => {
     { title: "Fisher is coming to town", body: "Sat Dec 5 · you follow them" },
   );
 });
+
+test("local time does not depend on Intl: the built-in rules agree with it for a whole year", async () => {
+  const { ZONE_RULES, zoneOffsetMinutes, zonedToEpoch } = await load("lib/performers");
+  const HOUR = 60 * 60 * 1000;
+  for (const zone of Object.keys(ZONE_RULES)) {
+    // Every 3 hours across 2026 and 2027, which crosses every daylight-saving change twice.
+    for (let t = Date.UTC(2026, 0, 1); t < Date.UTC(2028, 0, 1); t += 3 * HOUR) {
+      const fromRules = zoneOffsetMinutes(t, zone, false);
+      const fromIntl = zoneOffsetMinutes(t, zone, true);
+      if (fromRules !== fromIntl) assert.fail(`${zone} at ${new Date(t).toISOString()}: rules ${fromRules}, Intl ${fromIntl}`);
+    }
+  }
+  // The exact instants of the changes in San Francisco.
+  assert.equal(zoneOffsetMinutes(Date.UTC(2026, 2, 8, 9, 59), "America/Los_Angeles", false), -480);
+  assert.equal(zoneOffsetMinutes(Date.UTC(2026, 2, 8, 10, 0), "America/Los_Angeles", false), -420);
+  assert.equal(zoneOffsetMinutes(Date.UTC(2026, 10, 1, 8, 59), "America/Los_Angeles", false), -420);
+  assert.equal(zoneOffsetMinutes(Date.UTC(2026, 10, 1, 9, 0), "America/Los_Angeles", false), -480);
+  assert.equal(zoneOffsetMinutes(0, "Mars/Olympus", false), undefined);
+  assert.equal(zoneOffsetMinutes(0, "Mars/Olympus", true), undefined);
+
+  for (const useIntl of [true, false]) {
+    assert.equal(zonedToEpoch("2026-11-15", "16:00", "America/Los_Angeles", useIntl), Date.parse("2026-11-16T00:00:00Z"));
+    assert.equal(zonedToEpoch("2026-07-04", "21:30", "America/Los_Angeles", useIntl), Date.parse("2026-07-05T04:30:00Z"));
+    assert.equal(zonedToEpoch("2026-11-01", "00:30", "America/Los_Angeles", useIntl), Date.parse("2026-11-01T07:30:00Z"));
+    assert.equal(zonedToEpoch("2026-03-29", "12:00", "Europe/London", useIntl), Date.parse("2026-03-29T11:00:00Z"));
+    assert.equal(formatEventDay(Date.UTC(2026, 11, 6, 4), "San Francisco", useIntl), "Sat Dec 5");
+    assert.equal(formatEventDay(Date.UTC(2026, 6, 5, 6, 30), "San Francisco", useIntl), "Sat Jul 4");
+    assert.equal(formatEventDay(Date.UTC(2026, 11, 6, 4), "New York", useIntl), "Sat Dec 5");
+    assert.equal(formatEventDay(Date.UTC(2026, 11, 6, 4), "London", useIntl), "Sun Dec 6");
+  }
+  assert.ok(Number.isNaN(zonedToEpoch("2026-11-15", "16:00", "Mars/Olympus", false)));
+});

@@ -75,13 +75,21 @@ export const get = query({
       .query("rankings")
       .withIndex("by_user_category", (q) => q.eq("userId", userId))
       .take(MAX_RANKINGS_PER_USER);
+    const privateRankings = new Set(
+      posts.flatMap((post) =>
+        post.visibility === "private" && post.rankingId !== undefined ? [post.rankingId] : [],
+      ),
+    );
     const result: ProfileResult = {
       user: { ...cardOf(user), bio: user.bio, isMe, status, requestId },
       canSee: visible,
+      // Other people's counts leave out what was posted privately, so a number can't give it away.
       counts: {
-        ranked: ranked.length,
+        ranked: isMe
+          ? ranked.length
+          : ranked.filter((ranking) => !privateRankings.has(ranking._id)).length,
         friends: await friendCountOf(ctx, userId),
-        posts: posts.length,
+        posts: isMe ? posts.length : posts.filter((post) => post.visibility !== "private").length,
       },
       tasteSummary: [],
       lists: [],

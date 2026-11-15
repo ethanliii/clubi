@@ -5,8 +5,8 @@ import {
   QUESTION_BANK, QUESTIONS_PER_VISIT, RESPONDENTS_KEY, WEEK_MS,
   addAnswers, answerChips, answerEntropy, audienceProfile, averageGroupSize, bestFor, blendVector, bucketCounts,
   chooseQuestions, cleanAnswers, coLoved, confidenceOf, distributions, feedsFeatures, hasObservations, highlights,
-  histogram, isUniversal, lift, observedVector, pickQuestions, questionValue, questionsForCategory, removeAnswers,
-  respondentsOf, summarize, weekStartOf, weeklyTrend, winRecord,
+  histogram, isMeasured, isUniversal, lift, measuredVector, observedVector, pickQuestions, questionValue, questionsForCategory,
+  removeAnswers, respondentsOf, summarize, weekStartOf, weeklyTrend, winRecord,
 } from "../convex/lib/insights.ts";
 import { FEATURES } from "../convex/lib/recs.ts";
 
@@ -296,6 +296,80 @@ test("locals' answers weigh 1.5", () => {
   // And a local's unpicked genres weigh 0.75.
   const m = addAnswers({}, [ans("music", "pop")]);
   assert.equal(observedVector(m, m).weight[F("indie")], 0.5 * LOCAL_ANSWER_WEIGHT);
+});
+
+test("observedVector reads an option's targets from the venue's own category", () => {
+  // "Date night" says "a quiet room" about a bar and nothing about a restaurant (ALGORITHM.md 3a).
+  const dateNight = times(10, [ans("bestfor", "date_night")]);
+  const food = observedVector(dateNight, undefined, "food");
+  assert.deepEqual(food.weight, FEATURES.map(() => 0), "food + date_night feeds no feature");
+  assert.equal(hasObservations(food.weight), false);
+  // So a loud restaurant stays as loud as the featurizer said: the blend is the prior exactly.
+  const prior = FEATURES.map((k) => (k === "loudness" ? 0.8 : 0.3));
+  assert.deepEqual(blendVector(prior, food.vector, food.weight), prior);
+  const bar = observedVector(dateNight, undefined, "nightlife");
+  assert.equal(bar.weight[F("loudness")], 10);
+  near(bar.vector[F("loudness")], 0.3);
+  near(blendVector(prior, bar.vector, bar.weight)[F("loudness")], (INSIGHT_N0 * 0.8 + 10 * 0.3) / (INSIGHT_N0 + 10));
+  // Food's own option with a target still counts, and options another category owns do not.
+  assert.equal(observedVector(times(4, [ans("bestfor", "special_occasion")]), undefined, "food").weight[F("price")], 4);
+  assert.deepEqual(observedVector(times(4, [ans("bestfor", "dancing")]), undefined, "food").weight, FEATURES.map(() => 0));
+  assert.equal(observedVector(times(4, [ans("bestfor", "dancing")]), undefined, "live").weight[F("dancing")], 4);
+  // Questions the category does not ask are not read either: culture never asks how loud it was.
+  assert.deepEqual(observedVector(times(4, [ans("loud", "deafening")]), undefined, "culture").weight, FEATURES.map(() => 0));
+  // Every category's bestfor options carry exactly the targets its own definition has.
+  for (const category of CATEGORIES) {
+    const options = questionsForCategory(category).find((q) => q.id === "bestfor").options;
+    for (const o of options) {
+      const got = observedVector(times(3, [ans("bestfor", o.id)]), undefined, category);
+      const fed = FEATURES.filter((_, k) => got.weight[k] > 0).sort();
+      assert.deepEqual(fed, Object.keys(o.targets ?? {}).sort(), `${category} ${o.id}`);
+    }
+  }
+});
+
+test("measuredVector: a question feeds the vector only once MIN_SHOW people answered it", () => {
+  // One person at a bar: spent $100+, found it empty. Nothing may be readable back from the vector.
+  const one = times(1, [ans("price", "100_plus"), ans("packed", "empty")]);
+  const single = measuredVector("nightlife", one);
+  assert.deepEqual(single.weight, FEATURES.map(() => 0));
+  assert.equal(hasObservations(single.weight), false);
+  const prior = FEATURES.map(() => 0.3);
+  assert.deepEqual(blendVector(prior, single.vector, single.weight), prior);
+  // The unguarded measurement is what gave it away: 6 * blend - 5 * prior was the "$100+" target.
+  const open = observedVector(one, undefined, "nightlife");
+  near((INSIGHT_N0 + 1) * blendVector(prior, open.vector, open.weight)[F("price")] - INSIGHT_N0 * 0.3, 0.95);
+  // Four people: still nothing. The fifth makes the question count, all five at once.
+  for (let n = 1; n < MIN_SHOW; n++) {
+    assert.equal(hasObservations(measuredVector("nightlife", times(n, [ans("price", "100_plus")])).weight), false, `${n} respondents`);
+  }
+  const five = measuredVector("nightlife", times(MIN_SHOW, [ans("price", "100_plus")]));
+  assert.equal(five.weight[F("price")], MIN_SHOW);
+  near(five.vector[F("price")], 0.95);
+  // The rule is per question: five answers about price do not carry one person's answer about the crowd in.
+  const mixed = times(1, [ans("packed", "empty")], times(MIN_SHOW, [ans("price", "20_50")]));
+  const gated = measuredVector("nightlife", mixed);
+  assert.equal(gated.weight[F("price")], MIN_SHOW);
+  assert.equal(gated.weight[F("energy")], 0);
+  // Locals weigh more but are not more people: four locals (weight 6) are still four respondents.
+  const fourLocals = times(4, [ans("packed", "packed")]);
+  assert.equal(observedVector(fourLocals, fourLocals, "nightlife").weight[F("energy")], 4 * LOCAL_ANSWER_WEIGHT);
+  assert.equal(measuredVector("nightlife", fourLocals, fourLocals).weight[F("energy")], 0);
+  // Taking an answer back below the line removes the question again.
+  const back = removeAnswers(times(MIN_SHOW, [ans("price", "100_plus")]), [ans("price", "100_plus")]);
+  assert.equal(measuredVector("nightlife", back).weight[F("price")], 0);
+  // It also reads the category's own options.
+  assert.deepEqual(measuredVector("food", times(9, [ans("bestfor", "date_night")])).weight, FEATURES.map(() => 0));
+});
+
+test("isMeasured: a feature counts as measured from INSIGHT_N0 answers' weight", () => {
+  const weight = FEATURES.map((k) => (k === "loudness" ? INSIGHT_N0 : k === "energy" ? INSIGHT_N0 - 0.5 : 0));
+  assert.equal(isMeasured("loudness", weight), true);
+  assert.equal(isMeasured("energy", weight), false);
+  assert.equal(isMeasured("food", weight), false);
+  assert.equal(isMeasured(undefined, weight), false);
+  assert.equal(isMeasured("loudness", undefined), false);
+  assert.equal(isMeasured("loudness", []), false);
 });
 
 test("blendVector equals the prior exactly with no answers", () => {

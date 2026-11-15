@@ -9,6 +9,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { forgetAnswers } from "./insights";
 import { deletePostCascade } from "./rankings";
 import { FEATURES, quizToVector } from "./scoring";
 
@@ -237,8 +238,8 @@ export async function deleteUserRows(ctx: MutationCtx, userId: Id<"users">): Pro
   await drop(await ctx.db.query("saves").withIndex("by_user", (q) => q.eq("userId", userId)).take(DELETE_BATCH));
   await drop(await ctx.db.query("tripMembers").withIndex("by_user", (q) => q.eq("userId", userId)).take(DELETE_BATCH));
   await drop(await ctx.db.query("tripVotes").withIndex("by_user", (q) => q.eq("userId", userId)).take(DELETE_BATCH));
-  // Rows in tables other sessions own. INTEGRATION (Brain): venueStats totals still count these answers.
-  await drop(await ctx.db.query("visitAnswers").withIndex("by_user", (q) => q.eq("userId", userId)).take(DELETE_BATCH));
+  // Venue answers come out through Brain's helper so the venue totals stay right.
+  if ((await forgetAnswers(ctx, userId)).more) done = false;
   await drop(await ctx.db.query("affinities").withIndex("by_user", (q) => q.eq("userId", userId)).take(DELETE_BATCH));
 
   if (done) {

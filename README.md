@@ -21,6 +21,7 @@ Built at the Consumer Mobile Hackathon (YC SF, Nov 15 2026) by Ethan (backend), 
 | Read this | For |
 | --- | --- |
 | [`docs/UI-SPEC.md`](docs/UI-SPEC.md) | **Bryan:** what every screen does, every button, and which backend function it calls |
+| [`docs/APP.md`](docs/APP.md) | **Anyone building screens:** the routes, shared components and helpers, and the conventions (loading, empty, error, labels) |
 | [`docs/CONTRACT.md`](docs/CONTRACT.md) | Every function the app can call, with its exact shape. Types: `convex/lib/contract.ts` |
 | [`docs/ALGORITHM.md`](docs/ALGORITHM.md) | How scores, group picks, friend suggestions, venue insights and artist alerts work, with the papers behind them |
 | [`docs/SESSIONS.md`](docs/SESSIONS.md) | The three backend sessions: who owns which file, and the rules |

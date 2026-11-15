@@ -205,6 +205,8 @@ async function overpass(center: { lat: number; lng: number }, radiusMeters: numb
 }
 
 type ImportResult = {
+  /** Set when no Overpass server answered: nothing is written and the area is not marked as imported, so it is tried again. */
+  error?: string;
   fetched: number;
   byCategory: Record<string, number>;
   inserted: number;
@@ -232,7 +234,12 @@ export const importOsm = internalAction({
   },
   handler: async (ctx, { lat, lng, radiusMeters, nearLat, nearLng, areaKey }): Promise<ImportResult> => {
     const radius = Math.min(MAX_RADIUS_METERS, Math.max(200, radiusMeters ?? DEFAULT_RADIUS_METERS));
-    const elements = await overpass({ lat, lng }, radius);
+    let elements: OsmElement[];
+    try {
+      elements = await overpass({ lat, lng }, radius);
+    } catch (error) {
+      return { error: String(error instanceof Error ? error.message : error).slice(0, 300), fetched: 0, byCategory: {}, inserted: 0, updated: 0, unchanged: 0, replaced: 0, duplicate: 0, dropped: 0 };
+    }
     const near = { lat: nearLat ?? lat, lng: nearLng ?? lng };
     const rows = elements
       .map(osmToRow)

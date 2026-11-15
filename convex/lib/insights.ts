@@ -434,8 +434,13 @@ export const removeAnswers = (counts: Counts | undefined, answers: readonly Insi
  * 3b: the measured value of each feature (mu) and the weight of answers behind it (n), from the totals.
  * `counts` holds everyone's answers; `localCounts` the subset given by locals, who count
  * LOCAL_ANSWER_WEIGHT instead of 1. Features nobody has spoken to have weight 0 (and value 0).
+ * `category` says whose options are read: "Date night" means a quiet room for a bar and nothing for a
+ * restaurant. Without it the union of every category's options is used (first definition of an id wins).
+ * Questions fewer than `minRespondents` people answered are left out.
  */
-export function observedVector(counts: Counts | undefined, localCounts?: Counts): { vector: number[]; weight: number[] } {
+export function observedVector(
+  counts: Counts | undefined, localCounts?: Counts, category?: Category, minRespondents = 0,
+): { vector: number[]; weight: number[] } {
   const sum = INSIGHT_FEATURES.map(() => 0);
   const weight = INSIGHT_FEATURES.map(() => 0);
   const extra = LOCAL_ANSWER_WEIGHT - 1;
@@ -453,8 +458,8 @@ export function observedVector(counts: Counts | undefined, localCounts?: Counts)
       weight[k] += w;
     }
   };
-  for (const q of QUESTION_BANK) {
-    if (!feedsFeatures(q)) continue;
+  for (const q of category === undefined ? QUESTION_BANK : questionsForCategory(category)) {
+    if (!feedsFeatures(q) || respondentsOf(counts, q) < minRespondents) continue;
     const respondents = read(q.id, RESPONDENTS_KEY);
     for (const o of q.options) {
       const picked = read(q.id, o.id);
@@ -464,6 +469,14 @@ export function observedVector(counts: Counts | undefined, localCounts?: Counts)
   }
   return { vector: sum.map((s, k) => (weight[k] > 0 ? clip01(s / weight[k]) : 0)), weight };
 }
+
+/**
+ * What may leave the backend as a venue vector: the same measurement, from the questions at least MIN_SHOW
+ * people answered at this venue. A vector moved by one person's answers can be solved for those answers
+ * (the prior and n0 are known), so the rule that hides a split under MIN_SHOW respondents applies here too.
+ */
+export const measuredVector = (category: Category, counts: Counts | undefined, localCounts?: Counts, minRespondents = MIN_SHOW) =>
+  observedVector(counts, localCounts, category, minRespondents);
 
 /**
  * 3b: the prior shrunk toward what was measured, f = (n0 * prior + n * mu) / (n0 + n) per feature.
@@ -477,6 +490,13 @@ export function blendVector(prior: number[], observed?: number[], weight?: numbe
     return clip01((Math.max(0, n0) * p + n * mu) / (Math.max(0, n0) + n));
   });
 }
+
+/**
+ * Section 2.3 rule 6: a feature is "measured" once the weight of answers behind it reaches n0, the point
+ * where the blend is at least half what visitors said. `weight` is a venue's `observedWeight`.
+ */
+export const isMeasured = (feature: Feature | undefined, weight: number[] | undefined, n0 = INSIGHT_N0) =>
+  feature !== undefined && weight !== undefined && (weight[INSIGHT_FEATURES.indexOf(feature)] ?? 0) >= n0;
 
 /** True when any feature has answers behind it, i.e. the blend differs from the prior. */
 export const hasObservations = (weight: number[] | undefined) => weight !== undefined && weight.some((w) => w > 0);

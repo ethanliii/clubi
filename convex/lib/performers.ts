@@ -358,16 +358,98 @@ export function shouldAlert(input: AlertInput): boolean {
   return isNearHome(input.homeCity, input.event);
 }
 
-/** "Sat Dec 5" in the event's own time zone. */
-export function formatEventDay(start: number, city?: string): string {
-  const timeZone = cityCenter(city)?.timeZone ?? DEFAULT_TIME_ZONE;
+// ───────────────────────────── local time ─────────────────────────────
+// Convex's runtime does not document `Intl` time-zone support, so nothing here depends on it:
+// `Intl` is used when it works, and these rules (US zones since 2007, UK/EU) when it does not.
+
+type ZoneRule = { standard: number; dst?: "us" | "eu" };
+/** Minutes east of UTC in winter, and which daylight-saving rule applies. */
+export const ZONE_RULES: Record<string, ZoneRule> = {
+  UTC: { standard: 0 },
+  "America/Los_Angeles": { standard: -480, dst: "us" },
+  "America/Denver": { standard: -420, dst: "us" },
+  "America/Phoenix": { standard: -420 },
+  "America/Chicago": { standard: -360, dst: "us" },
+  "America/New_York": { standard: -300, dst: "us" },
+  "America/Anchorage": { standard: -540, dst: "us" },
+  "Pacific/Honolulu": { standard: -600 },
+  "Europe/London": { standard: 0, dst: "eu" },
+};
+const MINUTE_MS = 60 * 1000;
+
+/** Day of the month of the nth Sunday (n = 1, 2, …) or the last Sunday (n = -1) of a month, in UTC terms. */
+function sundayOf(year: number, month: number, n: number): number {
+  if (n > 0) return 1 + ((7 - new Date(Date.UTC(year, month, 1)).getUTCDay()) % 7) + (n - 1) * 7;
+  const last = new Date(Date.UTC(year, month + 1, 0));
+  return last.getUTCDate() - last.getUTCDay();
+}
+
+function ruleOffset(instant: number, rule: ZoneRule): number {
+  if (!rule.dst) return rule.standard;
+  const year = new Date(instant + rule.standard * MINUTE_MS).getUTCFullYear();
+  const [starts, ends] =
+    rule.dst === "us"
+      ? // 2 am local on the second Sunday of March, to 2 am local (daylight time) on the first Sunday of November
+        [
+          Date.UTC(year, 2, sundayOf(year, 2, 2), 2) - rule.standard * MINUTE_MS,
+          Date.UTC(year, 10, sundayOf(year, 10, 1), 2) - (rule.standard + 60) * MINUTE_MS,
+        ]
+      : // 01:00 UTC on the last Sunday of March, to 01:00 UTC on the last Sunday of October
+        [Date.UTC(year, 2, sundayOf(year, 2, -1), 1), Date.UTC(year, 9, sundayOf(year, 9, -1), 1)];
+  return instant >= starts && instant < ends ? rule.standard + 60 : rule.standard;
+}
+
+function intlOffset(instant: number, timeZone: string): number | undefined {
   try {
-    const parts = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone }).formatToParts(start);
-    const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-    return `${pick("weekday")} ${pick("month")} ${pick("day")}`;
+    const format = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hourCycle: "h23",
+      year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric",
+    });
+    const part = Object.fromEntries(format.formatToParts(instant).map((p) => [p.type, Number(p.value)]));
+    const wall = Date.UTC(part.year, part.month - 1, part.day, part.hour, part.minute, part.second);
+    const minutes = Math.round((wall - Math.floor(instant / 1000) * 1000) / MINUTE_MS);
+    return Number.isFinite(minutes) ? minutes : undefined;
   } catch {
-    return new Date(start).toUTCString().slice(0, 11).replace(",", "");
+    return undefined;
   }
+}
+
+/**
+ * Minutes east of UTC in a time zone at an instant (-480 for San Francisco in winter), or
+ * undefined for a zone neither `Intl` nor ZONE_RULES knows. `useIntl: false` forces the rules.
+ */
+export function zoneOffsetMinutes(instant: number, timeZone: string, useIntl = true): number | undefined {
+  const rule = ZONE_RULES[timeZone];
+  const fromIntl = useIntl ? intlOffset(instant, timeZone) : undefined;
+  // A runtime with `Intl` but no zone data answers 0 for every zone: do not believe that for a zone we know is not UTC.
+  if (fromIntl !== undefined && !(fromIntl === 0 && rule && rule.standard !== 0)) return fromIntl;
+  return rule ? ruleOffset(instant, rule) : undefined;
+}
+
+/** Epoch ms of a wall-clock time ("2026-11-15", "16:00") in an IANA time zone, or NaN. */
+export function zonedToEpoch(date: string | undefined | null, time: string | undefined | null, timeZone: string | undefined, useIntl = true): number {
+  const day = date?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const clock = (time ?? "00:00").match(/^(\d{1,2}):(\d{2})/);
+  if (!day || !clock) return NaN;
+  const wall = Date.UTC(+day[1], +day[2] - 1, +day[3], +clock[1], +clock[2]);
+  const zone = timeZone || "UTC";
+  const first = zoneOffsetMinutes(wall, zone, useIntl);
+  if (first === undefined) return NaN;
+  // Two passes settle the offset on either side of a daylight-saving change.
+  const second = zoneOffsetMinutes(wall - first * MINUTE_MS, zone, useIntl) ?? first;
+  return wall - second * MINUTE_MS;
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Sat Dec 5" in the event's own time zone. */
+export function formatEventDay(start: number, city?: string, useIntl = true): string {
+  const timeZone = cityCenter(city)?.timeZone ?? DEFAULT_TIME_ZONE;
+  const offset = zoneOffsetMinutes(start, timeZone, useIntl) ?? 0;
+  const local = new Date(start + offset * MINUTE_MS);
+  return `${WEEKDAYS[local.getUTCDay()]} ${MONTHS[local.getUTCMonth()]} ${local.getUTCDate()}`;
 }
 
 /** Title and body of the artist alert: "Calvin Harris is coming to San Francisco" / "Sat Dec 5 · The Midway · you rated them 9.4". */

@@ -9,19 +9,23 @@ import {
   ALGO, ATTRIBUTION, AffinityRow, Candidate, DEFAULT_LIMIT, DEFAULT_RADIUS_METERS, EVENT_DEFAULT_LENGTH_MS, MAX_CANDIDATES,
   Scored, TONIGHT_WINDOW_MS, UserLoader, Viewer,
   affinitiesOf, avatarUrlOf, displayNameOf, friendIdsOf, getCandidate, haversineMeters, isUnder21, isVisibleTo,
-  loadEventsBetween, loadInRadius, loadViewer, matchesFilter, nearestMatching, rankItems, sameCity, scoreAll, tasteOf,
-  tierForRank, userLoader, venueVectorOf, withTag,
+  loadEventsBetween, loadInRadius, loadLikedPerformerEvents, loadViewer, matchesFilter, nearestMatching, newestRankingsOf,
+  postOfRanking, rankItems, sameCity, scoreAll, tasteOf, tierForRank, userLoader, venueVectorOf, withTag,
 } from "./lib/discovery";
 import { VoteTally, fairWeights, groupScoreV2, groupWhy, tallyVotes } from "./lib/group";
 import {
-  FEATURES, clip, effectiveAffinity, mapRank, matchPct, performerTerm, predict, similarValue, similarity, topFeatures,
-  whyFromFeatures,
+  FEATURES, clip, effectiveAffinity, mapRank, matchPct, mayShowRanking, performerTerm, predict, similarValue, similarity,
+  takeAcross, topFeatures, whyFromFeatures,
 } from "./lib/recs";
 
 const TOP_PICKS = 6;
 const SECTION_SIZE = 10;
+/** Members whose own score is worked out for every candidate. */
 const MAX_PLAN_MEMBERS = 8;
-const MAX_MEMBER_RANKINGS = 500;
+/** Members a group is checked over: the under-21 rule and the trip's votes cover all of these, scored or not. */
+const MAX_GROUP_READ = 64;
+/** A member's own rankings read per category that has a candidate, newest first. */
+const MAX_MEMBER_RANKINGS_PER_CATEGORY = 150;
 const MAX_TRIP_VOTES = 500;
 const GROUP_MAX_CANDIDATES = 80;
 const GROUP_DEFAULT_LIMIT = 30;
@@ -29,7 +33,9 @@ const UPCOMING_RADIUS_METERS = 60_000;
 const UPCOMING_DEFAULT_DAYS = 14;
 const UPCOMING_MAX_DAYS = 60;
 const UPCOMING_DEFAULT_LIMIT = 30;
-const UPCOMING_SCAN_LIMIT = 400;
+/** The window is read in this many equal parts, so its last days get candidates as well as its first. */
+const UPCOMING_SLICES = 40;
+const UPCOMING_SCAN_PER_SLICE = 10;
 const SIMILAR_RADIUS_METERS = 5000;
 const SIMILAR_DEFAULT_LIMIT = 8;
 const SIMILAR_POOL_SIZE = 40;
@@ -117,68 +123,93 @@ const memberOf = (user: Doc<"users">): PlanMember => ({
   avatarUrl: avatarUrlOf(user),
 });
 
-type Group = { members: Doc<"users">[]; trip: Doc<"trips"> | null; votes: Map<string, VoteTally> };
+type Group = {
+  /** The members scored one by one: the caller first, at most MAX_PLAN_MEMBERS. */
+  members: Doc<"users">[];
+  trip: Doc<"trips"> | null;
+  votes: Map<string, VoteTally>;
+  /** True when anyone in the whole group (not only the scored members) is under 21: no nightlife then. */
+  anyUnder21: boolean;
+};
 
 /**
  * Who is being planned for. With a trip: its owner and joined members, with the trip's votes; null when the
- * caller is not one of them. Without: the caller and the picked accepted friends. Signed out: nobody.
+ * caller is not one of them (checked by a direct lookup, so a big trip cannot lose the caller). Without: the
+ * caller and the picked accepted friends. Signed out: nobody. The under-21 rule and the votes cover everyone
+ * read (MAX_GROUP_READ); a trip with more joined members than that is treated as having someone under 21.
  */
 async function resolveGroup(
   ctx: QueryCtx, viewer: Viewer, getUser: UserLoader, memberIds: Id<"users">[] | undefined, tripId: Id<"trips"> | undefined,
+  now: number,
 ): Promise<Group | null> {
   const me = viewer.userId;
   let wanted: Id<"users">[] = [];
   let trip: Doc<"trips"> | null = null;
+  let overflow = false;
   if (tripId !== undefined) {
     trip = await ctx.db.get(tripId);
     if (trip === null || me === null) return null;
+    if (trip.ownerId !== me) {
+      const mine = await ctx.db
+        .query("tripMembers")
+        .withIndex("by_user", (q) => q.eq("userId", me).eq("status", "joined"))
+        .filter((q) => q.eq(q.field("tripId"), tripId))
+        .first();
+      if (mine === null) return null;
+    }
     const joined = await ctx.db
       .query("tripMembers")
       .withIndex("by_trip", (q) => q.eq("tripId", tripId).eq("status", "joined"))
-      .take(MAX_PLAN_MEMBERS * 2);
-    const onTrip = [trip.ownerId, ...joined.map((m) => m.userId)];
-    if (!onTrip.includes(me)) return null;
-    wanted = [me, ...onTrip];
+      .take(MAX_GROUP_READ + 1);
+    overflow = joined.length > MAX_GROUP_READ;
+    wanted = [me, trip.ownerId, ...joined.map((m) => m.userId)];
   } else if (me !== null) {
     wanted = [me, ...(memberIds ?? []).filter((id) => viewer.friendIds.has(id))];
   }
-  const members: Doc<"users">[] = [];
-  for (const id of [...new Set(wanted)].slice(0, MAX_PLAN_MEMBERS)) {
+  const everyone: Doc<"users">[] = [];
+  for (const id of [...new Set(wanted)].slice(0, MAX_GROUP_READ + 2)) {
     const user = await getUser(id);
-    if (user !== null) members.push(user);
+    if (user !== null) everyone.push(user);
   }
+  const members = everyone.slice(0, MAX_PLAN_MEMBERS);
   let votes = new Map<string, VoteTally>();
   if (tripId !== undefined) {
     const rows = await ctx.db
       .query("tripVotes")
       .withIndex("by_trip", (q) => q.eq("tripId", tripId))
       .take(MAX_TRIP_VOTES);
-    votes = tallyVotes(rows, members.map((m) => m._id));
+    for (const [targetId, tally] of tallyVotes(rows, everyone.map((m) => m._id))) votes.set(targetId, { ...tally, of: everyone.length });
   }
-  return { members, trip, votes };
+  const anyUnder21 = viewer.under21 || overflow || everyone.some((user) => isUnder21(user.birthday, now));
+  return { members, trip, votes, anyUnder21 };
 }
 
 /**
  * Each member's own score for an item the viewer's query already scored: their own ranking when they have
- * one, else the same prediction the map would show them (their taste, their friends among the loaded
- * raters, whether they are a local, their performer affinities).
+ * one the viewer may see, else the same prediction the map would show them (their taste, their friends among
+ * the loaded raters, whether they are a local, their performer affinities). A ranking is as visible as its
+ * post: a member's "Only me" ranking is theirs alone, and a trip member who is not the viewer's friend shows
+ * only public ones. For the rest the group gets the prediction, never the score they gave.
  */
 async function memberScorer(ctx: QueryCtx, viewer: Viewer, group: Doc<"users">[], candidates: Candidate[]) {
   const friendsOf = new Map<string, Set<Id<"users">>>();
   const ownScores = new Map<string, Map<string, number>>();
   const affinities = new Map<string, Map<string, AffinityRow>>();
+  const candidateIds = new Set<string>(candidates.map((c) => c.doc._id));
+  const categories = [...new Set(candidates.map((c) => c.doc.category))];
   for (const user of group) {
     if (user._id === viewer.userId) continue;
     friendsOf.set(user._id, await friendIdsOf(ctx, user._id));
     affinities.set(user._id, await affinitiesOf(ctx, user._id));
-    const rankings = await ctx.db
-      .query("rankings")
-      .withIndex("by_user_category", (q) => q.eq("userId", user._id))
-      .take(MAX_MEMBER_RANKINGS);
-    ownScores.set(user._id, new Map(rankings.flatMap((r) => {
+    const rankings = await newestRankingsOf(ctx, user._id, MAX_MEMBER_RANKINGS_PER_CATEGORY, categories);
+    const scores = new Map<string, number>();
+    for (const r of rankings) {
       const itemId = r.placeId ?? r.eventId;
-      return itemId === undefined ? [] : [[itemId, clip(r.score, 1, 10)] as [string, number]];
-    })));
+      if (itemId === undefined || !candidateIds.has(itemId)) continue;
+      const post = await postOfRanking(ctx, r._id);
+      if (mayShowRanking(post?.visibility, viewer.friendIds.has(user._id))) scores.set(itemId, clip(r.score, 1, 10));
+    }
+    ownScores.set(user._id, scores);
   }
   const cityOf = new Map<string, string | undefined>(candidates.map((c) => [c.doc._id, c.doc.city]));
   const me = group.find((user) => user._id === viewer.userId);
@@ -192,6 +223,7 @@ async function memberScorer(ctx: QueryCtx, viewer: Viewer, group: Doc<"users">[]
       userId: me._id,
       taste: tasteOf(me),
       score: clip(s.mine.score, 1, 10),
+      given: s.mine.score,
       local: me.homeCity !== undefined && city !== undefined ? sameCity(me.homeCity, city) : s.mine.wasLocal ?? false,
       friend: false,
       name: displayNameOf(me),
@@ -209,9 +241,6 @@ async function memberScorer(ctx: QueryCtx, viewer: Viewer, group: Doc<"users">[]
     return predict(tasteOf(user), s.vector, s.terms.elo, raters, sameCity(user.homeCity, city), { performer }).score;
   };
 }
-
-const anyUnder21In = (viewer: Viewer, group: Doc<"users">[], now: number) =>
-  viewer.under21 || group.some((user) => isUnder21(user.birthday, now));
 
 /**
  * One list ranked for a whole group: every member's own score, combined by groupScoreV2 (average and least
@@ -231,11 +260,10 @@ export const forGroup = query({
     const filter = args.filter ?? "all";
     const limit = clip(Math.round(args.limit ?? GROUP_DEFAULT_LIMIT), 1, MAX_LIST_LIMIT);
     const viewer = await loadViewer(ctx, now);
-    const group = await resolveGroup(ctx, viewer, userLoader(ctx), args.memberIds, args.tripId);
+    const group = await resolveGroup(ctx, viewer, userLoader(ctx), args.memberIds, args.tripId, now);
     const center = { lat: group?.trip?.lat ?? args.lat, lng: group?.trip?.lng ?? args.lng };
     if (group === null) return { items: [], members: [], center, algo: ALGO, generatedAt: now };
-    const { members, votes } = group;
-    const anyUnder21 = anyUnder21In(viewer, members, now);
+    const { members, votes, anyUnder21 } = group;
 
     const pool = await loadInRadius(ctx, center.lat, center.lng, DEFAULT_RADIUS_METERS, now);
     // A trip is planned ahead, so a place that is closed right now still belongs on its list.
@@ -294,13 +322,12 @@ export const plan = query({
   handler: async (ctx, args): Promise<PlanResult> => {
     const now = Date.now();
     const viewer = await loadViewer(ctx, now);
-    const resolved = await resolveGroup(ctx, viewer, userLoader(ctx), args.memberIds, args.tripId);
+    const resolved = await resolveGroup(ctx, viewer, userLoader(ctx), args.memberIds, args.tripId, now);
     const wantedVibe = args.vibe ?? resolved?.trip?.vibe;
     const vibe = wantedVibe !== undefined && Object.hasOwn(VIBE_ENERGY, wantedVibe) ? wantedVibe : DEFAULT_VIBE;
     const center = { lat: resolved?.trip?.lat ?? args.lat, lng: resolved?.trip?.lng ?? args.lng };
     if (resolved === null) return { stops: [], members: [], vibe, center, algo: ALGO, generatedAt: now };
-    const { members: group, votes } = resolved;
-    const anyUnder21 = anyUnder21In(viewer, group, now);
+    const { members: group, votes, anyUnder21 } = resolved;
 
     const pool = await loadInRadius(ctx, center.lat, center.lng, DEFAULT_RADIUS_METERS, now);
     const candidates = nearestMatching(pool, (c) =>
@@ -353,7 +380,12 @@ export const plan = query({
   },
 });
 
-/** Events in the next days within 60 km, best for me first; a performer I like pushes an event up. */
+/**
+ * Events in the next days within 60 km, best for me first; a performer I like pushes an event up.
+ * Only MAX_CANDIDATES events can be scored, so they are chosen to cover the whole window: first the events
+ * of performers I follow or rated well, then the soonest events of each of UPCOMING_SLICES equal parts of
+ * the window in turn. A busy first weekend cannot push day 9 out.
+ */
 export const upcoming = query({
   args: {
     lat: v.number(),
@@ -366,11 +398,19 @@ export const upcoming = query({
     const days = clip(args.days ?? UPCOMING_DEFAULT_DAYS, 1, UPCOMING_MAX_DAYS);
     const limit = clip(Math.round(args.limit ?? UPCOMING_DEFAULT_LIMIT), 1, MAX_LIST_LIMIT);
     const viewer = await loadViewer(ctx, now);
-    const events = await loadEventsBetween(
-      ctx, args.lat, args.lng, UPCOMING_RADIUS_METERS, now - EVENT_DEFAULT_LENGTH_MS, now + days * DAY_MS, now, UPCOMING_SCAN_LIMIT,
-    );
-    const candidates = events.filter((c) => !(viewer.under21 && c.doc.category === "nightlife")).slice(0, MAX_CANDIDATES);
-    const scored = await scoreAll(ctx, candidates, viewer, args.lat, args.lng, now);
+    const from = now - EVENT_DEFAULT_LENGTH_MS, to = now + days * DAY_MS;
+    const allowed = (c: Candidate) => !(viewer.under21 && c.doc.category === "nightlife");
+    const liked = (await loadLikedPerformerEvents(ctx, viewer, args.lat, args.lng, UPCOMING_RADIUS_METERS, from, to, now))
+      .filter(allowed)
+      .slice(0, MAX_CANDIDATES);
+    const likedIds = new Set<string>(liked.map((c) => c.doc._id));
+    const width = (to - from) / UPCOMING_SLICES;
+    const slices = await Promise.all(Array.from({ length: UPCOMING_SLICES }, (_, k) => loadEventsBetween(
+      ctx, args.lat, args.lng, UPCOMING_RADIUS_METERS,
+      Math.floor(from + k * width), k === UPCOMING_SLICES - 1 ? to : Math.floor(from + (k + 1) * width) - 1, now, UPCOMING_SCAN_PER_SLICE,
+    )));
+    const rest = takeAcross(slices.map((events) => events.filter((c) => allowed(c) && !likedIds.has(c.doc._id))), MAX_CANDIDATES - liked.length);
+    const scored = await scoreAll(ctx, [...liked, ...rest], viewer, args.lat, args.lng, now);
     // Ordered by the score itself (plus the friends bump): across a whole metro area distance should not decide.
     const value = (s: Scored) => s.terms.score + s.terms.social;
     return renumber(scored
