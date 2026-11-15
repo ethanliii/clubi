@@ -82,8 +82,8 @@ export default function TasteCard() {
 
 const styles = StyleSheet.create({
   intro: { marginTop: spacing.xl, gap: spacing.sm },
-  card: { borderRadius: radius.xxl, padding: 22, gap: spacing.lg },
-  cardLabel: { color: colors.white, opacity: 0.8, letterSpacing: 1 },
-  title: { color: colors.white, fontSize: 28, lineHeight: 32, fontWeight: "700" },
+  card: { borderRadius: radius.xxl, padding: 22, gap: spacing.md },
+  cardLabel: { color: colors.white, opacity: 0.8 },
+  title: { color: colors.white, fontSize: 28, lineHeight: 31, fontWeight: "700" },
   tags: { justifyContent: "center" },
 });

@@ -10,12 +10,20 @@ export function SpinnerButton({
   busy,
   disabled,
   style,
+  buttonStyle,
   ...props
-}: Omit<ButtonProps, "style"> & { busy: boolean; style?: StyleProp<ViewStyle> }) {
+}: Omit<ButtonProps, "style"> & {
+  busy: boolean;
+  /** Goes on the box around the button (layout: flex, width). */
+  style?: StyleProp<ViewStyle>;
+  /** Goes on the button itself (colour, shape), for the quiz's black pill. */
+  buttonStyle?: StyleProp<ViewStyle>;
+}) {
   return (
     <View style={[styles.wrap, style]}>
       <Button
         {...props}
+        style={buttonStyle}
         disabled={disabled || busy}
         accessibilityState={{ busy, disabled: !!disabled || busy }}
         aria-busy={busy}
