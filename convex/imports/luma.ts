@@ -1,6 +1,7 @@
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { featurize } from "../ingest";
+import { parsePerformers } from "../lib/performers";
 
 // Public San Francisco events from Luma's discover list. This is the JSON
 // endpoint luma.com/sf itself calls (read from the page's scripts on
@@ -87,6 +88,11 @@ export function lumaToRow(entry: LumaEntry, now: number) {
       : undefined;
   const category = LIVE.test(name) ? ("live" as const) : ("popup" as const);
   const subcategory = SUBCATEGORIES.find(([match]) => match.test(name))?.[1] ?? "meetup";
+  // Luma puts the venue's name in `address` ("The Foundry SF") and falls back to the street ("625 2nd St").
+  const venueName = venue && !/^\d/.test(venue) && !address?.startsWith(venue) ? venue.trim() : undefined;
+  // Only a title that reads as a show names its performers ("X at Y", "A b2b B", "starring Z").
+  const names = category === "live" ? parsePerformers(name) : [];
+  const kind = subcategory === "comedy" ? "comedian" : subcategory === "dj night" ? "dj" : "artist";
   return {
     source: "luma" as const,
     sourceId: event.api_id,
@@ -104,6 +110,8 @@ export function lumaToRow(entry: LumaEntry, now: number) {
     imageUrl: event.cover_url ?? undefined,
     sourceUrl: "https://lu.ma/" + event.url,
     blurb,
+    venueName,
+    performers: names.length ? names.map((performerName) => ({ name: performerName, kind })) : undefined,
     venueVector: featurize({ category, subcategory, title: name, price }),
   };
 }

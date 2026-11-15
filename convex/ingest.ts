@@ -9,7 +9,15 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { DEFAULT_RADIUS_METERS } from "./lib/discovery";
-import { genresToVector, MAX_PERFORMERS, nameKeys, normalizePerformerName, parsePerformers } from "./lib/performers";
+import {
+  blendVectors,
+  genresToVector,
+  hasKnownGenre,
+  MAX_PERFORMERS,
+  nameKeys,
+  normalizePerformerName,
+  parsePerformers,
+} from "./lib/performers";
 import { type Feature, FEATURES } from "./lib/recs";
 import { notifyPerformerFans } from "./performers";
 import { categoryValidator, sourceValidator } from "./tables/catalog";
@@ -64,6 +72,18 @@ const KEYWORD_RULES: { match: RegExp; set: Weights }[] = [
   { match: /tea ?house|book ?(store|shop)|library|meditat|\byoga\b|\bquiet\b|\bcozy\b/, set: { energy: 0.15, loudness: 0.1 } },
   { match: /\b(nba|nfl|nhl|mlb|mls|basketball|football|hockey|baseball|soccer|sports)\b/, set: { energy: 0.85, loudness: 0.85, liveMusic: 0.1 } },
   { match: /networking|meetup|founders?\b|startup|hackathon|\bpanel\b|workshop|fireside|demo day/, set: { culture: 0.6, energy: 0.35, loudness: 0.25, dancing: 0.05 } },
+  // Event words: what kind of night the title promises.
+  { match: /\b(house|techno|disco|amapiano|afro ?house|garage|jungle) (night|party|set|sets|music|djs?|sessions?|brunch)\b|\bopen decks\b|\bvinyl (night|set|only)\b|\bb2b\b/, set: { electronic: 0.9, dancing: 0.85, energy: 0.8, loudness: 0.8 } },
+  { match: /\b(funk|soul|motown|boogie|swing|lindy hop)\b/, set: { dancing: 0.75, energy: 0.7, liveMusic: 0.6 } },
+  { match: /\b(trivia|bingo|quiz night|game night|board games?)\b/, set: { energy: 0.5, loudness: 0.5, culture: 0.5, dancing: 0.05, liveMusic: 0.15 } },
+  { match: /\bdrag (show|brunch|bingo|night|queen|king)|\bburlesque\b|\bcabaret\b/, set: { culture: 0.7, energy: 0.75, pop: 0.7, liveMusic: 0.5 } },
+  { match: /gallery opening|opening reception|art walk|first friday|open studios?|\bvernissage\b/, set: { culture: 0.95, energy: 0.5, loudness: 0.35, price: 0.2 } },
+  { match: /\brun club\b|\b5k\b|\bfun run\b|\bhike\b|\bbike ride\b|pickleball/, set: { outdoors: 0.9, energy: 0.6, loudness: 0.2, dancing: 0.05, price: 0.15 } },
+  { match: /\bbrunch\b|\bbottomless\b/, set: { food: 0.85, energy: 0.6, crowdAge: 0.6 } },
+  { match: /\bwine (tasting|night|club|walk)|\bnatural wine\b|\bsommelier\b/, set: { price: 0.7, loudness: 0.3, food: 0.6, crowdAge: 0.35 } },
+  { match: /\bsilent disco\b|\bday ?party\b|\bdance party\b|\bday rave\b/, set: { dancing: 0.9, energy: 0.85, crowdAge: 0.7 } },
+  { match: /\bspeed dating\b|\bsingles\b|\bmixer\b/, set: { crowdAge: 0.6, energy: 0.5, loudness: 0.45 } },
+  { match: /sound bath|sound healing|breathwork|\bmeditation\b/, set: { energy: 0.1, loudness: 0.1, dancing: 0.05 } },
 ];
 
 const priceFeature = (price: number | string | undefined) => {
@@ -121,6 +141,8 @@ const VENUE_MATCH_METERS = 150;
 const VENUE_MATCH_DEGREES = VENUE_MATCH_METERS / METERS_PER_DEGREE;
 const VENUE_BAND_LIMIT = 400;
 const EVENT_LINK_LIMIT = 20;
+/** Share of an event's vector that comes from its performers' genres, when we know them. */
+const PERFORMER_VECTOR_WEIGHT = 0.4;
 const ASSUMED_EVENT_MS = 3 * 60 * 60 * 1000;
 // Hand-set rows are never overwritten or replaced by an import.
 const PROTECTED_SOURCES = ["seed", "manual"] as const;
@@ -384,6 +406,13 @@ async function linkLineup(ctx: MutationCtx, eventId: Id<"events">, start: number
   }
 }
 
+/** A performer's genre vector, or null when we know no genre for them (a neutral vector would only blur the event). */
+function lineupVector({ existing, input }: LineupEntry): number[] | null {
+  const genres = existing?.genres?.length ? existing.genres : (input?.genres ?? []);
+  if (!hasKnownGenre(genres)) return null;
+  return existing?.genres?.length && existing.vector?.length === FEATURES.length ? existing.vector : genresToVector(genres);
+}
+
 type VenueCache = Map<string, Id<"places"> | null>;
 
 /** The catalog place an event is at: same normalised name as `venueName` within 150 m. */
@@ -429,8 +458,12 @@ async function upsertEvent(ctx: MutationCtx, row: IngestRow, nameKey: string, st
     blurb: row.blurb,
     venueName: row.venueName?.trim() || undefined,
     performerNames: lineup.length ? lineup.map((entry) => entry.name) : undefined,
-    venueVector:
+    // Who is playing says more about the night than the title: blend their genre vectors in.
+    venueVector: blendVectors(
       row.venueVector ?? featurize({ ...row, title: row.name, description: row.blurb }),
+      lineup.map(lineupVector).filter((vector): vector is number[] => vector !== null),
+      PERFORMER_VECTOR_WEIGHT,
+    ),
   };
   // After a write to an event that already existed. Fans hear about an event once, when it is
   // first stored with a line-up: a later update never notifies again.
