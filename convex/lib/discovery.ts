@@ -3,9 +3,11 @@ import { Doc, Id } from "../_generated/dataModel";
 import { QueryCtx } from "../_generated/server";
 import type { Category, Filter, FriendScore, NearbyItem, Tier } from "./contract";
 import { isOpenAt } from "./hours";
+import { isMeasured } from "./insights";
 import {
-  CROWD_HALF_WEIGHT, FEATURES, NEUTRAL_TASTE, PerformerAffinity, Rater, TIME_TAU, clip, exploreBonus, mapRank, matchPct, mmrPick,
-  newSlotPick, performerAffinity, predict, socialBump, whyFromFeatures,
+  AFFINITY_NEUTRAL, CROWD_HALF_WEIGHT, FEATURES, NEUTRAL_TASTE, PerformerAffinity, Rater, TIME_TAU, clip, effectiveAffinity,
+  exploreBonus, friendMaySee, mapRank, matchPct, mmrPick, newSlotPick, performerAffinity, predict, shareOf, shownScore, socialBump,
+  whyFromFeatures,
 } from "./recs";
 
 export const ALGO = "hybrid-v4";
@@ -14,12 +16,26 @@ export const DEFAULT_RADIUS_METERS = 2500;
 export const DEFAULT_LIMIT = 60;
 export const MAX_CANDIDATES = 200;
 export const SCAN_LIMIT_PER_SIDE = 800;
+/** The crowd sample of one item: its newest rankings. `ratingCount` on a card is counted from it, so it stops here too. */
 export const MAX_RATERS_PER_ITEM = 50;
 export const MAX_FRIENDS_SHOWN = 3;
 export const MAX_FRIENDS_LOADED = 50;
+export const MAX_FRIENDSHIPS_PER_SIDE = 300;
+/** The viewer's own rankings read per category, newest first, so "You ranked it" survives a busy place. */
+export const MAX_OWN_RANKINGS_PER_CATEGORY = 150;
+/** Ranking rows read for all loaded friends together; each friend gets an equal share per category, newest first. */
+export const FRIEND_RANKINGS_BUDGET = 1200;
+export const MIN_FRIEND_RANKINGS_PER_CATEGORY = 4;
+export const MAX_FRIEND_RANKINGS_PER_CATEGORY = 50;
+/** Save rows read for all loaded friends together; each friend gets an equal share per type ("going", "want"), newest first. */
+export const FRIEND_SAVES_BUDGET = 600;
+export const MIN_FRIEND_SAVES_PER_TYPE = 6;
+export const MAX_FRIEND_SAVES_PER_TYPE = 40;
 export const MAX_AFFINITIES = 200;
 export const MAX_SAVES_LOADED = 300;
-export const MAX_SAVES_PER_ITEM = 60;
+/** discover.upcoming: events of the performers the viewer likes are candidates before anything else. */
+export const MAX_LIKED_PERFORMERS = 30;
+export const MAX_EVENTS_PER_LIKED_PERFORMER = 6;
 export const MAX_PERFORMERS_PER_EVENT = 8;
 export const MAX_PERFORMERS_SHOWN = 4;
 export const MMR_POOL_SIZE = 30;
@@ -49,6 +65,8 @@ const CATEGORY_VECTORS: Record<Category, Partial<Record<(typeof FEATURES)[number
   popup: { energy: 0.6, crowdAge: 0.6, culture: 0.5, food: 0.5 },
 };
 
+const CATEGORIES = Object.keys(CATEGORY_VECTORS) as Category[];
+
 const CATEGORY_FITS_HOUR: Record<Category, (hour: number) => boolean> = {
   nightlife: (h) => h >= 17 || h < 3,
   food: (h) => h >= 7 && h < 22,
@@ -72,11 +90,14 @@ export type Viewer = {
   affinities?: Map<string, AffinityRow>;
   /** What the viewer saved or marked "going", by item id (at most MAX_SAVES_LOADED rows). */
   saves?: Map<string, { saved: boolean; going: boolean }>;
+  /** How many of the loaded friends marked an item "going" or saved it, by item id. Loaded once per query. */
+  friendSaves?: Map<string, { going: number; saved: number }>;
 };
 
 export type AffinityRow = { score: number; following: boolean; nRankings?: number };
 
-export type FriendRow = { ranking: Doc<"rankings">; user: Doc<"users">; local: boolean };
+/** A friend's ranking the viewer may see, with its post (null when the post was deleted). */
+export type FriendRow = { ranking: Doc<"rankings">; user: Doc<"users">; local: boolean; post: Doc<"posts"> | null };
 
 export type Scored = {
   item: Omit<NearbyItem, "rank" | "tier">;
@@ -84,7 +105,8 @@ export type Scored = {
   vector: number[];
   mine: Doc<"rankings"> | null;
   friendRows: FriendRow[];
-  raters: (Rater & { userId: Id<"users"> })[];
+  /** `score` is clipped to 1-10 for the math; `given` is the score the ranking really has, for text. */
+  raters: (Rater & { userId: Id<"users">; given: number })[];
   /** The why line without its context tag, and the tag, so a list can swap the tag ("New on clubi"). */
   reason: string;
   tag?: string;
@@ -149,38 +171,63 @@ export function userLoader(ctx: QueryCtx): UserLoader {
   };
 }
 
+/** A person's accepted friends: at most MAX_FRIENDSHIPS_PER_SIDE they asked and as many who asked them. */
 export async function friendIdsOf(ctx: QueryCtx, userId: Id<"users">): Promise<Set<Id<"users">>> {
   const asA = await ctx.db
     .query("friendships")
     .withIndex("by_userA", (q) => q.eq("userA", userId).eq("status", "accepted"))
-    .collect();
+    .take(MAX_FRIENDSHIPS_PER_SIDE);
   const asB = await ctx.db
     .query("friendships")
     .withIndex("by_userB", (q) => q.eq("userB", userId).eq("status", "accepted"))
-    .collect();
+    .take(MAX_FRIENDSHIPS_PER_SIDE);
   return new Set([...asA.map((f) => f.userB), ...asB.map((f) => f.userA)]);
 }
 
+/** One person's newest rankings, at most `perCategory` in each category. */
+export async function newestRankingsOf(ctx: QueryCtx, userId: Id<"users">, perCategory: number, categories: readonly Category[] = CATEGORIES): Promise<Doc<"rankings">[]> {
+  const lists = await Promise.all(categories.map((category) => ctx.db
+    .query("rankings")
+    .withIndex("by_user_category", (q) => q.eq("userId", userId).eq("category", category))
+    .order("desc")
+    .take(perCategory)));
+  return lists.flat();
+}
+
+/**
+ * People's rule: a ranking is as visible as its post. Returns the post of a ranking (null when it was
+ * deleted, which leaves the ranking visible to friends); `friendMaySee(post?.visibility)` decides.
+ */
+export const postOfRanking = (ctx: QueryCtx, rankingId: Id<"rankings">): Promise<Doc<"posts"> | null> =>
+  ctx.db.query("posts").withIndex("by_ranking", (q) => q.eq("rankingId", rankingId)).first();
+
+/**
+ * Who is looking, with what every candidate needs from them. Every read is bounded: the viewer's own
+ * rankings (newest MAX_OWN_RANKINGS_PER_CATEGORY per category), a share of FRIEND_RANKINGS_BUDGET for each of
+ * the first MAX_FRIENDS_LOADED friends, and a share of FRIEND_SAVES_BUDGET for their saves. A friend's ranking
+ * outside that share still shows when it is among the item's newest MAX_RATERS_PER_ITEM.
+ * INTEGRATION (People): a `by_user_place` / `by_user_event` index on rankings would make this exact per candidate.
+ */
 export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
   const userId = await getAuthUserId(ctx);
   const user = userId === null ? null : await ctx.db.get(userId);
   if (userId === null || user === null) {
     return {
       userId: null, taste: NEUTRAL_TASTE, under21: false, friendIds: new Set(), knownRankings: new Map(),
-      affinities: new Map(), saves: new Map(),
+      affinities: new Map(), saves: new Map(), friendSaves: new Map(),
     };
   }
   const friendIds = await friendIdsOf(ctx, userId);
+  const loaded = [...friendIds].slice(0, MAX_FRIENDS_LOADED);
+  const perCategory = shareOf(FRIEND_RANKINGS_BUDGET, loaded.length * CATEGORIES.length, MIN_FRIEND_RANKINGS_PER_CATEGORY, MAX_FRIEND_RANKINGS_PER_CATEGORY);
+  const lists = await Promise.all([
+    newestRankingsOf(ctx, userId, MAX_OWN_RANKINGS_PER_CATEGORY),
+    ...loaded.map((id) => newestRankingsOf(ctx, id, perCategory)),
+  ]);
   const knownRankings = new Map<string, Doc<"rankings">[]>();
-  for (const id of [userId, ...[...friendIds].slice(0, MAX_FRIENDS_LOADED)]) {
-    const rows = await ctx.db
-      .query("rankings")
-      .withIndex("by_user_category", (q) => q.eq("userId", id))
-      .collect();
-    for (const row of rows) {
-      const itemId = row.placeId ?? row.eventId;
-      if (itemId !== undefined) knownRankings.set(itemId, [...(knownRankings.get(itemId) ?? []), row]);
-    }
+  for (const row of lists.flat()) {
+    const itemId = row.placeId ?? row.eventId;
+    if (itemId !== undefined) knownRankings.set(itemId, [...(knownRankings.get(itemId) ?? []), row]);
   }
   return {
     userId,
@@ -191,6 +238,7 @@ export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
     knownRankings,
     affinities: await affinitiesOf(ctx, userId),
     saves: await savesOf(ctx, userId),
+    friendSaves: await friendSavesOf(ctx, loaded),
   };
 }
 
@@ -218,21 +266,32 @@ async function savesOf(ctx: QueryCtx, userId: Id<"users">): Promise<NonNullable<
   return saves;
 }
 
-/** How many of the viewer's friends marked an item "going" or saved it. One indexed read, skipped without friends. */
-async function friendSaves(ctx: QueryCtx, viewer: Viewer, itemId: Id<"places"> | Id<"events">): Promise<{ going: number; saved: number }> {
-  if (viewer.friendIds.size === 0) return { going: 0, saved: 0 };
-  const rows = await ctx.db
+/**
+ * How many of these friends marked each item "going" or saved it, by item id: each friend's newest saves of
+ * each type, read once per query. A friend who did both counts as going.
+ */
+async function friendSavesOf(ctx: QueryCtx, friends: Id<"users">[]): Promise<NonNullable<Viewer["friendSaves"]>> {
+  const perType = shareOf(FRIEND_SAVES_BUDGET, friends.length * 2, MIN_FRIEND_SAVES_PER_TYPE, MAX_FRIEND_SAVES_PER_TYPE);
+  const newest = (userId: Id<"users">, type: "going" | "want") => ctx.db
     .query("saves")
-    .withIndex("by_target", (q) => q.eq("targetId", itemId))
-    .take(MAX_SAVES_PER_ITEM);
-  const going = new Set<string>(), saved = new Set<string>();
-  for (const row of rows) {
-    if (!viewer.friendIds.has(row.userId)) continue;
-    if (row.type === "going") going.add(row.userId);
-    else saved.add(row.userId);
+    .withIndex("by_user", (q) => q.eq("userId", userId).eq("type", type))
+    .order("desc")
+    .take(perType);
+  const counts: NonNullable<Viewer["friendSaves"]> = new Map();
+  const perFriend = await Promise.all(friends.map(async (id) => ({ going: await newest(id, "going"), want: await newest(id, "want") })));
+  for (const { going, want } of perFriend) {
+    const goingTo = new Set<string>(going.map((row) => row.targetId));
+    const wanted = new Set<string>(want.map((row) => row.targetId));
+    for (const id of goingTo) wanted.delete(id);
+    for (const [ids, key] of [[goingTo, "going"], [wanted, "saved"]] as const) {
+      for (const id of ids) {
+        const row = counts.get(id) ?? { going: 0, saved: 0 };
+        row[key] += 1;
+        counts.set(id, row);
+      }
+    }
   }
-  for (const id of going) saved.delete(id);
-  return { going: going.size, saved: saved.size };
+  return counts;
 }
 
 /** The performers linked to an event and, for those the viewer has an affinity row for, the row with the name. */
@@ -313,6 +372,32 @@ export async function loadEventsBetween(
     .map((doc) => ({ kind: "event" as const, doc }));
 }
 
+/**
+ * Upcoming events, inside the window and the radius, of the performers the viewer follows or has rated
+ * above neutral (the strongest MAX_LIKED_PERFORMERS, soonest MAX_EVENTS_PER_LIKED_PERFORMER events each).
+ * discover.upcoming puts these in before it fills up, so a liked act is never cut for starting late in the window.
+ */
+export async function loadLikedPerformerEvents(
+  ctx: QueryCtx, viewer: Viewer, lat: number, lng: number, radiusMeters: number, from: number, to: number, now: number,
+): Promise<Candidate[]> {
+  const liked = [...(viewer.affinities ?? new Map<string, AffinityRow>())]
+    .map(([id, row]) => ({ id: id as Id<"performers">, affinity: effectiveAffinity(row) }))
+    .filter((p) => p.affinity > AFFINITY_NEUTRAL)
+    .sort((a, b) => b.affinity - a.affinity)
+    .slice(0, MAX_LIKED_PERFORMERS);
+  const links = await Promise.all(liked.map((p) => ctx.db
+    .query("eventPerformers")
+    .withIndex("by_performer", (q) => q.eq("performerId", p.id).gte("start", from).lte("start", to))
+    .take(MAX_EVENTS_PER_LIKED_PERFORMER)));
+  const eventIds = [...new Set(links.flat().map((link) => link.eventId))];
+  const events = await Promise.all(eventIds.map((id) => ctx.db.get(id)));
+  return events
+    .flatMap((doc) => (doc === null ? [] : [doc]))
+    .filter((e) => e.start >= from && e.start <= to && !isPastEvent(e, now) && haversineMeters(lat, lng, e.lat, e.lng) <= radiusMeters)
+    .sort((a, b) => a.start - b.start)
+    .map((doc) => ({ kind: "event" as const, doc }));
+}
+
 /** Looks a place or event up from the plain string id a route param carries. */
 export async function getCandidate(ctx: QueryCtx, kind: "place" | "event", id: string): Promise<Candidate | null> {
   if (kind === "place") {
@@ -346,31 +431,48 @@ function timeContext(c: Candidate, now: number): { timeMatch: number; tag?: stri
   return { timeMatch: 1, openNow, tag: openNow ? "Open now" : undefined };
 }
 
-/** Section 2.3: the reason is the term that moved the score most. First rule that matches wins. Never empty. */
-function reasonLine(prediction: ReturnType<typeof predict>, raters: Rater[], ownScore: number | undefined, performerWhy: string | undefined): string {
-  if (ownScore !== undefined) return `You ranked it ${ownScore.toFixed(1)}`;
+/**
+ * Section 2.3: the reason is the term that moved the score most. First rule that matches wins. Never empty.
+ * Scores in the text are the ones the rankings really have (a "didn't like" can be under 1).
+ */
+function reasonLine(
+  prediction: ReturnType<typeof predict>, raters: Scored["raters"], mine: Doc<"rankings"> | null, performerWhy: string | undefined,
+  measured: boolean,
+): string {
+  if (mine !== null) return `You ranked it ${shownScore(mine.score).toFixed(1)}`;
   if (performerWhy !== undefined) return performerWhy;
   if (prediction.lam > WHY_SOCIAL_LAMBDA && raters.some((r) => r.local || r.friend)) {
     const friend = prediction.topRater?.friend
-      ? prediction.topRater
+      ? raters[prediction.topRater.index]
       : raters.some((r) => r.local) ? undefined : [...raters].filter((r) => r.friend).sort((a, b) => b.score - a.score)[0];
     return friend
-      ? `${friend.name} gave it ${clip(friend.score, 1, 10).toFixed(1)}`
+      ? `${friend.name} gave it ${shownScore(friend.given).toFixed(1)}`
       : `Locals like you rate it ${prediction.crowd.toFixed(1)}`;
   }
-  return whyFromFeatures(prediction.topFeatures);
+  return whyFromFeatures(prediction.topFeatures, measured);
 }
 
 export const withTag = (reason: string, tag: string | undefined) => (tag ? `${reason} · ${tag}` : reason);
+
+/** The answer weight behind each feature of an item's vector, or undefined when nothing is measured (no read then). */
+async function measuredWeightOf(ctx: QueryCtx, doc: Candidate["doc"]): Promise<number[] | undefined> {
+  if (doc.learnedVector?.length !== FEATURES.length) return undefined;
+  const stats = await ctx.db
+    .query("venueStats")
+    .withIndex("by_target", (q) => q.eq("targetId", doc._id))
+    .first();
+  return stats?.observedWeight;
+}
 
 export async function scoreCandidate(
   ctx: QueryCtx, c: Candidate, viewer: Viewer, lat: number, lng: number, now: number, getUser: UserLoader,
 ): Promise<Scored> {
   const { doc } = c;
   const vector = venueVectorOf(doc);
+  // The crowd is the item's newest rankings, so a place keeps learning after its first MAX_RATERS_PER_ITEM.
   const sample = c.kind === "place"
-    ? await ctx.db.query("rankings").withIndex("by_place", (q) => q.eq("placeId", c.doc._id)).take(MAX_RATERS_PER_ITEM)
-    : await ctx.db.query("rankings").withIndex("by_event", (q) => q.eq("eventId", c.doc._id)).take(MAX_RATERS_PER_ITEM);
+    ? await ctx.db.query("rankings").withIndex("by_place", (q) => q.eq("placeId", c.doc._id)).order("desc").take(MAX_RATERS_PER_ITEM)
+    : await ctx.db.query("rankings").withIndex("by_event", (q) => q.eq("eventId", c.doc._id)).order("desc").take(MAX_RATERS_PER_ITEM);
   const known = viewer.knownRankings.get(doc._id) ?? [];
   const rankings = [...known, ...sample.filter((r) => !known.some((k) => k._id === r._id))];
   let mine: Doc<"rankings"> | null = null;
@@ -386,9 +488,15 @@ export async function scoreCandidate(
     const local = user.homeCity !== undefined && doc.city !== undefined
       ? sameCity(user.homeCity, doc.city)
       : ranking.wasLocal ?? false;
-    const friend = viewer.friendIds.has(ranking.userId);
-    raters.push({ userId: user._id, taste: tasteOf(user), score: clip(ranking.score, 1, 10), local, friend, name: displayNameOf(user) });
-    if (friend) friendRows.push({ ranking, user, local });
+    // A friend's "Only me" ranking still counts in the crowd, but as anyone's: no name, no friend weight,
+    // and it never reaches friends[], friendRankings or the why line.
+    const post = viewer.friendIds.has(ranking.userId) ? await postOfRanking(ctx, ranking._id) : null;
+    const friend = viewer.friendIds.has(ranking.userId) && friendMaySee(post?.visibility);
+    raters.push({
+      userId: user._id, taste: tasteOf(user), score: clip(ranking.score, 1, 10), given: ranking.score, local, friend,
+      name: displayNameOf(user),
+    });
+    if (friend) friendRows.push({ ranking, user, local, post });
   }
   friendRows.sort((a, b) => b.ranking.score - a.ranking.score);
 
@@ -404,11 +512,12 @@ export async function scoreCandidate(
   // Exploration and the friends bump change the order only; the shown score stays the honest prediction.
   const nRatings = rankings.length + (doc.nComparisons ?? 0);
   const explore = exploreBonus(nRatings);
-  const friendsSaves = await friendSaves(ctx, viewer, doc._id);
+  const friendsSaves = viewer.friendSaves?.get(doc._id) ?? { going: 0, saved: 0 };
   const friendsOut = friendsSaves.going + friendsSaves.saved;
   const social = socialBump(friendsOut);
   const order = mapRank(exact, distance, time.timeMatch) + explore + social;
-  const reason = reasonLine(prediction, raters, ownScore, affinity.why);
+  const measured = isMeasured(prediction.topFeatures[0], await measuredWeightOf(ctx, doc));
+  const reason = reasonLine(prediction, raters, mine, affinity.why, measured);
   const tag = time.tag ?? (friendsSaves.going > 0
     ? `${friendsSaves.going} ${friendsSaves.going === 1 ? "friend" : "friends"} going`
     : undefined);
@@ -440,6 +549,7 @@ export async function scoreCandidate(
       performers: performerNames !== undefined && performerNames.length > 0 ? performerNames : undefined,
       saved: mySaves?.saved ?? false,
       going: mySaves?.going ?? false,
+      // Counted from the rows loaded here, so it stops near MAX_RATERS_PER_ITEM; places.get counts further.
       ratingCount: rankings.length,
     },
     order,
@@ -485,11 +595,12 @@ export async function scoreCandidate(
   };
 }
 
+/** A friend's score as the card shows it: the score their ranking has (0 to 10), not the clipped one the math uses. */
 export const friendScoreOf = (row: FriendRow): FriendScore => ({
   userId: row.user._id,
   displayName: displayNameOf(row.user),
   avatarUrl: avatarUrlOf(row.user),
-  score: Math.round(clip(row.ranking.score, 1, 10) * 10) / 10,
+  score: shownScore(row.ranking.score),
   isLocal: row.local,
 });
 

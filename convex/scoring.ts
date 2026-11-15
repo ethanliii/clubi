@@ -2,7 +2,7 @@ import { Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 import type { Bucket } from "./lib/contract";
 import { tasteOf, venueVectorOf } from "./lib/discovery";
-import { nudgeTaste, updateElo, updateTaste } from "./lib/recs";
+import { lovedStepFor, nudgeTaste, updateElo, updateTaste } from "./lib/recs";
 
 /*
  * Live learning, for rankings.rank (Captain 2, task P5). Add this import:
@@ -39,13 +39,17 @@ export async function applyComparison(ctx: MutationCtx, userId: Id<"users">, win
   await ctx.db.patch(l._id, { elo: eloL, nComparisons: (l.nComparisons ?? 0) + 1 });
 }
 
-/** The bucket alone: loved moves taste 3% toward the item's features (LOVED_STEP), didnt 5% away. */
+/**
+ * The bucket alone: loved moves taste 3% toward the item's features (LOVED_STEP), or 10% for someone who
+ * skipped the quiz and so has a neutral prior (LOVED_STEP_NO_QUIZ); didnt moves it 5% away.
+ */
 export async function applyBucket(ctx: MutationCtx, userId: Id<"users">, item: ItemId, bucket: Bucket): Promise<void> {
   const [user, doc] = await Promise.all([ctx.db.get(userId), ctx.db.get(item)]);
   if (user === null || doc === null || bucket === "fine") return;
   const taste = tasteOf(user);
+  const prior = user.tastePrior?.length === taste.length ? user.tastePrior : taste;
   await ctx.db.patch(userId, {
-    tasteVector: nudgeTaste(taste, venueVectorOf(doc), bucket),
-    tastePrior: user.tastePrior?.length === taste.length ? user.tastePrior : taste,
+    tasteVector: nudgeTaste(taste, venueVectorOf(doc), bucket, lovedStepFor(prior)),
+    tastePrior: prior,
   });
 }

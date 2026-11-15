@@ -18,7 +18,11 @@ export const EVERYONE_LOVES_SCORE = 8;
 export const GROUP_SCORE_MIN = 1;
 export const GROUP_SCORE_MAX = 10;
 
-export type VoteTally = { up: number; down: number };
+/**
+ * `of` is how many people's votes were counted, when that is more than the members being scored (a trip
+ * with more joined members than the scoring cap): the vote term is then a share of them, not of the few scored.
+ */
+export type VoteTally = { up: number; down: number; of?: number };
 export type GroupScoreOpts = {
   /** Trip shortlist votes for this item, counted over the group's members. */
   votes?: VoteTally;
@@ -43,7 +47,8 @@ export type GroupScore = {
 const clip = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 const finite = (scores: number[]) => scores.filter((x) => Number.isFinite(x));
 const average = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
-const one = (x: number) => (Math.floor(x * 10) / 10).toFixed(1);
+/** One decimal, rounded the way `memberScores` on the same card is, so the line and the card agree. */
+const one = (x: number) => (Math.round(x * 10) / 10).toFixed(1);
 
 /** Population standard deviation of the members' scores; 0 for an empty group or a single member. */
 export function spread(scores: number[]): number {
@@ -60,7 +65,8 @@ export function agreement(scores: number[]): number {
 
 /**
  * The group score for one item, from each member's own predicted 1-10 score:
- * (1 - beta) * average + beta * lowest - psi * spread + nu * (up - down) / members, clipped to 1-10.
+ * (1 - beta) * average + beta * lowest - psi * spread + nu * (up - down) / voters, clipped to 1-10
+ * (voters = the members scored, or `votes.of` when more people's votes were counted).
  * Returns null when the item is dropped: the group is empty, or anyone is below GROUP_VETO_SCORE.
  * Votes never rescue a vetoed item. Scores that are not finite numbers are ignored.
  * With one member and no votes the result is that member's own score.
@@ -76,7 +82,8 @@ export function groupScoreV2(scores: number[], opts: GroupScoreOpts = {}): Group
   const min = Math.min(...xs);
   const sd = spread(xs);
   const up = Math.max(0, opts.votes?.up ?? 0), down = Math.max(0, opts.votes?.down ?? 0);
-  const voteTerm = GROUP_VOTE_NU * clip((up - down) / xs.length, -1, 1);
+  const voters = Math.max(xs.length, Number.isFinite(opts.votes?.of) ? opts.votes?.of ?? 0 : 0);
+  const voteTerm = GROUP_VOTE_NU * clip((up - down) / voters, -1, 1);
   const raw = (1 - GROUP_BETA) * mean + GROUP_BETA * min - GROUP_PSI * sd + voteTerm;
   return {
     score: clip(raw, GROUP_SCORE_MIN, GROUP_SCORE_MAX),
@@ -160,7 +167,8 @@ export function tallyVotes(
 
 /**
  * The why line for a group item. "Everyone's at 8+ here" when the lowest member is at 8 or more, else
- * "Best overlap: Ethan 9.1, Bryan 7.8" (highest and lowest member), then " · tag" when a tag is given.
+ * "Best overlap: Ethan 9.1, Bryan 7.8" (highest and lowest member, each rounded to one decimal like the
+ * member scores shown beside it), then " · tag" when a tag is given.
  * Never empty: one member or none falls back to the tag, or a plain line.
  */
 export function groupWhy(members: { name: string; score: number }[], tag?: string): string {

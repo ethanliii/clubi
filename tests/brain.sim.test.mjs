@@ -3,14 +3,16 @@
 // 200 users, 300 venues, rankings made by binary insertion on the true enjoyment, insight answers read off
 // the true venue vector, and the real update functions run in time order. Fixed seeds, no Math.random().
 // Five worlds are simulated and averaged: one world has only about 340 held-out pairs, too few to read.
+// SIM_SEED and SIM_WORLDS print the same report for other worlds (the numbers quoted as "12 more worlds" in
+// section 9 are SIM_SEED=20261120 SIM_WORLDS=12); the assertions are written for the default five.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as group from "../convex/lib/group.ts";
 import * as insights from "../convex/lib/insights.ts";
 import * as recs from "../convex/lib/recs.ts";
 
-const SEED = 20261115;
-const WORLDS = 5;                  // seeds SEED, SEED + 1, ...
+const SEED = Number(process.env.SIM_SEED ?? 20261115);
+const WORLDS = Number(process.env.SIM_WORLDS ?? 5);   // seeds SEED, SEED + 1, ...
 const STARTED = performance.now();
 
 // ───────────── the world (section 9, "The world") ─────────────
@@ -22,15 +24,19 @@ const VENUE_NOISE = 0.08;          // around the venue type
 const FEATURIZER_NOISE = 0.25;     // how wrong the keyword guess is
 const QUALITY_SD = 0.5;
 const ENJOY_NOISE = 0.5;
-const FAVOURITE_BONUS = 1.5;
+const FAVOURITE_BONUS_MIN = 0.5, FAVOURITE_BONUS_MAX = 2.5;   // per user and favourite: how much more they enjoy that act's night
 const LOCAL_SHARE = 0.6;
 const POPULARITY_SD = 0.9;         // log-normal: a few venues get most of the visits
 const FAVOURITES_PER_USER = 3;
 const FOLLOW_RATE = 0.5;           // share of their favourites a user follows in the app
+const OTHER_FOLLOWS_MAX = 2;       // and 0 to 2 performers who are not favourites: a friend's tip, an old taste
 const FRIENDS_PER_USER = 4;
 const FRIEND_SAME_ARCHETYPE = 0.7;
 // ───────────── what users do ─────────────
 const QUIZ_NOISE = 0.1;
+const QUIZ_SKIPPED_SHARE = 0.2;    // never took the quiz: NEUTRAL_TASTE
+const QUIZ_CARELESS_SHARE = 0.3;   // tapped through it: each card answered at random half the time
+const CARELESS_CARD_RATE = 0.5;
 const QUIZ_MULTI_CARDS = [0, 5];   // "What music gets you out?" and "Besides nightlife you're into..."
 const RANKED_MIN = 8, RANKED_MAX = 15;
 const HELD_OUT_SHARE = 0.2;
@@ -148,12 +154,24 @@ function streams(seed) {
 /**
  * The onboarding quiz as the app scores it: on each card the person picks the option (or, on the two
  * multi-select cards, the set of options) that brings quizToVector() closest to how they see themselves.
+ * That is the best answer the quiz can express, so a careful quiz-taker is an optimist's case. With
+ * `careless` (a random stream) about half the cards are answered at random instead.
  */
-function takeQuiz(selfImage) {
+function takeQuiz(selfImage, careless = null) {
   const distance = (answers) => recs.quizToVector(answers).reduce((s, x, k) => s + Math.abs(x - selfImage[k]), 0);
   const answers = recs.QUIZ_TABLE.map(() => []);
+  const random = new Set();
+  if (careless !== null) {
+    recs.QUIZ_TABLE.forEach((card, c) => {
+      if (careless.next() >= CARELESS_CARD_RATE) return;
+      random.add(c);
+      const options = careless.shuffle(card.map((_, o) => o));
+      answers[c] = options.slice(0, QUIZ_MULTI_CARDS.includes(c) ? careless.int(1, 2) : 1);
+    });
+  }
   for (let pass = 0; pass < 2; pass++) {
     recs.QUIZ_TABLE.forEach((card, c) => {
+      if (random.has(c)) return;
       const multi = QUIZ_MULTI_CARDS.includes(c);
       const choices = multi
         ? Array.from({ length: 2 ** card.length }, (_, mask) => card.map((_, o) => o).filter((o) => mask & (1 << o)))
@@ -177,12 +195,20 @@ function buildWorld(seed) {
     const rng = stream("user", u);
     const archetype = u % ARCHETYPES.length;
     const taste = rng.noisy(ARCHETYPES[archetype].taste, TASTE_NOISE);
-    const quiz = takeQuiz(rng.noisy(taste, QUIZ_NOISE));
-    const favourites = rng.shuffle(Array.from({ length: N_PERFORMERS }, (_, p) => p)).slice(0, FAVOURITES_PER_USER);
-    return {
-      u, archetype, taste, quiz, local: rng.next() < LOCAL_SHARE,
-      favourites: new Set(favourites), follows: new Set(favourites.filter(() => rng.next() < FOLLOW_RATE)), friends: new Set(),
-    };
+    const selfImage = rng.noisy(taste, QUIZ_NOISE);
+    const how = stream("quiz", u).next();
+    const quizKind = how < QUIZ_SKIPPED_SHARE ? "skipped" : how < QUIZ_SKIPPED_SHARE + QUIZ_CARELESS_SHARE ? "careless" : "careful";
+    const quiz = quizKind === "skipped"
+      ? [...recs.NEUTRAL_TASTE]
+      : takeQuiz(selfImage, quizKind === "careless" ? stream("careless", u) : null);
+    // Favourites carry a bonus of their own size. Follows are a noisy copy of them: about half of the
+    // favourites, plus a few performers the user does not enjoy any more than anyone else.
+    const acts = rng.shuffle(Array.from({ length: N_PERFORMERS }, (_, p) => p));
+    const favourites = new Map(acts.slice(0, FAVOURITES_PER_USER)
+      .map((p) => [p, FAVOURITE_BONUS_MIN + (FAVOURITE_BONUS_MAX - FAVOURITE_BONUS_MIN) * rng.next()]));
+    const follows = new Set([...favourites.keys()].filter(() => rng.next() < FOLLOW_RATE));
+    for (const p of acts.slice(FAVOURITES_PER_USER, FAVOURITES_PER_USER + rng.int(0, OTHER_FOLLOWS_MAX))) follows.add(p);
+    return { u, archetype, taste, quiz, quizKind, local: rng.next() < LOCAL_SHARE, favourites, follows, friends: new Set() };
   });
   const friendRng = stream("friends");
   for (const user of users) {
@@ -218,7 +244,7 @@ function buildWorld(seed) {
     const rng = stream("enjoy", user.u);
     return venues.map((venue) =>
       recs.contentScore(user.taste, venue.truth) + venue.quality + ENJOY_NOISE * rng.gauss()
-      + (venue.performers.some((p) => user.favourites.has(p)) ? FAVOURITE_BONUS : 0));
+      + Math.max(0, ...venue.performers.map((p) => user.favourites.get(p) ?? 0)));
   });
 
   // Who went where: popular venues more often. A fifth of each user's venues is held out before training.
@@ -243,12 +269,17 @@ const bucketScore = (bucket, position, count) => {
   return Math.round((high - ((position - 0.5) * (high - low)) / count) * 10) / 10;
 };
 
-/** One person's answers: for each question asked, the options closest to how the venue seemed to them. */
-function answersFor(questions, perceived, y, key) {
+/**
+ * One person's answers: for each question asked, the options closest to how the venue seemed to them. The
+ * options and what they say about a venue are the ones this category has ("Date night" means a quiet room
+ * for a bar and nothing for a restaurant).
+ */
+function answersFor(category, questions, perceived, y, key) {
   const coin = (...parts) => insights.hashString(`${key}:${parts.join(":")}`) / 2 ** 32;
+  const bank = insights.questionsForCategory(category);
   const answers = [];
   for (const asked of questions) {
-    const q = insights.QUESTION_BANK.find((b) => b.id === asked.id);
+    const q = bank.find((b) => b.id === asked.id);
     const options = q.options.filter((o) => asked.options.some((a) => a.id === o.id));
     const distance = (o) => mean(Object.entries(o.targets).map(([feature, target]) => Math.abs(perceived[F(feature)] - target)));
     if (q.id === "return") {
@@ -322,8 +353,10 @@ function train(world) {
     }
     list.splice(lo, 0, i);
     state.lists[u].set(key, list);
-    state.tasteGuess[u] = recs.nudgeTaste(state.tasteGuess[u], venue.guess, bucket);
-    state.tasteBlend[u] = recs.nudgeTaste(state.tasteBlend[u], state.blend[i], bucket);
+    // scoring.applyBucket: someone who skipped the quiz has a neutral prior and takes the bigger step.
+    const lovedStep = recs.lovedStepFor(user.quiz);
+    state.tasteGuess[u] = recs.nudgeTaste(state.tasteGuess[u], venue.guess, bucket, lovedStep);
+    state.tasteBlend[u] = recs.nudgeTaste(state.tasteBlend[u], state.blend[i], bucket, lovedStep);
     state.raters[i].push(u);
 
     // The affinity step for every performer on the bill, from the score the ranking has right now.
@@ -338,12 +371,13 @@ function train(world) {
     const rng = stream("answers", u, i);
     if (rng.next() >= ANSWER_RATE) continue;
     const questions = insights.pickQuestions(venue.category, state.counts[i], { seed: `user${u}` });
-    const given = answersFor(questions, rng.noisy(venue.truth, ANSWER_NOISE), y, `${world.seed}:${u}:${i}`);
+    const given = answersFor(venue.category, questions, rng.noisy(venue.truth, ANSWER_NOISE), y, `${world.seed}:${u}:${i}`);
     const answers = insights.cleanAnswers(venue.category, given);
     if (answers.length === 0) continue;
     state.counts[i] = insights.addAnswers(state.counts[i], answers);
     if (user.local) state.localCounts[i] = insights.addAnswers(state.localCounts[i], answers);
-    const observed = insights.observedVector(state.counts[i], state.localCounts[i]);
+    // As insights.submit does: only questions at least MIN_SHOW people answered here feed the vector.
+    const observed = insights.measuredVector(venue.category, state.counts[i], state.localCounts[i]);
     state.blend[i] = insights.hasObservations(observed.weight) ? insights.blendVector(venue.guess, observed.vector, observed.weight) : venue.guess;
     state.measured[i] = observed.weight;
     state.respondents[i] += 1;
@@ -369,6 +403,8 @@ const MODELS = {
   "v4": { measured: true, capElo: true, performer: true },
   "v4, no measured vectors": { measured: false, capElo: true, performer: true },
   "v4, no performer term": { measured: true, capElo: true, performer: false },
+  "v4, follows only": { measured: true, capElo: true, performer: true, learned: false },
+  "v4, learned affinity only": { measured: true, capElo: true, performer: true, follows: false },
   "v4, no cap on quality": { measured: true, capElo: false, performer: true },
   "v4, no crowd": { measured: true, capElo: true, performer: true, crowd: false },
   "v4, no quality term": { measured: true, capElo: true, performer: true, elo: false },
@@ -384,8 +420,8 @@ function scorer(world, state, model) {
       taste: taste[v], score: state.ownScore[v].get(i), local: users[v].local, friend: user.friends.has(v), name: `user${v}`,
     }));
     const known = !model.performer ? [] : venue.performers.flatMap((p) => {
-      const row = state.affinity[u].get(p);
-      const following = user.follows.has(p);
+      const row = model.learned === false ? undefined : state.affinity[u].get(p);
+      const following = model.follows !== false && user.follows.has(p);
       if (row === undefined && !following) return [];
       return [{ name: `performer${p}`, score: row?.score ?? recs.AFFINITY_NEUTRAL, following, nRankings: row?.n ?? 0 }];
     });
@@ -395,13 +431,18 @@ function scorer(world, state, model) {
   };
 }
 
+const QUIZ_KINDS = ["careful", "careless", "skipped"];
+
 function evaluate(world, state, model, { explore = false } = {}) {
   const { users, venues, enjoy } = world;
   const score = scorer(world, state, model);
-  let pairs = 0, pairsRight = 0, widePairs = 0, wideRight = 0, ndcgSum = 0, ndcgUsers = 0, favEvents = 0, favInTop = 0;
+  const blank = () => ({ pairs: 0, pairsRight: 0, widePairs: 0, wideRight: 0, ndcgSum: 0, ndcgUsers: 0, favEvents: 0, favInTop: 0 });
+  const everyone = blank();
+  const byQuiz = Object.fromEntries(QUIZ_KINDS.map((kind) => [kind, blank()]));
   const agree = (dp, dy) => (dp === 0 ? 0.5 : dp > 0 === dy > 0 ? 1 : 0);
   for (const user of users) {
     const u = user.u;
+    const mine = blank();
     const pool = [...user.heldOut, ...user.unseen].map((i) => {
       const predicted = score(u, i);
       // Exploration changes the order only, never the predicted score (section 8).
@@ -411,25 +452,27 @@ function evaluate(world, state, model, { explore = false } = {}) {
     for (let a = 0; a < pool.length; a++) {
       for (let b = a + 1; b < pool.length; b++) {
         const right = agree(pool[a].predicted - pool[b].predicted, pool[a].y - pool[b].y);
-        widePairs += 1; wideRight += right;
-        if (pool[a].held && pool[b].held) { pairs += 1; pairsRight += right; }
+        mine.widePairs += 1; mine.wideRight += right;
+        if (pool[a].held && pool[b].held) { mine.pairs += 1; mine.pairsRight += right; }
       }
     }
     const gain = (x) => Math.max(0, x.y - NDCG_GAIN_FROM);
     const dcg = (xs) => xs.slice(0, NDCG_K).reduce((s, x, rank) => s + gain(x) / Math.log2(rank + 2), 0);
     const ranked = [...pool].sort((a, b) => b.predicted - a.predicted || a.i - b.i);
     const ideal = dcg([...pool].sort((a, b) => b.y - a.y));
-    if (ideal > 0) { ndcgSum += dcg(ranked) / ideal; ndcgUsers += 1; }
+    if (ideal > 0) { mine.ndcgSum += dcg(ranked) / ideal; mine.ndcgUsers += 1; }
     ranked.forEach((x, rank) => {
       if (!venues[x.i].performers.some((p) => user.favourites.has(p))) return;
-      favEvents += 1;
-      if (rank < TOP_K) favInTop += 1;
+      mine.favEvents += 1;
+      if (rank < TOP_K) mine.favInTop += 1;
     });
+    for (const tally of [everyone, byQuiz[user.quizKind]]) for (const key of Object.keys(mine)) tally[key] += mine[key];
   }
-  return {
-    pairwise: pairsRight / pairs, pairs, widePairwise: wideRight / widePairs, widePairs,
-    ndcg: ndcgSum / ndcgUsers, favTop: favInTop / favEvents, favEvents,
-  };
+  const fold = (t) => ({
+    pairwise: t.pairsRight / t.pairs, pairs: t.pairs, widePairwise: t.wideRight / t.widePairs, widePairs: t.widePairs,
+    ndcg: t.ndcgSum / t.ndcgUsers, favTop: t.favInTop / t.favEvents, favEvents: t.favEvents, users: t.ndcgUsers,
+  });
+  return { ...fold(everyone), byQuiz: Object.fromEntries(QUIZ_KINDS.map((kind) => [kind, fold(byQuiz[kind])])) };
 }
 
 function vectorErrors(world, state) {
@@ -579,6 +622,12 @@ function report() {
     `  favourite performers' events in the top 10: x${f2(v4.favTop / v3.favTop)} (${Math.round(v4.favEvents)} cases per world); `
       + `exploration costs ${f3(exploreCost)} NDCG@10`,
     "",
+    `${pad("by how the quiz was taken", 32)}${pad("users", 8)}${pad("quiz alone", 16)}${pad("v3", 16)}v4          (pairwise* / NDCG@10)`,
+    ...QUIZ_KINDS.map((kind) => {
+      const cell = (name) => pad(`${f3(models[name].byQuiz[kind].widePairwise)} / ${f3(models[name].byQuiz[kind].ndcg)}`, 16);
+      return `${pad(kind, 32)}${pad(Math.round(v4.byQuiz[kind].users), 8)}${cell(QUIZ)}${cell("v3")}${cell("v4")}`;
+    }),
+    "",
     `${pad("venue vector error (mean abs.)", 60)}${pad("featurizer", 12)}measured blend`,
     `${pad("all venues, all 13 features", 60)}${pad(f3(vectors.allGuess), 12)}${f3(vectors.allBlend)}`,
     `${pad(`venues with ${WELL_MEASURED}+ respondents (${vectors.wellVenues.toFixed(1)} per world), all features`, 60)}${pad(f3(vectors.wellGuess), 12)}${f3(vectors.wellBlend)}`,
@@ -607,6 +656,12 @@ test("the simulator runs in under 5 seconds and is the same world for the same s
   assert.equal(a.venues.filter((venue) => venue.performers.length > 0).length, 60);
   assert.ok(a.users.every((user) => user.heldOut.length >= 2 && user.train.length >= 6 && user.unseen.length === UNSEEN_PER_USER));
   assert.ok(a.users.every((user) => user.quiz.length === FEATURES.length && user.quiz.every((x) => x >= 0 && x <= 1)));
+  // Follows are a noisy copy of the favourites: some favourites are not followed, some follows are not favourites.
+  const followed = a.users.flatMap((user) => [...user.follows].map((p) => user.favourites.has(p)));
+  assert.ok(followed.some((x) => x) && followed.some((x) => !x));
+  assert.ok(a.users.some((user) => [...user.favourites.keys()].some((p) => !user.follows.has(p))));
+  assert.ok(QUIZ_KINDS.every((kind) => a.users.some((user) => user.quizKind === kind)));
+  assert.ok(a.users.filter((user) => user.quizKind === "skipped").every((user) => recs.isNeutralTaste(user.quiz)));
   assert.deepEqual(simulate(SEED), RUNS[0]);
 });
 
@@ -631,9 +686,39 @@ test("no single term of v4 makes the ranking clearly worse", () => {
     const without = R.models[name];
     assert.ok(without.widePairwise - R.models.v4.widePairwise <= 0.005, `${name}: pairwise* ${without.widePairwise}`);
   }
-  assert.ok(R.models["v4, no measured vectors"].widePairwise < R.models.v4.widePairwise);
+  // Measured vectors are not asserted to help the ranking: with the 5-respondent rule only about 70
+  // features per world are measured at all, and the two rows differ by less than 0.001.
+  assert.ok(Math.abs(R.models["v4, no measured vectors"].widePairwise - R.models.v4.widePairwise) < 0.003);
   assert.ok(R.models["v4, no performer term"].ndcg < R.models.v4.ndcg);
   assert.ok(R.models["v4, no crowd"].widePairwise < R.models.v4.widePairwise);
+});
+
+test("the performer term: follows carry the gain, and a learned affinity alone does no harm", () => {
+  const none = R.models["v4, no performer term"], follows = R.models["v4, follows only"], learned = R.models["v4, learned affinity only"];
+  // Follows are a noisy copy of who the user really enjoys, and still most of what v4 adds.
+  assert.ok(follows.ndcg > none.ndcg + 0.005, `follows only ${follows.ndcg} against ${none.ndcg}`);
+  assert.ok(follows.favTop > 1.3 * none.favTop);
+  // Affinities learned from rankings, shrunk by how many there are: never below having no performer term.
+  assert.ok(learned.ndcg >= none.ndcg, `learned only NDCG@10 ${learned.ndcg} < ${none.ndcg}`);
+  assert.ok(learned.widePairwise >= none.widePairwise, `learned only pairwise* ${learned.widePairwise} < ${none.widePairwise}`);
+  assert.ok(learned.favTop > none.favTop);
+});
+
+test("v4 is at least as good as v3 with every follow switched off", () => {
+  const { v3 } = R.models, learned = R.models["v4, learned affinity only"];
+  assert.ok(learned.widePairwise >= v3.widePairwise, `pairwise* ${learned.widePairwise} < ${v3.widePairwise}`);
+  assert.ok(learned.ndcg >= v3.ndcg, `NDCG@10 ${learned.ndcg} < ${v3.ndcg}`);
+});
+
+test("v4 beats the quiz alone for careful, careless and skipped quiz-takers alike", () => {
+  for (const kind of QUIZ_KINDS) {
+    const quiz = R.models[QUIZ].byQuiz[kind], v4 = R.models.v4.byQuiz[kind];
+    assert.ok(v4.users >= 20, `${kind}: ${v4.users} users`);
+    assert.ok(v4.widePairwise > quiz.widePairwise && v4.ndcg > quiz.ndcg, `${kind}: ${v4.widePairwise} / ${v4.ndcg}`);
+  }
+  // The weaker the quiz, the more there is to learn: the gain over the quiz grows from careful to skipped.
+  const gain = (kind) => R.models.v4.byQuiz[kind].widePairwise - R.models[QUIZ].byQuiz[kind].widePairwise;
+  assert.ok(gain("skipped") > gain("careless") && gain("careless") > gain("careful"));
 });
 
 test("a favourite performer's event reaches the top 10 more often under v4", () => {

@@ -19,6 +19,7 @@ export const TIME_TAU = 0.5;
 export const GROUP_BETA = 0.5;
 export const GROUP_VETO_SCORE = 4;
 export const LOVED_STEP = 0.03;         // tuned by tests/brain.sim.test.mjs (was 0.1): a venue vector is not a taste vector
+export const LOVED_STEP_NO_QUIZ = 0.1;  // without a quiz the bucket is most of what we know, so it moves taste more
 export const DIDNT_STEP = 0.05;
 export const QUIZ_BASELINE = 0.3;
 export const FEATURE_BASELINE = 0.15;
@@ -33,6 +34,9 @@ export const PERFORMER_RHO = 1.5;
 export const PERFORMER_TERM_MIN = -0.75;
 export const PERFORMER_TERM_MAX = 1.5;
 export const WHY_PERFORMER_MIN = 0.5;
+export const AFFINITY_EVIDENCE_PRIOR = 1;   // rankings: an affinity learned from one ranking counts half
+export const WHY_RATED_MIN_RANKINGS = 2;    // "You rated X 9.4" needs more than one night behind it
+export const MEASURED_SUFFIX = ", say people who went";
 export const EXPLORE_C = 0.4;             // tuned by tests/brain.sim.test.mjs (was 0.6): keeps the cost under 0.01 NDCG@10
 export const NEW_ITEM_MAX_RATINGS = 3;
 export const NEW_SLOT_MIN_CONTENT = 7;
@@ -73,9 +77,22 @@ export function updateTaste(t: number[], prior: number[], fW: number[], fL: numb
   return t.map((x, k) => clip(x + eta * g * delta[k] - eta * lambda * (x - prior[k]), 0, 1));
 }
 
-/** A bucket alone is a signal: loved pulls taste toward the item's features, didnt pushes it away. */
-export function nudgeTaste(t: number[], f: number[], bucket: "loved" | "fine" | "didnt"): number[] {
-  const step = bucket === "loved" ? LOVED_STEP : bucket === "didnt" ? -DIDNT_STEP : 0;
+/** True for a taste nobody has stated: no vector, or every feature at the neutral 0.5 (the quiz was skipped). */
+export const isNeutralTaste = (t: number[] | undefined) =>
+  t === undefined || t.every((x, k) => Math.abs(x - (NEUTRAL_TASTE[k] ?? 0.5)) < 1e-9);
+
+/**
+ * How far a "loved" pulls taste toward the place, from the prior the person started with: LOVED_STEP when
+ * a quiz stands behind it, LOVED_STEP_NO_QUIZ when it is neutral and there is nothing to protect.
+ */
+export const lovedStepFor = (prior: number[] | undefined) => (isNeutralTaste(prior) ? LOVED_STEP_NO_QUIZ : LOVED_STEP);
+
+/**
+ * A bucket alone is a signal: loved pulls taste toward the item's features, didnt pushes it away.
+ * `lovedStep` comes from lovedStepFor(prior) when the caller knows the person's prior.
+ */
+export function nudgeTaste(t: number[], f: number[], bucket: "loved" | "fine" | "didnt", lovedStep = LOVED_STEP): number[] {
+  const step = bucket === "loved" ? lovedStep : bucket === "didnt" ? -DIDNT_STEP : 0;
   return t.map((x, k) => clip(x + step * (f[k] - x), 0, 1));
 }
 
@@ -119,14 +136,29 @@ export const FEATURE_PHRASES: Record<Feature, string> = {
   food: "great food",
 };
 
-/** 8.5: a short phrase such as "Loud + pop music". Never empty. */
-export function whyFromFeatures(features: readonly Feature[]): string {
+/**
+ * 8.5: a short phrase such as "Loud + pop music". Never empty. With `measured` (the strongest feature has
+ * visitors' answers behind it, section 2.3 rule 6) it reads "Loud + pop music, say people who went".
+ */
+export function whyFromFeatures(features: readonly Feature[], measured = false): string {
   const phrase = features.map((k) => FEATURE_PHRASES[k]).filter(Boolean).join(" + ");
   if (phrase === "") return "Worth a look nearby";
-  return phrase[0].toUpperCase() + phrase.slice(1);
+  return phrase[0].toUpperCase() + phrase.slice(1) + (measured ? MEASURED_SUFFIX : "");
 }
 
+/**
+ * People's rule for a friend's ranking: it is as visible as its post. "private" (the UI's "Only me") hides
+ * it from friends; "friends", "public" and a ranking whose post was deleted (undefined) are shown to them.
+ */
+export const friendMaySee = (postVisibility: "friends" | "public" | "private" | undefined) => postVisibility !== "private";
+
 export const matchPct = (score: number) => clip(Math.round(((score - 1) / 9) * 100), 0, 100);
+
+/**
+ * A ranking's score as text shows it ("You ranked it 0.8", "Albert gave it 0.8"): the score the ranking
+ * has, one decimal. Rankings run from 0 (the "didn't like" bucket starts there); only the math clips to 1-10.
+ */
+export const shownScore = (score: number) => Math.round(clip(score, 0, 10) * 10) / 10;
 
 type QuizEffect = { set?: Partial<Record<Feature, number>>; add?: Partial<Record<Feature, number>> };
 
@@ -211,11 +243,12 @@ export type PredictExtras = { performer?: number; also?: number };
 export function predict(tU: number[], fI: number[], eloI: number, raters: Rater[], userIsLocal: boolean, extras: PredictExtras = {}) {
   const alpha = userIsLocal ? ALPHA_LOCAL_VIEWER : ALPHA_VISITOR_VIEWER;
   let num = PSEUDO_VOTES * GLOBAL_MEAN, den = PSEUDO_VOTES, wSum = 0;
-  let best: { name: string; score: number; w: number; local: boolean; friend: boolean } | null = null;
-  for (const v of raters) {
+  // `index` is the heaviest rater's place in `raters`, so a caller can find the row it passed in.
+  let best: { name: string; score: number; w: number; local: boolean; friend: boolean; index: number } | null = null;
+  for (const [index, v] of raters.entries()) {
     const w = Math.max(0, similarity(tU, v.taste)) * (1 + alpha * +v.local) * (1 + BETA_FRIEND * +v.friend);
     num += w * v.score; den += w; wSum += w;
-    if (!best || w > best.w) best = { name: v.name, score: v.score, w, local: v.local, friend: v.friend };
+    if (!best || w > best.w) best = { name: v.name, score: v.score, w, local: v.local, friend: v.friend, index };
   }
   const crowd = num / den;
   const content = contentScore(tU, fI);
@@ -233,9 +266,21 @@ export function predict(tU: number[], fI: number[], eloI: number, raters: Rater[
 
 export type PerformerAffinity = { name: string; score: number; following: boolean; nRankings?: number };
 
-/** Section 4.1: following a performer lifts the affinity to at least FOLLOW_FLOOR. */
-export const effectiveAffinity = (a: { score: number; following: boolean }) =>
-  clip(a.following ? Math.max(a.score, FOLLOW_FLOOR) : a.score, 0, 10);
+/**
+ * A learned affinity shrunk toward neutral by the rankings behind it: n / (n + 1) of the way, so one
+ * ranking counts half. A single night's score says as much about the venue and the company as about the
+ * act. A row without a count (an older caller) is taken as it is.
+ */
+export const learnedAffinity = (score: number, nRankings?: number) =>
+  nRankings === undefined
+    ? score
+    : AFFINITY_NEUTRAL + ((score - AFFINITY_NEUTRAL) * Math.max(0, nRankings)) / (Math.max(0, nRankings) + AFFINITY_EVIDENCE_PRIOR);
+
+/** Section 4.1: the learned affinity, lifted to at least FOLLOW_FLOOR when the performer is followed. */
+export const effectiveAffinity = (a: { score: number; following: boolean; nRankings?: number }) => {
+  const learned = learnedAffinity(a.score, a.nRankings);
+  return clip(a.following ? Math.max(learned, FOLLOW_FLOOR) : learned, 0, 10);
+};
 
 /** P: the performer term for the highest effective affinity on the bill. 0 when there is none. */
 export const performerTerm = (bestAffinity: number | undefined) =>
@@ -245,7 +290,8 @@ export const performerTerm = (bestAffinity: number | undefined) =>
 
 /**
  * The performer term of an event from the viewer's affinities for the performers on it (only those the
- * viewer has a row for), and the reason line when the term is big enough to carry the score.
+ * viewer has a row for), and the reason line when the term is big enough to carry the score: "You rated X
+ * 9.4" from WHY_RATED_MIN_RANKINGS rankings on, "You follow X" for a follow, nothing for one rated night.
  */
 export function performerAffinity(known: PerformerAffinity[]): { term: number; best?: PerformerAffinity; affinity?: number; why?: string } {
   let best: PerformerAffinity | undefined;
@@ -255,10 +301,11 @@ export function performerAffinity(known: PerformerAffinity[]): { term: number; b
   if (best === undefined) return { term: 0 };
   const affinity = effectiveAffinity(best);
   const term = performerTerm(affinity);
-  const rated = !best.following || ((best.nRankings ?? 0) > 0 && best.score >= FOLLOW_FLOOR);
+  const ratedEnough = (best.nRankings ?? WHY_RATED_MIN_RANKINGS) >= WHY_RATED_MIN_RANKINGS;
+  const rated = ratedEnough && (!best.following || best.score >= FOLLOW_FLOOR);
   const why = term < WHY_PERFORMER_MIN
     ? undefined
-    : rated ? `You rated ${best.name} ${clip(best.score, 0, 10).toFixed(1)}` : `You follow ${best.name}`;
+    : rated ? `You rated ${best.name} ${clip(best.score, 0, 10).toFixed(1)}` : best.following ? `You follow ${best.name}` : undefined;
   return { term, best, affinity, why };
 }
 
@@ -315,6 +362,27 @@ export function newSlotPick<T extends NewSlotCandidate>(top: T[], rest: T[], top
   }
   return best;
 }
+
+/**
+ * Takes up to `cap` items from several lists in turn: the first of each list, then the second of each, and
+ * so on. Each list keeps its own order, and no list can crowd the others out (discover.upcoming gives every
+ * part of its time window a share this way).
+ */
+export function takeAcross<T>(lists: T[][], cap: number): T[] {
+  const out: T[] = [];
+  const longest = lists.reduce((m, list) => Math.max(m, list.length), 0);
+  for (let depth = 0; depth < longest && out.length < cap; depth++) {
+    for (const list of lists) {
+      if (out.length >= cap) break;
+      if (depth < list.length) out.push(list[depth]);
+    }
+  }
+  return out;
+}
+
+/** One part's share of a read budget split evenly over `parts`, kept inside [min, max]. */
+export const shareOf = (budget: number, parts: number, min: number, max: number) =>
+  clip(Math.floor(budget / Math.max(1, parts)), min, max);
 
 /** "More like this": a mix of closeness in feature space (put on the 0-10 scale) and the viewer's own score. */
 export const similarValue = (sim: number, score: number, mix = SIMILAR_MIX) =>
