@@ -1,0 +1,256 @@
+import { useMutation, useQuery } from "convex/react";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { Button, EmptyState, Skeleton, goBack, useToast } from "../../components";
+import { api, type Bucket, type InsightAnswer, type InsightQuestion, type Kind, type RankResult } from "../../lib/api";
+import { errorMessage } from "../../lib/errors";
+import { paths } from "../../lib/links";
+import { radius } from "../../theme";
+import { DetailsStep, EMPTY_DRAFT, type Draft } from "./DetailsStep";
+import { FlowScreen } from "./FlowScreen";
+import { QuestionsStep } from "./QuestionsStep";
+import { answer, positionOf, startSearch, stopEarly, type Search } from "./search";
+import { CompareStep, HowStep, ResultStep } from "./steps";
+import { createTapGuard } from "./tapGuard";
+import { usePhotoDraft } from "./usePhotoDraft";
+
+type Step = "how" | "compare" | "details" | "result" | "questions";
+
+/** The flow is over: back to the tabs, on the Feed, where the new post is. */
+function goToFeed() {
+  if (router.canDismiss()) router.dismissAll();
+  router.replace(paths.feed);
+}
+
+/**
+ * The rank flow for one place or event (docs/UI-SPEC.md section 6, steps 2 to 6):
+ * how was it → which was better → tags, photo, caption → `rankings.rank` → result → quick questions → Feed.
+ *
+ * Everything the user has entered lives here until "Post", so leaving mid-flow saves nothing and a
+ * failed "Post" keeps every field. The bucket list and the questions are copied once when their
+ * step starts, so a live update from the backend can never move a comparison or a card under the
+ * user's thumb.
+ */
+export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
+  const toast = useToast();
+  const venue = useQuery(api.places.get, { kind, id });
+  const settings = useQuery(api.settings.get, {});
+
+  const [step, setStep] = useState<Step>("how");
+  const [bucket, setBucket] = useState<Bucket | null>(null);
+  const [search, setSearch] = useState<Search | null>(null);
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [posting, setPosting] = useState(false);
+  const [result, setResult] = useState<RankResult | null>(null);
+  const [questions, setQuestions] = useState<InsightQuestion[] | null>(null);
+  const [sending, setSending] = useState(false);
+  // A second tap right after a round changed is the same tap landing twice.
+  const [guard] = useState(createTapGuard);
+  const { photo, add: addPhoto, remove: removePhoto } = usePhotoDraft();
+
+  const rank = useMutation(api.rankings.rank);
+  const submitAnswers = useMutation(api.insights.submit);
+
+  const category = venue?.category;
+  // All three buckets are asked for while the user is still choosing, so "Which was better?" opens at once.
+  const comparing = (step === "how" || step === "compare") && category !== undefined;
+  const loved = useQuery(api.rankings.listInBucket, comparing ? { category, bucket: "loved" } : "skip");
+  const fine = useQuery(api.rankings.listInBucket, comparing ? { category, bucket: "fine" } : "skip");
+  const didnt = useQuery(api.rankings.listInBucket, comparing ? { category, bucket: "didnt" } : "skip");
+  const bucketList = bucket === null ? undefined : { loved, fine, didnt }[bucket];
+  const ranked = useQuery(
+    api.rankings.mine,
+    step === "result" && category !== undefined ? { category } : "skip",
+  );
+  const liveQuestions = useQuery(
+    api.insights.questionsFor,
+    step === "result" || step === "questions" ? { kind, id } : "skip",
+  );
+
+  // Step 3 starts the moment the bucket arrives. With nothing to compare against it is skipped:
+  // position 1, no comparisons.
+  if (step === "compare" && search === null && bucketList !== undefined) {
+    const started = startSearch(bucketList, id);
+    setSearch(started);
+    if (started.done) setStep("details");
+  }
+  // Step 6 keeps the questions it started with.
+  if (step === "questions" && questions === null && liveQuestions !== undefined) {
+    setQuestions(liveQuestions);
+  }
+
+  // No questions for this place: straight to the Feed.
+  const nothingToAsk = step === "questions" && questions !== null && questions.length === 0;
+  useEffect(() => {
+    if (nothingToAsk) goToFeed();
+  }, [nothingToAsk]);
+
+  if (venue === undefined) {
+    return (
+      <FlowScreen title="How was it?" onBack={goBack}>
+        <Skeleton height={30} width="70%" />
+        <Skeleton height={76} round={radius.xl} />
+        <Skeleton height={76} round={radius.xl} />
+        <Skeleton height={76} round={radius.xl} />
+      </FlowScreen>
+    );
+  }
+  if (venue === null) {
+    return (
+      <FlowScreen title="" onBack={goBack}>
+        <EmptyState title="This place is no longer listed" actionLabel="Back" onAction={goBack} />
+      </FlowScreen>
+    );
+  }
+
+  const isRerank = venue.myRanking !== undefined;
+
+  const pickBucket = (picked: Bucket) => {
+    setBucket(picked);
+    setSearch(null);
+    setStep("compare");
+  };
+
+  const settle = (next: Search) => {
+    setSearch(next);
+    if (next.done) setStep("details");
+  };
+
+  const onAnswer = (newWon: boolean) => {
+    if (search === null || guard.justMoved()) return;
+    guard.mark();
+    settle(answer(search, venue.id, newWon));
+  };
+
+  const backToHow = () => {
+    setSearch(null);
+    setStep("how");
+  };
+
+  // What "Who sees it" shows. A first ranking starts on the user's default ("Friends" until it loads).
+  // A re-rank the user leaves alone sends nothing, so the post keeps the setting it already has.
+  const shownVisibility = draft.visibility ?? (isRerank ? null : (settings?.defaultVisibility ?? "friends"));
+
+  const post = async () => {
+    if (posting || bucket === null || search === null) return;
+    setPosting(true);
+    try {
+      const caption = draft.caption.trim();
+      const ranking = await rank({
+        kind: venue.kind,
+        id: venue.id,
+        bucket,
+        position: positionOf(search),
+        comparisons: search.comparisons,
+        tags: draft.tags,
+        ...(caption === "" ? {} : { caption }),
+        ...(photo?.storageId ? { photoStorageId: photo.storageId } : {}),
+        ...(shownVisibility === null ? {} : { visibility: shownVisibility }),
+      });
+      setResult(ranking);
+      setStep("result");
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const continueFromResult = () => {
+    if (liveQuestions !== undefined && liveQuestions.length === 0) {
+      goToFeed();
+      return;
+    }
+    setStep("questions");
+  };
+
+  const finishQuestions = async (answers: InsightAnswer[]) => {
+    if (sending) return;
+    // Sending an empty list would wipe what the user said about this place on an earlier visit.
+    if (answers.length === 0 || result === null) {
+      goToFeed();
+      return;
+    }
+    setSending(true);
+    try {
+      const { highlights } = await submitAnswers({ kind, id, rankingId: result.rankingId, answers });
+      toast(highlights.length > 0 ? `Thanks! ${highlights.slice(0, 3).join(" · ")}` : "Thanks! That helps everyone.", "success");
+      goToFeed();
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (step === "how") return <HowStep venue={venue} onPick={pickBucket} onBack={goBack} />;
+
+  if (step === "compare") {
+    return (
+      <CompareStep
+        venue={venue}
+        search={search}
+        onAnswer={onAnswer}
+        onTooClose={() => search !== null && settle(stopEarly(search))}
+        onBack={backToHow}
+      />
+    );
+  }
+
+  if (step === "details" || result === null) {
+    return (
+      <DetailsStep
+        venue={venue}
+        draft={draft}
+        onChange={setDraft}
+        photo={photo}
+        onAddPhoto={() => void addPhoto()}
+        onRemovePhoto={removePhoto}
+        shownVisibility={shownVisibility}
+        keepsVisibility={isRerank}
+        posting={posting}
+        onPost={() => void post()}
+        onBack={backToHow}
+      />
+    );
+  }
+
+  if (step === "result") {
+    // "Done" when it is already known there is nothing to ask; "Continue" otherwise.
+    const nothingMore = liveQuestions !== undefined && liveQuestions.length === 0;
+    return (
+      <ResultStep
+        venue={venue}
+        result={result}
+        list={ranked}
+        continueLabel={nothingMore ? "Done" : "Continue"}
+        busy={false}
+        onContinue={continueFromResult}
+      />
+    );
+  }
+
+  if (questions === null || questions.length === 0) {
+    return (
+      <FlowScreen
+        title="Quick questions"
+        back={false}
+        right={<Button title="Skip all" accessibilityLabel="Skip all" variant="link" onPress={goToFeed} />}
+      >
+        <Skeleton height={30} width="80%" />
+        <Skeleton height={60} round={radius.xl} />
+        <Skeleton height={60} round={radius.xl} />
+        <Skeleton height={60} round={radius.xl} />
+      </FlowScreen>
+    );
+  }
+
+  return (
+    <QuestionsStep
+      questions={questions}
+      sending={sending}
+      onDone={(answers) => void finishQuestions(answers)}
+      onSkipAll={goToFeed}
+    />
+  );
+}
