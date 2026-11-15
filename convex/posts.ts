@@ -179,12 +179,17 @@ export function feedItemBuilder(ctx: QueryCtx, viewer: PostViewer) {
       reactionCount: shown(reactions).length,
       myReaction: mine === undefined ? undefined : (mine.emoji ?? DEFAULT_EMOJI),
       commentCount: shown(comments).length,
-      insightChips: ranking === null || ranking === undefined ? undefined : answerChips(
-        (await ctx.db.query("visitAnswers").withIndex("by_ranking", (q) => q.eq("rankingId", ranking._id)).take(8))
-          .map((row) => ({ questionId: row.questionId, optionIds: row.optionIds })),
-      ),
+      insightChips: await insightChipsFor(ctx, ranking?._id),
     };
   };
+}
+
+/** Short answers from the questions asked after the ranking, e.g. "Packed", "Mostly 20s". Unset when there are none. */
+async function insightChipsFor(ctx: QueryCtx, rankingId: Id<"rankings"> | undefined) {
+  if (rankingId === undefined) return undefined;
+  const rows = await ctx.db.query("visitAnswers").withIndex("by_ranking", (q) => q.eq("rankingId", rankingId)).take(8);
+  const chips = answerChips(rows.map((row) => ({ questionId: row.questionId, optionIds: row.optionIds })));
+  return chips.length > 0 ? chips : undefined;
 }
 
 async function buildAll(ctx: QueryCtx, viewer: PostViewer, posts: Doc<"posts">[]) {
