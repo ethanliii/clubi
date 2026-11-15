@@ -7,7 +7,7 @@ import { ConvexReactClient, useConvexAuth, useMutation, useQuery } from "convex/
 import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
 import { useState } from "react";
-import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { Button, FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "./convex/_generated/api";
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
@@ -24,7 +24,7 @@ export default function App() {
   return (
     <ConvexAuthProvider
       client={convex}
-      storage={secureStorage}
+      storage={Platform.OS === "web" ? undefined : secureStorage}
       api={{
         refreshSession: api.auth.refreshSession,
         signOut: api.auth.signOut,
@@ -106,8 +106,9 @@ function Moments() {
         title="Add moment"
         disabled={text.trim() === ""}
         onPress={async () => {
-          await addMoment({ text: text.trim() });
-          setText("");
+          const submitted = text;
+          await addMoment({ text: submitted.trim() });
+          setText((current) => (current === submitted ? "" : current));
         }}
       />
       <FlatList
