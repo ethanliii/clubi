@@ -1,14 +1,16 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { EmptyState, Header, ItemCard, Screen, SkeletonRows, Text, TextField } from "../../components";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { EmptyState, Header, Icon, Screen, Text } from "../../components";
+import { SpotRow, SpotRowsSkeleton } from "../../features/rate/SpotRow";
+import { noFocusRing, type } from "../../features/rate/ui";
 import { api, type NearbyItem } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
-import { useKeptQuery } from "../../lib/useKeptQuery";
 import { ratePath } from "../../lib/links";
 import { useDebounced } from "../../lib/useDebounced";
+import { useKeptQuery } from "../../lib/useKeptQuery";
 import { useNearby } from "../../lib/useNearby";
-import { spacing } from "../../theme";
+import { colors, fontSize, radius, spacing } from "../../theme";
 
 /** How many nearby places to offer before the user types anything. */
 const SUGGESTIONS = 15;
@@ -30,25 +32,41 @@ export default function RateScreen() {
   return (
     <Screen scroll={false}>
       <Header title="Rank a spot" back={false} />
-      <TextField
-        placeholder="Where did you go?"
-        accessibilityLabel="Where did you go?"
-        value={input}
-        onChangeText={setInput}
-        autoCorrect={false}
-        autoCapitalize="none"
-        returnKeyType="search"
-        clearButtonMode="while-editing"
-      />
+      <View style={styles.search}>
+        <Icon name="search" size={20} color={colors.muted} />
+        <TextInput
+          placeholder="Where did you go?"
+          accessibilityLabel="Where did you go?"
+          placeholderTextColor={colors.muted}
+          selectionColor={colors.accent}
+          value={input}
+          onChangeText={setInput}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          style={[styles.input, noFocusRing]}
+        />
+        {input !== "" ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+            hitSlop={12}
+            onPress={() => setInput("")}
+            style={({ pressed }) => [styles.clear, pressed && styles.pressed]}
+          >
+            <Icon name="close" size={12} color={colors.bg} />
+          </Pressable>
+        ) : null}
+      </View>
       <ScrollView
         style={styles.list}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
       >
-        <Text variant="label">{searching ? "Results" : "Nearby"}</Text>
         {results === undefined ? (
-          <SkeletonRows count={6} />
+          <SpotRowsSkeleton />
         ) : results.length === 0 ? (
           searching ? (
             <EmptyState title="No matches" body="Check the spelling, or try the name of the place." icon="search" />
@@ -56,11 +74,12 @@ export default function RateScreen() {
             <EmptyState title="Nothing here yet. We're loading places for this area." body="Search for a place by name." icon="map" />
           )
         ) : (
-          <View>
+          <>
+            {searching ? null : <Text style={[type.meta, styles.hint]}>Near you</Text>}
             {results.map((item) => (
-              <ItemCard key={`${item.kind}:${item.id}`} item={item} onPress={() => pick(item)} />
+              <SpotRow key={`${item.kind}:${item.id}`} item={item} onPress={() => pick(item)} />
             ))}
-          </View>
+          </>
         )}
       </ScrollView>
     </Screen>
@@ -68,6 +87,27 @@ export default function RateScreen() {
 }
 
 const styles = StyleSheet.create({
+  search: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm + 2,
+    height: 50,
+    paddingHorizontal: spacing.md + 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+  },
+  // 16 keeps iOS Safari from zooming the page when the box is focused.
+  input: { flex: 1, height: 50, fontSize: fontSize.bodyLg, color: colors.fg },
+  clear: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pressed: { opacity: 0.6 },
   list: { flex: 1 },
-  listContent: { gap: spacing.sm, paddingBottom: spacing.xl },
+  listContent: { paddingBottom: spacing.xl },
+  hint: { paddingBottom: spacing.xs },
 });
