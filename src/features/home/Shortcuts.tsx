@@ -10,7 +10,7 @@ export function Shortcuts({ onPlan, onTrips, onSaved }: { onPlan: () => void; on
   // On the narrowest phones the three labels only fit without the two small icons.
   const roomy = useWindowDimensions().width >= 360;
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, !roomy && styles.tightRow]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Plan my night"
@@ -33,7 +33,7 @@ function Quiet({ label, icon, onPress }: { label: string; icon: IconName | null;
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, styles.quiet, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.button, styles.quiet, icon === null && styles.tight, pressed && styles.pressed]}
     >
       {icon ? <Icon name={icon} size={18} color={colors.fg} /> : null}
       <Text numberOfLines={1} style={styles.label}>
@@ -45,6 +45,8 @@ function Quiet({ label, icon, onPress }: { label: string; icon: IconName | null;
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 8 },
+  tightRow: { gap: 6 },
+  tight: { paddingHorizontal: 12 },
   button: {
     flexDirection: "row",
     alignItems: "center",
