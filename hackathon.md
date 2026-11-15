@@ -164,3 +164,14 @@ a quiet wine bar raised a new user's predicted scores for four loud venues by
 0.4 each, lowered a quiet wine bar by 0.1, and moved the two compared places'
 Elo to +0.25 and -0.25. Convex features: mutations (`convex/rankings.ts`,
 `convex/scoring.ts`).
+
+### 2026-11-15 - 872dc10
+Added the Partiful import for public events only. Each run reads the Explore
+page's Bay Area section of public events once, then any public event links an
+organizer has listed in appConfig, one request a second and each link at most
+every 6 hours. It keeps published public events in San Francisco in the next 7
+days, stores the address the page shows with its roughly 1 km map point tagged
+as an approximate location, and never stores hosts, guests or guest counts.
+Registered as a second 30-minute cron that also stops under the ingest freeze.
+Convex features: actions, queries, mutations, crons
+(`convex/imports/partiful.ts`, `convex/crons.ts`).
