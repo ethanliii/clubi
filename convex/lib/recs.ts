@@ -2,7 +2,7 @@ export const FEATURES = ["energy", "loudness", "crowdAge", "price", "dancing", "
   "pop", "hiphop", "electronic", "indie", "culture", "outdoors", "food"] as const;
 export type Feature = (typeof FEATURES)[number];
 
-export const TASTE_ETA = 0.05;
+export const TASTE_ETA = 0.25;
 export const TASTE_KAPPA = 5;
 export const TASTE_LAMBDA = 0.1;
 export const ELO_K0 = 0.5;
@@ -16,6 +16,8 @@ export const CROWD_HALF_WEIGHT = 3;
 export const DISTANCE_D0_METERS = 400;
 export const DISTANCE_DELTA = 1;
 export const TIME_TAU = 0.5;
+export const LOVED_STEP = 0.1;
+export const DIDNT_STEP = 0.05;
 export const QUIZ_BASELINE = 0.3;
 export const FEATURE_BASELINE = 0.15;
 export const UNKNOWN_SIMILARITY = 0.5;
@@ -38,12 +40,22 @@ export function similarity(a: number[], b: number[]): number {
   return cosine(ca, cb);
 }
 
-/** 8.1: one BT/logistic step on the user's taste after "winner beat loser". */
+/**
+ * 8.1: one BT/logistic step on the user's taste after "winner beat loser". The surprise g is measured on
+ * the similarity gap, the same quantity the content score is built from; a raw dot product saturates
+ * whenever the winner simply has more high features, and then nothing is learned.
+ */
 export function updateTaste(t: number[], prior: number[], fW: number[], fL: number[],
   eta = TASTE_ETA, kappa = TASTE_KAPPA, lambda = TASTE_LAMBDA): number[] {
   const delta = fW.map((x, k) => x - fL[k]);
-  const g = 1 - sigmoid(kappa * dot(t, delta));
+  const g = 1 - sigmoid(kappa * (similarity(t, fW) - similarity(t, fL)));
   return t.map((x, k) => clip(x + eta * g * delta[k] - eta * lambda * (x - prior[k]), 0, 1));
+}
+
+/** A bucket alone is a signal: loved pulls taste toward the item's features, didnt pushes it away. */
+export function nudgeTaste(t: number[], f: number[], bucket: "loved" | "fine" | "didnt"): number[] {
+  const step = bucket === "loved" ? LOVED_STEP : bucket === "didnt" ? -DIDNT_STEP : 0;
+  return t.map((x, k) => clip(x + step * (f[k] - x), 0, 1));
 }
 
 /** 8.2: Elo step on place quality. Returns new [bW, bL]. */
