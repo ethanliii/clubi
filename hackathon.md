@@ -7,11 +7,11 @@
 - **Frontend:** not deployed
 - **Convex deployment:** https://famous-lion-37.convex.cloud
 - **Components:** @convex-dev/auth (auth, password, username)
-- **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, scheduled functions, realtime queries
+- **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, scheduled functions, crons, realtime queries
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:29:00Z
+- **Last updated:** 2026-11-15T20:32:30Z
 
 ## Log
 
@@ -123,3 +123,9 @@ data is never stored. Each event is featurized from its title and upserted
 through the ingest mutation, which writes nothing while the ingest is frozen.
 Ran it on the dev deployment: 41 events, and a second run changed nothing.
 Convex features: actions, mutations (`convex/imports/luma.ts`).
+
+### 2026-11-15 - 065c54f
+Added the cron schedule: the Luma import now runs every 30 minutes and stops by
+itself while the ingest freeze flag in appConfig is set, so no outside calls
+happen during the demo after the data freeze. Convex features: crons
+(`convex/crons.ts`).
