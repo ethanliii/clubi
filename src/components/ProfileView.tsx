@@ -1,6 +1,8 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Image, Pressable, Share, StyleSheet, View } from "react-native";
+import { useMutation, useQuery } from "convex/react";
+import { Alert, Image, Pressable, Share, StyleSheet, Switch, View } from "react-native";
+import { api } from "../../convex/_generated/api";
 import type { ProfileResult } from "../../convex/lib/contract";
 import { colors, radius, spacing } from "../theme";
 import { Avatar } from "./Bits";
@@ -53,6 +55,8 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
             onPress={() => router.push({ pathname: "/compare/[userId]", params: { userId: String(user.userId) } })} />
         </View>
       )}
+
+      <FollowBar userId={user.userId} isMe={user.isMe} />
 
       {profile.tasteSummary.length > 0 && (
         <View style={styles.meters}>
@@ -136,6 +140,35 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
           )}
         </>
       )}
+    </View>
+  );
+}
+
+/** Public accounts (Q20): followers / following, Follow button for others, Public switch for me. */
+function FollowBar({ userId, isMe }: { userId: ProfileResult["user"]["userId"]; isMe: boolean }) {
+  const status = useQuery(api.follows.status, { userId });
+  const follow = useMutation(api.follows.follow);
+  const unfollow = useMutation(api.follows.unfollow);
+  const setPublic = useMutation(api.follows.setPublic);
+  if (!status) return null;
+  const run = (p: Promise<unknown>) => p.catch((e: unknown) => Alert.alert("Something went wrong", e instanceof Error ? e.message : "Try again"));
+  return (
+    <View style={[styles.row, { flexWrap: "wrap" }]}>
+      {(status.isPublic || isMe) && (
+        <Text muted>
+          <Text style={{ fontWeight: "700" }}>{status.followers}</Text> followers · <Text style={{ fontWeight: "700" }}>{status.following}</Text> following
+        </Text>
+      )}
+      <View style={{ flex: 1 }} />
+      {isMe ? (
+        <View style={styles.row}>
+          <Text variant="caption" muted>Public account</Text>
+          <Switch value={status.isPublic} onValueChange={(v) => void run(setPublic({ isPublic: v }))} accessibilityLabel="Public account" />
+        </View>
+      ) : status.isPublic ? (
+        <Button title={status.iFollow ? "Following" : "Follow"} variant={status.iFollow ? "ghost" : "primary"} style={{ width: "auto", paddingVertical: 8, paddingHorizontal: 16 }}
+          onPress={() => run(status.iFollow ? unfollow({ userId }) : follow({ userId }))} />
+      ) : null}
     </View>
   );
 }

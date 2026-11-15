@@ -42,3 +42,20 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 | E13 | Pinned favorites / highlights on a profile (photo ids + titles), followers count for public accounts | Profile |
 | E12 | Public / private accounts: `isPublic` setting, `follows` (follow / unfollow, follower counts), `ProfileResult.user.isPublic`, `canSee` true for public | Q20 |
 | — | Vibe filter on `discover.tonight` / `forGroup` (Vibe chips pass to Plan my night for now) | Search |
+
+## Backend added on this branch (for Ethan to review, then deploy from `main`)
+Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
+
+| File | What |
+|---|---|
+| `convex/tables/ui.ts` (new) | `quizExtras`, `accountPrivacy`, `follows`, `profilePins` tables |
+| `convex/follows.ts` (new) | `setPublic`, `follow` (public accounts only), `unfollow`, `status` → `FollowStatus`, `followers` |
+| `convex/onboarding.ts` (new) | `saveExtendedQuiz` / `myExtendedQuiz` (E1), `seedRatings` (E6, "Been here?" → private `rankings.rank` at the bottom of each bucket), `setPins` / `pins` (E13) |
+| `convex/schema.ts` | `...uiTables` |
+| `convex/_generated/api.d.ts` | `follows`, `onboarding`, `tables/ui` entries (regenerated anyway on the next `npx convex dev` from main) |
+| `convex/lib/contract.ts` | `FollowStatus` (new type, additive) |
+| `tests/ui.follows.test.mjs` (new) | 5 tests: follows, privacy, quiz extras, pins |
+
+**INTEGRATION (People):** `profile.get` should return `canSee: true` for public accounts; `users.deleteUserRows` should also delete this user's rows in `follows`, `accountPrivacy`, `quizExtras`, `profilePins`.
+**INTEGRATION (Brain):** `quizExtras.answers` (song stars, scenarios, hot takes, nights) is there to refine the taste prior when you want it.
+**Still open:** E3 describe-your-night (needs an LLM key), E5 `friendsAvg` on `NearbyItem` (Brain's `discover.ts`), E11 Apple/Google OAuth (needs provider keys).

@@ -1,14 +1,15 @@
-import { useEffect, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Image, StyleSheet, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import type { NearbyItem } from "../../../convex/lib/contract";
-import { Text } from "../../components";
+import { Text, VenuePhoto } from "../../components";
 import { colors, ratingColor } from "../../theme";
 import type { MapSurfaceProps } from "./types";
 
 const CATEGORY_ICON: Record<string, string> = { nightlife: "🍸", food: "🍴", culture: "🏛", outdoors: "🌳", live: "🎵", popup: "✨" };
+const CATEGORY_HUE: Record<string, number> = { nightlife: 320, food: 25, culture: 265, outdoors: 140, live: 200, popup: 45 };
 
-/** Pins by tier (UI-SPEC §4): top = big ringed bubble with score, good = labeled bubble, other = dot. */
+/** Pins by tier (UI-SPEC §4): top = big photo pin, good = photo pin + name, other = dot. */
 export function MapSurface({ items, center, selectedId, onSelect, recenterKey }: MapSurfaceProps) {
   const ref = useRef<MapView>(null);
   useEffect(() => {
@@ -24,44 +25,60 @@ export function MapSurface({ items, center, selectedId, onSelect, recenterKey }:
       onPress={() => onSelect(null)}
     >
       {items.map((item) => (
-        <Marker
-          key={String(item.id)}
-          coordinate={{ latitude: item.lat, longitude: item.lng }}
-          onPress={(e) => { e.stopPropagation(); onSelect(item); }}
-          tracksViewChanges={false}
-          zIndex={item.tier === "top" ? 3 : item.tier === "good" ? 2 : 1}
-        >
-          <Pin item={item} selected={selectedId === String(item.id)} />
-        </Marker>
+        <PinMarker key={String(item.id)} item={item} selected={selectedId === String(item.id)} onSelect={onSelect} />
       ))}
     </MapView>
   );
 }
 
-function Pin({ item, selected }: { item: NearbyItem; selected: boolean }) {
-  if (item.tier === "other") return <View style={[styles.dot, { backgroundColor: ratingColor(item.score) }]} />;
-  const top = item.tier === "top";
+function PinMarker({ item, selected, onSelect }: { item: NearbyItem; selected: boolean; onSelect: (i: NearbyItem) => void }) {
+  // Custom marker views are snapshotted; keep tracking until the photo has loaded so it actually shows.
+  const [loaded, setLoaded] = useState(!item.imageUrl);
   return (
-    <View style={styles.pinRow}>
-      <View style={[styles.bubble, top && styles.bubbleTop, selected && styles.selected, item.kind === "event" && styles.event]}>
-        <View style={[styles.icon, { backgroundColor: ratingColor(item.score) }]}>
-          <Text style={{ fontSize: 12, lineHeight: 15 }}>{CATEGORY_ICON[item.category] ?? "📍"}</Text>
-        </View>
-        <Text style={styles.score}>{item.score.toFixed(1)}</Text>
+    <Marker
+      coordinate={{ latitude: item.lat, longitude: item.lng }}
+      onPress={(e) => { e.stopPropagation(); onSelect(item); }}
+      tracksViewChanges={!loaded || selected}
+      zIndex={selected ? 5 : item.tier === "top" ? 3 : item.tier === "good" ? 2 : 1}
+    >
+      <Pin item={item} selected={selected} onLoaded={() => setLoaded(true)} />
+    </Marker>
+  );
+}
+
+/** Photo of the place in a circle, a small category bubble on its top-left, the score under it. */
+function Pin({ item, selected, onLoaded }: { item: NearbyItem; selected: boolean; onLoaded: () => void }) {
+  if (item.tier === "other") return <View style={[styles.dot, { backgroundColor: ratingColor(item.score) }]} />;
+  const size = item.tier === "top" ? 54 : 44;
+  return (
+    <View style={styles.wrap}>
+      <View style={[styles.photo, { width: size, height: size, borderRadius: size / 2, borderColor: item.tier === "top" ? colors.accent : colors.white },
+        item.kind === "event" && styles.event, selected && styles.selected]}>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={{ width: "100%", height: "100%" }} onLoad={onLoaded} onError={onLoaded} />
+        ) : (
+          <VenuePhoto hue={CATEGORY_HUE[item.category] ?? 300} height={size} style={{ borderRadius: 0 }} />
+        )}
       </View>
-      {item.tier === "good" || top ? <Text style={styles.name} numberOfLines={1}>{item.name}</Text> : null}
+      <View style={styles.iconBubble}>
+        <Text style={{ fontSize: 10, lineHeight: 13 }}>{CATEGORY_ICON[item.category] ?? "📍"}</Text>
+      </View>
+      <View style={[styles.score, { backgroundColor: ratingColor(item.score) }]}>
+        <Text style={styles.scoreText}>{item.score.toFixed(1)}</Text>
+      </View>
+      {item.tier === "good" || item.tier === "top" ? <Text style={styles.name} numberOfLines={1}>{item.name}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   dot: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: colors.white },
-  pinRow: { flexDirection: "row", alignItems: "center", gap: 4, maxWidth: 200 },
-  bubble: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.white, borderRadius: 99, paddingLeft: 3, paddingRight: 8, paddingVertical: 3, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-  bubbleTop: { borderWidth: 2.5, borderColor: colors.accent },
+  wrap: { alignItems: "center", paddingTop: 4, paddingLeft: 4, maxWidth: 140 },
+  photo: { overflow: "hidden", borderWidth: 2.5, backgroundColor: colors.surface, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  event: { borderStyle: "dashed", borderColor: colors.mid },
   selected: { transform: [{ scale: 1.15 }] },
-  event: { borderStyle: "dashed", borderWidth: 2, borderColor: colors.mid },
-  icon: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  score: { color: "#111", fontWeight: "700", fontSize: 13, lineHeight: 16 },
-  name: { color: "#111", fontWeight: "600", fontSize: 11, lineHeight: 14, textShadowColor: "#fff", textShadowRadius: 3 },
+  iconBubble: { position: "absolute", top: 0, left: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.white, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(0,0,0,0.1)" },
+  score: { marginTop: -8, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1, borderWidth: 1.5, borderColor: colors.white },
+  scoreText: { color: "#111", fontWeight: "700", fontSize: 11, lineHeight: 14 },
+  name: { color: "#111", fontWeight: "600", fontSize: 11, lineHeight: 14, textShadowColor: "#fff", textShadowRadius: 3, marginTop: 1 },
 });

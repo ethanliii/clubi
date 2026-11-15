@@ -13,6 +13,7 @@ import type * as catalog from "../catalog.js";
 import type * as crons from "../crons.js";
 import type * as debug from "../debug.js";
 import type * as discover from "../discover.js";
+import type * as follows from "../follows.js";
 import type * as friends from "../friends.js";
 import type * as imports_eventbrite from "../imports/eventbrite.js";
 import type * as imports_google from "../imports/google.js";
@@ -33,6 +34,7 @@ import type * as lib_social from "../lib/social.js";
 import type * as moments from "../moments.js";
 import type * as notifications from "../notifications.js";
 import type * as notificationsCron from "../notificationsCron.js";
+import type * as onboarding from "../onboarding.js";
 import type * as performers from "../performers.js";
 import type * as places from "../places.js";
 import type * as posts from "../posts.js";
@@ -49,6 +51,7 @@ import type * as tables_insights from "../tables/insights.js";
 import type * as tables_people from "../tables/people.js";
 import type * as tables_social from "../tables/social.js";
 import type * as tables_trips from "../tables/trips.js";
+import type * as tables_ui from "../tables/ui.js";
 import type * as trips from "../trips.js";
 import type * as users from "../users.js";
 
@@ -64,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   debug: typeof debug;
   discover: typeof discover;
+  follows: typeof follows;
   friends: typeof friends;
   "imports/eventbrite": typeof imports_eventbrite;
   "imports/google": typeof imports_google;
@@ -84,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   moments: typeof moments;
   notifications: typeof notifications;
   notificationsCron: typeof notificationsCron;
+  onboarding: typeof onboarding;
   performers: typeof performers;
   places: typeof places;
   posts: typeof posts;
@@ -100,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   "tables/people": typeof tables_people;
   "tables/social": typeof tables_social;
   "tables/trips": typeof tables_trips;
+  "tables/ui": typeof tables_ui;
   trips: typeof trips;
   users: typeof users;
 }>;

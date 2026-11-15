@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { Icon, Text, VenuePhoto } from "../../components";
 import {
   AGREE, BUDGET, DAYS, DEALBREAKERS, DRINKING, INTERESTS, SCENARIOS, SONGS, SQUAD, TAKES,
@@ -22,6 +23,8 @@ type Step = { title: string; sub: string; note?: string; done: (a: QuizAnswers) 
 export default function Quiz() {
   const { answers: a, update, setTasteSummary, startQuiz } = useOnboarding();
   const saveQuiz = useMutation(api.users.saveQuiz);
+  const saveExtended = useMutation(api.onboarding.saveExtendedQuiz);
+  const seedRatings = useMutation(api.onboarding.seedRatings);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   useEffect(startQuiz, [startQuiz]);
@@ -200,6 +203,11 @@ export default function Quiz() {
     try {
       const { tasteSummary } = await saveQuiz({ answers: toBackendCards(a) });
       setTasteSummary(tasteSummary);
+      // Extras: the full quiz and the "Been here?" picks. A failure here doesn't block onboarding.
+      const seeds = Object.entries(a.beenHere).flatMap(([id, v]) =>
+        v.bucket === "skip" ? [] : [{ kind: v.kind, id: id as Id<"places"> | Id<"events">, bucket: v.bucket }],
+      );
+      await Promise.allSettled([saveExtended({ answers: a }), seeds.length ? seedRatings({ items: seeds }) : null]);
       router.push("/taste-card");
     } catch (e) {
       Alert.alert("Couldn't save", e instanceof Error ? e.message : "Something went wrong");
@@ -234,7 +242,7 @@ export default function Quiz() {
 }
 
 function BeenHere() {
-  // Nearby spots to seed ratings. Answers stay on the device until the backend has a bulk seed call (ask E6).
+  // Nearby spots to seed ratings. Saved with onboarding.seedRatings when the quiz is saved.
   const nearby = useNearby("all");
   const { answers: a, update } = useOnboarding();
   if (nearby === undefined) return <Text center style={styles.muted}>Finding spots near you…</Text>;
@@ -248,8 +256,8 @@ function BeenHere() {
           <View style={styles.pills}>
             {(["loved", "fine", "didnt", "skip"] as const).map((b) => (
               <Pill key={b} label={{ loved: "🔥 Loved it", fine: "😐 It was fine", didnt: "💀 Didn't like it", skip: "Haven't been" }[b]}
-                on={a.beenHere[String(v.id)] === b}
-                onPress={() => update((x) => ({ beenHere: { ...x.beenHere, [String(v.id)]: b } }))} />
+                on={a.beenHere[String(v.id)]?.bucket === b}
+                onPress={() => update((x) => ({ beenHere: { ...x.beenHere, [String(v.id)]: { kind: v.kind, bucket: b } } }))} />
             ))}
           </View>
         </View>
