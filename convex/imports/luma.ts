@@ -137,6 +137,8 @@ async function fetchPage(cursor: string | undefined): Promise<LumaPage> {
 
 type ImportResult = {
   frozen: boolean;
+  /** Set when Luma stopped answering part-way: the pages read before that are still imported. */
+  error?: string;
   pages: number;
   fetched: number;
   kept: number;
@@ -172,7 +174,13 @@ export const importLuma = internalAction({
     let cursor: string | undefined;
     while (result.pages < MAX_PAGES) {
       if (result.pages > 0) await new Promise((resolve) => setTimeout(resolve, REQUEST_GAP_MS));
-      const page = await fetchPage(cursor);
+      let page: LumaPage;
+      try {
+        page = await fetchPage(cursor);
+      } catch (error) {
+        result.error = error instanceof Error && error.message.startsWith("Luma answered") ? error.message : "Luma did not answer";
+        break;
+      }
       const entries = page.entries ?? [];
       result.pages++;
       result.fetched += entries.length;

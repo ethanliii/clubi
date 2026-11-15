@@ -1,3 +1,4 @@
+import { getFunctionName } from "convex/server";
 // A small in-memory stand-in for a Convex mutation/query ctx, enough to run the Data session's
 // handlers in `node --test` (we cannot deploy from a branch). It reads the real index definitions
 // from convex/schema.ts, so `withIndex` ranges and ordering behave like the real thing, and it
@@ -80,6 +81,8 @@ function tableInfo(table) {
 export function fakeCtx({ userId } = {}) {
   const docs = new Map();
   let counter = 0;
+  // Documents handed back by reads, the number Convex's per-transaction limits are about.
+  const usage = { reads: 0, writes: 0 };
   const scheduled = [];
   const tableOf = (id) => String(id).split(":")[0];
   const checkFields = (table, fields) => {
@@ -99,16 +102,20 @@ export function fakeCtx({ userId } = {}) {
   function reader(table, rows) {
     let descending = false;
     const ordered = () => (descending ? [...rows].reverse() : rows).map((doc) => structuredClone(doc));
+    const counted = (found) => {
+      usage.reads += found.length;
+      return found;
+    };
     const api = {
       order(direction) {
         descending = direction === "desc";
         return api;
       },
-      collect: async () => ordered(),
-      take: async (n) => ordered().slice(0, n),
-      first: async () => ordered()[0] ?? null,
+      collect: async () => counted(ordered()),
+      take: async (n) => counted(ordered().slice(0, n)),
+      first: async () => counted(ordered().slice(0, 1))[0] ?? null,
       unique: async () => {
-        const all = ordered();
+        const all = counted(ordered());
         if (all.length > 1) throw new Error(`unique() found ${all.length} rows in "${table}"`);
         return all[0] ?? null;
       },
@@ -119,6 +126,7 @@ export function fakeCtx({ userId } = {}) {
   const db = {
     get: async (a, b) => {
       const doc = docs.get(b ?? a);
+      usage.reads++;
       return doc ? structuredClone(doc) : null;
     },
     insert: async (table, fields) => {
@@ -126,6 +134,7 @@ export function fakeCtx({ userId } = {}) {
       const _id = `${table}:${++counter}`;
       const clean = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
       checkDocument(table, clean);
+      usage.writes++;
       docs.set(_id, structuredClone({ ...clean, _id, _creationTime: counter }));
       return _id;
     },
@@ -139,6 +148,7 @@ export function fakeCtx({ userId } = {}) {
         else doc[key] = value;
       }
       checkDocument(tableOf(id), doc);
+      usage.writes++;
     },
     delete: async (a, b) => {
       docs.delete(b ?? a);
@@ -208,6 +218,8 @@ export function fakeCtx({ userId } = {}) {
     /** Test helpers. */
     all: (table) => rowsOf(table).map((doc) => structuredClone(doc)),
     scheduled,
+    /** Documents read and written so far; set the fields to 0 to measure one call. */
+    usage,
     /** The same database seen by another signed-in user (or nobody, with null). */
     as: signedInAs,
   };
@@ -223,3 +235,21 @@ export const run = (fn, ctx, args = {}) => {
   if (problem) throw new Error("ArgumentValidationError: " + problem);
   return fn._handler(ctx, JSON.parse(JSON.stringify(args)));
 };
+
+/**
+ * A stand-in for an action's ctx: `ctx.runQuery` / `ctx.runMutation` look the real function up by
+ * its reference (internal.ingest.upsertBatch → convex/ingest.ts) and run it against `db`.
+ * `onCall(module, name, args, result)` sees every call.
+ */
+export function actionCtx(db, onCall) {
+  const call = async (reference, args = {}) => {
+    const [module, name] = getFunctionName(reference).split(":");
+    const fn = (await load(module))[name];
+    if (!fn) throw new Error(`No function ${module}:${name}`);
+    const before = { ...db.usage };
+    const result = await run(fn, db, args);
+    await onCall?.(module, name, args, result, { reads: db.usage.reads - before.reads, writes: db.usage.writes - before.writes });
+    return result;
+  };
+  return { runQuery: call, runMutation: call, scheduler: { runAfter: async () => {} } };
+}
