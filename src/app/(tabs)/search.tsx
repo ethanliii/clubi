@@ -1,13 +1,14 @@
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { NearbyItem } from "../../../convex/lib/contract";
 import {
-  Avatar, AvatarStack, Button, Chip, EmptyState, Icon, Screen, Skeleton, Text, VenueCard, openVenue,
+  Avatar, AvatarStack, Button, Chip, EmptyState, Icon, Screen, Skeleton, Text, VenueCard,
 } from "../../components/bryan";
+import { SearchMode } from "../../features/search/SearchMode";
 import { paths } from "../../lib/links";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { colors, radius, spacing } from "../../theme";
@@ -22,20 +23,13 @@ export default function Search() {
   const { lat, lng, ready } = useDemoLocation();
   const me = useQuery(api.users.me);
   const unread = useQuery(api.notifications.unreadCount, {});
-  const [text, setText] = useState("");
-  const [query, setQuery] = useState("");
+  // Tapping the search box opens full search (Spotify / Beli style, features/search/SearchMode).
+  const [searching, setSearching] = useState(false);
   const [vibe, setVibe] = useState<(typeof VIBES)[number] | null>(null);
   const [group, setGroup] = useState<Id<"users">[]>([]);
   const [picking, setPicking] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => setQuery(text.trim()), 300);
-    return () => clearTimeout(t);
-  }, [text]);
-
   const loc = ready ? { lat, lng } : null;
-  // Free-text "describe your night" uses places.search until the LLM parser lands (backend ask E3).
-  const results = useQuery(api.places.search, loc && query.length >= 2 ? { text: query, ...loc } : "skip");
   const tonight = useQuery(api.discover.tonight, loc && !group.length ? loc : "skip");
   const groupPicks = useQuery(api.discover.forGroup, loc && group.length ? { ...loc, memberIds: group } : "skip");
   const friends = useQuery(api.friends.list, {});
@@ -43,6 +37,14 @@ export default function Search() {
   const day = new Date().toLocaleDateString([], { weekday: "short" });
   const picks: NearbyItem[] | undefined = group.length ? groupPicks?.items : tonight?.topPicks;
   const groupNames = (friends?.friends ?? []).filter((f) => group.includes(f.userId));
+
+  if (searching) {
+    return (
+      <Screen>
+        <SearchMode onCancel={() => setSearching(false)} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -57,33 +59,12 @@ export default function Search() {
         </Pressable>
       </View>
 
-      <View style={styles.search}>
+      <Pressable accessibilityRole="search" accessibilityLabel="Describe your night" onPress={() => setSearching(true)} style={styles.search}>
         <Icon name="search" size={17} color={colors.muted} />
-        <TextInput
-          style={styles.input}
-          placeholder="Describe your night… “chill rooftop, cheap”"
-          placeholderTextColor={colors.muted}
-          value={text}
-          onChangeText={setText}
-          returnKeyType="search"
-          accessibilityLabel="Describe your night"
-        />
-      </View>
+        <Text muted style={{ flex: 1, paddingVertical: 12 }}>Search places, events, people</Text>
+      </Pressable>
 
-      {query.length >= 2 ? (
-        results === undefined ? (
-          <Skeleton height={120} />
-        ) : results.length === 0 ? (
-          <EmptyState text="No matches" />
-        ) : (
-          results.map((item) => (
-            <Pressable key={String(item.id)} onPress={() => openVenue(item)} style={styles.result}>
-              <Text style={{ fontWeight: "600" }}>{item.name}</Text>
-              <Text variant="caption" muted numberOfLines={1}>{item.score.toFixed(1)} · {item.why}</Text>
-            </Pressable>
-          ))
-        )
-      ) : (
+      {(
         <>
           <View style={{ gap: spacing.sm }}>
             <Text variant="title">What are you in the mood for?</Text>

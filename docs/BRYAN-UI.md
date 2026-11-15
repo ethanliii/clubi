@@ -20,7 +20,7 @@ Branch `bryan-ui-input`, merged up to `main` first. Decisions come from the merg
 
 ## Pass 3 (reference recordings: Beli feed + rank flow, Letterboxd, Instagram, TikTok)
 - **Feed card (Beli):** "Name ranked Place" + colored score ring, up to 2 photos side by side (no placeholder when there are none), "Notes:", tags, "You gave it X", heart · comment · share on the left, ⊕ Rank it too + bookmark on the right, Today / Yesterday dividers.
-- **Rank flow (Beli):** "Add to my list of …", "How was it?" as three colored circles, "Which do you prefer?" with OR, and Undo · Too tough · Skip (Skip compares against the next place instead).
+- **Rank flow (Beli):** "Add to my list of …", "Would you go back?" as three colored circles, "Which do you prefer?" with OR, and Undo · Too tough · Skip (Skip compares against the next place instead).
 - **Later, needs backend:** a "For You" full-screen mode (Instagram/TikTok) needs a public feed; "ranked with Nicole, Leanna…" needs tagged friends on a post; visit count needs a visits field. Letterboxd-style quick sheet (Been / Save / Going + share to stories) can be added to the venue page.
 
 ## Pass 4 (references: Beli My Lists, Google Maps place card, Instagram profile)
@@ -66,6 +66,18 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 - **`src/lib/links.ts` copied byte-for-byte from `main`** so the merge has nothing to resolve there. New buttons use its `paths` / `postPath`.
 - **Buttons for main's screens (same labels as main):** Profile tab → gear "Settings", links Friends · Saved · Following · Trips · My rankings · Notifications; "Edit profile" → `/settings`; friend profile → "Invite <name> to a trip" (→ `/trips`); Search → Trips · Saved under Plan my night; feed card → "View post" (`/post/<id>`); profile grid photo → `/post/<id>`. These routes (`trips`, `trip/[tripId]`, `saved`, `settings`, `following`, `post/[postId]`, `performer/[performerId]`) come from `main` on merge.
 - **Brand:** name "clubi", tagline "Go where your friends go.", `DESCRIPTION` in `src/constants/brand.ts` + `app.json` description. Google / Apple buttons smaller (16 px mark, 14 px label).
+
+## Pass 10 (Add a spot + Near me)
+- **Add tab (was Rate):** tab label "Add", heading "Add a spot". Tap a row to rank it (same flow). Bookmark button on each row saves it to Want to go (`saves.toggle` type "want"). The "Would you go back?" step also has "Haven't been yet? Save for later". Search box keeps the accessibility label "Where did you go?" for Revyl; **Revyl tests that tap the "Rate" tab need the new label "Add".**
+- **Map → Near me:** pill before the filter chips. Shows events within 1.5 km from `discover.nearby({ filter: "events", radiusMeters: 1500 })`, in the backend's order (fit + distance + timing, `mapRank`), with a header "Events near you". Tapping any other filter turns it off.
+
+- **Rank question:** "Would you go back?" (was "How was it?"), answers below.
+- **Bucket labels, no emojis:** "Absolutely" (`loved`) · "Depends" (`fine`) · "Nope" (`didnt`), plain colored circles. Same in `(tabs)/rate.tsx`, main's `features/rate/steps.tsx` and the quiz's "Been here?". Backend bucket values unchanged. **Revyl tests and UI-SPEC §6 still say "Loved it / It was fine / Didn't like it" and need the new labels.**
+
+## Pass 11 (full search, references: Spotify search + Beli search)
+- Search tab box now opens `features/search/SearchMode.tsx`: search box + **Cancel**, **Places / People** tabs (Beli's Restaurants / Members), "Current location" row, pills **Near me** (opens Map with Near me on, `?nearMe=1`) · **Want to go** (`/saved`) · **Plan my night**, then **Recent searches** (this device only, `src/lib/recentSearches.ts`, SecureStore, 8 max) or live results.
+- Rows (Spotify): 48 px thumbnail, name, "Place · Bar · 0.4 mi" / "@username · 2 mutual", ⊕ add to Want to go → green ✓, ✕ remove from recents. People rows use `FriendButton`. Results from `places.search` / `friends.search`, backend order.
+- Search box keeps the accessibility label "Describe your night". The free-text "describe your night" parser is still backend ask E3.
 
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.

@@ -15,10 +15,10 @@ type Target = { kind: "place" | "event"; id: TargetId; name: string; category: C
 type Step = "pick" | "bucket" | "compare" | "details" | "result" | "questions";
 
 // Three overall buckets, then "Which was better?" against your other places (decision Q16).
-const BUCKETS: { bucket: Bucket; emoji: string; label: string; color: string }[] = [
-  { bucket: "loved", emoji: "🔥", label: "Loved it", color: "#7fd8a4" },
-  { bucket: "fine", emoji: "😐", label: "It was fine", color: "#f5d27a" },
-  { bucket: "didnt", emoji: "💀", label: "Didn't like it", color: "#f28b9b" },
+const BUCKETS: { bucket: Bucket; label: string; color: string }[] = [
+  { bucket: "loved", label: "Absolutely", color: "#7fd8a4" },
+  { bucket: "fine", label: "Depends", color: "#f5d27a" },
+  { bucket: "didnt", label: "Nope", color: "#f28b9b" },
 ];
 const CATEGORY_NOUN: Record<Category, string> = {
   nightlife: "bars & clubs", food: "restaurants", culture: "culture", outdoors: "outdoors", live: "shows", popup: "pop-ups",
@@ -72,20 +72,19 @@ export default function Rate() {
             <Text muted>Add to my list of <Text style={{ fontWeight: "700", textTransform: "capitalize" }}>{CATEGORY_NOUN[target.category]}</Text></Text>
           </View>
           <View style={styles.card}>
-            <Text variant="title" center>How was it?</Text>
-            {/* Beli-style: three colored circles (green / yellow / red). Labels match UI-SPEC for Revyl. */}
+            <Text variant="title" center>Would you go back?</Text>
+            {/* Beli-style: three colored circles (green / yellow / red). "Would you go back?" Absolutely / Depends / Nope (Revyl tests use these labels). */}
             <View style={styles.circles}>
               {BUCKETS.map((b) => (
                 <Pressable key={b.bucket} accessibilityRole="button" accessibilityLabel={b.label}
                   onPress={() => { setBucket(b.bucket); setStep("compare"); }} style={styles.circleCol}>
-                  <View style={[styles.circle, { backgroundColor: b.color }]}>
-                    <Text style={{ fontSize: 24, lineHeight: 30 }}>{b.emoji}</Text>
-                  </View>
+                  <View style={[styles.circle, { backgroundColor: b.color }]} />
                   <Text variant="caption" center>{b.label}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
+          <SaveForLater target={target} />
         </View>
       )}
       {step === "compare" && target && bucket && (
@@ -114,7 +113,36 @@ export default function Rate() {
   );
 }
 
+/** Haven't been yet: save it to Want to go instead of ranking it. */
+function SaveForLater({ target }: { target: Target }) {
+  const { saved, save } = useWantToGo();
+  const on = !!saved[String(target.id)];
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={on ? "Saved to Want to go" : "Save for later"}
+      onPress={() => void save(target)} style={[styles.card, { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 }]}>
+      <Icon name="bookmark" size={20} color={on ? colors.accent : colors.fg} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontWeight: "700" }}>{on ? "Saved to Want to go" : "Haven't been yet? Save for later"}</Text>
+        <Text variant="caption" muted>{on ? "Find it in My lists → Want to go" : "Adds it to your Want to go list"}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+/** "Want to go" = saves.toggle with type "want" (shows in My lists → Want to go and in Saved). */
+function useWantToGo() {
+  const toggle = useMutation(api.saves.toggle);
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const save = (t: Target) =>
+    toggle({ kind: t.kind, id: t.id, type: "want" }).then(
+      (r) => setSaved((m) => ({ ...m, [String(t.id)]: r.saved })),
+      (e: unknown) => Alert.alert("Couldn't save", e instanceof Error ? e.message : "Try again"),
+    );
+  return { saved, save };
+}
+
 function Pick({ onPick }: { onPick: (t: Target) => void }) {
+  const { saved, save } = useWantToGo();
   const { lat, lng, ready } = useDemoLocation();
   const nearby = useNearby("all");
   const [text, setText] = useState("");
@@ -128,24 +156,35 @@ function Pick({ onPick }: { onPick: (t: Target) => void }) {
 
   return (
     <View style={{ gap: spacing.md }}>
-      <Text variant="heading">Rank a spot</Text>
-      <TextInput style={styles.input} placeholder="Where did you go?" placeholderTextColor={colors.muted}
+      <Text variant="heading">Add a spot</Text>
+      <Text muted>Tap a spot you went to and rank it, or tap the bookmark to save it for later.</Text>
+      <TextInput style={styles.input} placeholder="Search a place or event" placeholderTextColor={colors.muted}
         value={text} onChangeText={setText} accessibilityLabel="Where did you go?" />
       {rows === undefined ? (
         <Skeleton height={200} />
       ) : rows.length === 0 ? (
         <EmptyState text="No matches" />
       ) : (
-        rows.map((r) => (
-          <Pressable key={String(r.id)} style={styles.row}
-            onPress={() => onPick({ kind: r.kind, id: r.id, name: r.name, category: r.category })}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "600" }}>{r.name}</Text>
-              <Text variant="caption" muted>{r.subcategory ?? r.category}</Text>
+        rows.map((r) => {
+          const t: Target = { kind: r.kind, id: r.id, name: r.name, category: r.category };
+          const on = !!saved[String(r.id)];
+          return (
+            <View key={String(r.id)} style={styles.row}>
+              <Pressable style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }} accessibilityRole="button"
+                accessibilityLabel={`Rank ${r.name}`} onPress={() => onPick(t)}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "600" }}>{r.name}</Text>
+                  <Text variant="caption" muted>{r.subcategory ?? r.category}</Text>
+                </View>
+                <ScoreBadge score={r.score} size="sm" />
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={on ? `Saved ${r.name}` : `Want to go: ${r.name}`}
+                onPress={() => void save(t)} hitSlop={8} style={[styles.saveBtn, on && styles.saveOn]}>
+                <Icon name="bookmark" size={18} color={on ? colors.white : colors.fg} />
+              </Pressable>
             </View>
-            <ScoreBadge score={r.score} size="sm" />
-          </Pressable>
-        ))
+          );
+        })
       )}
     </View>
   );
@@ -331,6 +370,8 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, color: colors.fg, borderRadius: radius.lg, padding: spacing.md },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.line },
   rowGap: { flexDirection: "row", gap: 10 },
+  saveBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  saveOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   bucket: { flexDirection: "row", alignItems: "center", gap: 14, padding: 18, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.line },
   vs: { flexDirection: "row", alignItems: "center", gap: 6 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.line },

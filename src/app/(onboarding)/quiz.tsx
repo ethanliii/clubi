@@ -256,7 +256,7 @@ function BeenHere() {
           <Text style={styles.strong}>{v.name}</Text>
           <View style={styles.pills}>
             {(["loved", "fine", "didnt", "skip"] as const).map((b) => (
-              <Pill key={b} label={{ loved: "🔥 Loved it", fine: "😐 It was fine", didnt: "💀 Didn't like it", skip: "Haven't been" }[b]}
+              <Pill key={b} label={{ loved: "Absolutely", fine: "Depends", didnt: "Nope", skip: "Haven't been" }[b]}
                 on={a.beenHere[String(v.id)]?.bucket === b}
                 onPress={() => update((x) => ({ beenHere: { ...x.beenHere, [String(v.id)]: { kind: v.kind, bucket: b } } }))} />
             ))}

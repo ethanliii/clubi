@@ -6,11 +6,11 @@ import { colors, fontWeight, radius, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
 import { opponentOf, totalRounds, type Search } from "./search";
 
-/** The three answers to "How was it?", with the exact labels from docs/UI-SPEC.md. */
-const BUCKETS: { bucket: Bucket; label: string; emoji: string; color: string }[] = [
-  { bucket: "loved", label: "Loved it", emoji: "\u{1F525}", color: "#7fd8a4" },
-  { bucket: "fine", label: "It was fine", emoji: "\u{1F610}", color: "#f5d27a" },
-  { bucket: "didnt", label: "Didn't like it", emoji: "\u{1F480}", color: "#f28b9b" },
+/** The three answers to "Would you go back?", with the exact labels from docs/UI-SPEC.md. */
+const BUCKETS: { bucket: Bucket; label: string; color: string }[] = [
+  { bucket: "loved", label: "Absolutely", color: "#7fd8a4" },
+  { bucket: "fine", label: "Depends", color: "#f5d27a" },
+  { bucket: "didnt", label: "Nope", color: "#f28b9b" },
 ];
 
 function Progress({ current, total }: { current: number; total: number }) {
@@ -45,10 +45,10 @@ export function HowStep({
       </View>
       <View style={styles.card}>
         <Text variant="title" center accessibilityRole="header">
-          How was it?
+          Would you go back?
         </Text>
         <View style={styles.circles}>
-          {BUCKETS.map(({ bucket, label, emoji, color }) => (
+          {BUCKETS.map(({ bucket, label, color }) => (
             <Pressable
               key={bucket}
               accessibilityRole="button"
@@ -56,9 +56,7 @@ export function HowStep({
               onPress={() => onPick(bucket)}
               style={({ pressed }) => [styles.circleCol, pressed && styles.pressed]}
             >
-              <View style={[styles.circle, { backgroundColor: color }]}>
-                <Text style={styles.emoji}>{emoji}</Text>
-              </View>
+              <View style={[styles.circle, { backgroundColor: color }]} />
               <Text variant="caption" center>
                 {label}
               </Text>
@@ -264,7 +262,6 @@ const styles = StyleSheet.create({
   circles: { flexDirection: "row", justifyContent: "space-around" },
   circleCol: { flex: 1, alignItems: "center", gap: 6 },
   circle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
-  emoji: { fontSize: 24, lineHeight: 30 },
 
   versus: { flexDirection: "row", alignItems: "center", gap: 6 },
   vs: {
