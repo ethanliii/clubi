@@ -14,6 +14,7 @@ import {
   rankLabel,
 } from "./lib/social";
 import { blockedIdsOf, cardOf } from "./friends";
+import { answerChips } from "./lib/insights";
 import { notify } from "./notifications";
 import {
   deletePostCascade,
@@ -178,8 +179,10 @@ export function feedItemBuilder(ctx: QueryCtx, viewer: PostViewer) {
       reactionCount: shown(reactions).length,
       myReaction: mine === undefined ? undefined : (mine.emoji ?? DEFAULT_EMOJI),
       commentCount: shown(comments).length,
-      // INTEGRATION: insightChips from convex/lib/insights.ts answerChips() (Brain): read visitAnswers
-      // by_ranking for `ranking._id` and pass them through; left unset until that function exists.
+      insightChips: ranking === null || ranking === undefined ? undefined : answerChips(
+        (await ctx.db.query("visitAnswers").withIndex("by_ranking", (q) => q.eq("rankingId", ranking._id)).take(8))
+          .map((row) => ({ questionId: row.questionId, optionIds: row.optionIds })),
+      ),
     };
   };
 }
