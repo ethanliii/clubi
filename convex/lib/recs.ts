@@ -24,6 +24,24 @@ export const QUIZ_BASELINE = 0.3;
 export const FEATURE_BASELINE = 0.15;
 export const UNKNOWN_SIMILARITY = 0.5;
 export const MIN_TASTE_WEIGHT = 0.05;
+// hybrid-v4 (docs/ALGORITHM.md sections 2, 4 and 8)
+export const ELO_TERM_CAP = 1;
+export const ALSO_IOTA = 0.6;
+export const AFFINITY_NEUTRAL = 5;
+export const FOLLOW_FLOOR = 8;
+export const PERFORMER_RHO = 1.5;
+export const PERFORMER_TERM_MIN = -0.75;
+export const PERFORMER_TERM_MAX = 1.5;
+export const WHY_PERFORMER_MIN = 0.5;
+export const EXPLORE_C = 0.6;
+export const NEW_ITEM_MAX_RATINGS = 3;
+export const NEW_SLOT_MIN_CONTENT = 7;
+export const SAVE_BUMP = 0.3;
+export const SAVE_BUMP_MAX_FRIENDS = 2;
+export const MMR_MU = 0.75;
+export const MMR_SIMILARITY_SCALE = 10;
+export const TOP_MAX_PER_CATEGORY = 3;
+export const SIMILAR_MIX = 0.6;
 export const NEUTRAL_TASTE: number[] = FEATURES.map(() => 0.5);
 
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
@@ -180,8 +198,17 @@ export function quizToVector(answers: number[][]): number[] {
 
 export type Rater = { taste: number[]; score: number; local: boolean; friend: boolean; name: string };
 
-/** 8.3 + 8.4: predicted 1-10 score and the inputs for the why line. */
-export function predict(tU: number[], fI: number[], eloI: number, raters: Rater[], userIsLocal: boolean) {
+/** Q: place quality from comparisons, capped so one hot streak cannot add more than a point. */
+export const eloTerm = (elo: number) => clip(GAMMA_ELO * elo, -ELO_TERM_CAP, ELO_TERM_CAP);
+
+/** The bounded add-ons of the v4 score. Each is computed by its own function and passed in. */
+export type PredictExtras = { performer?: number; also?: number };
+
+/**
+ * Sections 1 and 2: predicted 1-10 score and the inputs for the why line.
+ * score = clip((1 - lam) * content + lam * crowd + eloTerm + performer + also, 1, 10).
+ */
+export function predict(tU: number[], fI: number[], eloI: number, raters: Rater[], userIsLocal: boolean, extras: PredictExtras = {}) {
   const alpha = userIsLocal ? ALPHA_LOCAL_VIEWER : ALPHA_VISITOR_VIEWER;
   let num = PSEUDO_VOTES * GLOBAL_MEAN, den = PSEUDO_VOTES, wSum = 0;
   let best: { name: string; score: number; w: number; local: boolean; friend: boolean } | null = null;
@@ -193,9 +220,105 @@ export function predict(tU: number[], fI: number[], eloI: number, raters: Rater[
   const crowd = num / den;
   const content = contentScore(tU, fI);
   const lam = wSum / (wSum + CROWD_HALF_WEIGHT);
-  const score = clip((1 - lam) * content + lam * crowd + GAMMA_ELO * eloI, 1, 10);
-  return { score, lam, crowd, content, weightSum: wSum, topFeatures: topFeatures(tU, fI), topRater: best };
+  const base = (1 - lam) * content + lam * crowd;
+  const quality = eloTerm(eloI);
+  const performer = clip(extras.performer ?? 0, PERFORMER_TERM_MIN, PERFORMER_TERM_MAX);
+  const also = clip(extras.also ?? 0, -ALSO_IOTA, ALSO_IOTA);
+  const score = clip(base + quality + performer + also, 1, 10);
+  return {
+    score, lam, crowd, content, base, eloTerm: quality, performer, also,
+    weightSum: wSum, topFeatures: topFeatures(tU, fI), topRater: best,
+  };
 }
+
+export type PerformerAffinity = { name: string; score: number; following: boolean; nRankings?: number };
+
+/** Section 4.1: following a performer lifts the affinity to at least FOLLOW_FLOOR. */
+export const effectiveAffinity = (a: { score: number; following: boolean }) =>
+  clip(a.following ? Math.max(a.score, FOLLOW_FLOOR) : a.score, 0, 10);
+
+/** P: the performer term for the highest effective affinity on the bill. 0 when there is none. */
+export const performerTerm = (bestAffinity: number | undefined) =>
+  bestAffinity === undefined
+    ? 0
+    : clip((PERFORMER_RHO * (bestAffinity - AFFINITY_NEUTRAL)) / AFFINITY_NEUTRAL, PERFORMER_TERM_MIN, PERFORMER_TERM_MAX);
+
+/**
+ * The performer term of an event from the viewer's affinities for the performers on it (only those the
+ * viewer has a row for), and the reason line when the term is big enough to carry the score.
+ */
+export function performerAffinity(known: PerformerAffinity[]): { term: number; best?: PerformerAffinity; affinity?: number; why?: string } {
+  let best: PerformerAffinity | undefined;
+  for (const a of known) {
+    if (best === undefined || effectiveAffinity(a) > effectiveAffinity(best)) best = a;
+  }
+  if (best === undefined) return { term: 0 };
+  const affinity = effectiveAffinity(best);
+  const term = performerTerm(affinity);
+  const rated = !best.following || ((best.nRankings ?? 0) > 0 && best.score >= FOLLOW_FLOOR);
+  const why = term < WHY_PERFORMER_MIN
+    ? undefined
+    : rated ? `You rated ${best.name} ${clip(best.score, 0, 10).toFixed(1)}` : `You follow ${best.name}`;
+  return { term, best, affinity, why };
+}
+
+/** E: optimism for items with few ratings. n = rankings + comparisons. Used in the order only, never in the shown score. */
+export const exploreBonus = (n: number) => EXPLORE_C / Math.sqrt(1 + Math.max(0, n));
+
+/** S: a small bump in the order per friend going or saved, at most SAVE_BUMP_MAX_FRIENDS of them. */
+export const socialBump = (friends: number) => SAVE_BUMP * clip(friends, 0, SAVE_BUMP_MAX_FRIENDS);
+
+/** The v4 order: score - distance + time + exploration + friends going or saved. */
+export const mapRankV4 = (score: number, distanceM: number, timeMatch: number, nRatings: number, friendsGoingOrSaved: number) =>
+  mapRank(score, distanceM, timeMatch) + exploreBonus(nRatings) + socialBump(friendsGoingOrSaved);
+
+export type Rankable = { order: number; vector: number[]; category: string };
+
+/**
+ * Section 8: maximal marginal relevance. Picks k items from the pool: the best by order first, then the
+ * one with the best mix of order and being unlike what is already picked, with at most
+ * TOP_MAX_PER_CATEGORY from one category while another category is still available.
+ */
+export function mmrPick<T extends Rankable>(pool: T[], k: number, mu = MMR_MU): T[] {
+  const left = [...pool].sort((a, b) => b.order - a.order);
+  const picked: T[] = [];
+  while (picked.length < k && left.length > 0) {
+    const perCategory = new Map<string, number>();
+    for (const p of picked) perCategory.set(p.category, (perCategory.get(p.category) ?? 0) + 1);
+    const allowed = left.filter((c) => (perCategory.get(c.category) ?? 0) < TOP_MAX_PER_CATEGORY);
+    let best: T | undefined, bestValue = -Infinity;
+    for (const c of allowed.length > 0 ? allowed : left) {
+      const closest = picked.reduce((m, p) => Math.max(m, similarity(c.vector, p.vector)), 0);
+      const value = mu * c.order - (1 - mu) * MMR_SIMILARITY_SCALE * closest;
+      if (value > bestValue) { best = c; bestValue = value; }
+    }
+    if (best === undefined) break;
+    picked.push(best);
+    left.splice(left.indexOf(best), 1);
+  }
+  return picked;
+}
+
+export type NewSlotCandidate = { order: number; nRatings: number; content: number };
+
+/**
+ * Section 8, the "new on clubi" slot: when the top tier is full and holds nothing with fewer than
+ * NEW_ITEM_MAX_RATINGS ratings, returns the best-ordered such item from the rest whose content score
+ * is at least NEW_SLOT_MIN_CONTENT. It takes the last top slot. null leaves the list alone.
+ */
+export function newSlotPick<T extends NewSlotCandidate>(top: T[], rest: T[], topSize: number): T | null {
+  if (top.length < topSize || top.some((t) => t.nRatings < NEW_ITEM_MAX_RATINGS)) return null;
+  let best: T | null = null;
+  for (const c of rest) {
+    if (c.nRatings >= NEW_ITEM_MAX_RATINGS || c.content < NEW_SLOT_MIN_CONTENT) continue;
+    if (best === null || c.order > best.order) best = c;
+  }
+  return best;
+}
+
+/** "More like this": a mix of closeness in feature space (put on the 0-10 scale) and the viewer's own score. */
+export const similarValue = (sim: number, score: number, mix = SIMILAR_MIX) =>
+  mix * MMR_SIMILARITY_SCALE * Math.max(0, sim) + (1 - mix) * score;
 
 /** 8.4: map ordering. distanceM from haversine, timeMatch in [0, 1]. */
 export const mapRank = (score: number, distanceM: number, timeMatch: number) =>

@@ -16,6 +16,9 @@ import { nudgeTaste, updateElo, updateTaste } from "./lib/recs";
  *
  * Both are safe to call for places and events, skip missing rows, and write only
  * users.tasteVector / tastePrior and the two items' elo / nComparisons.
+ *
+ * venueVectorOf() returns the item's learnedVector (measured from visitors' answers) when it has one,
+ * so every taste step here learns from measured features, not only from the featurizer's guess.
  */
 export * from "./lib/recs";
 
