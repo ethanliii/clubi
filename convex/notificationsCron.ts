@@ -9,7 +9,8 @@ const WINDOW_MS = 6 * 60 * 60 * 1000;
 const DEDUPE_MS = 24 * 60 * 60 * 1000;
 const MIN_SCORE = 8.5;
 const MAX_EVENTS = 200;
-const MAX_PER_USER_PER_RUN = 2;
+const MAX_PER_USER_PER_RUN = 1;
+const MAX_PER_USER_PER_DAY = 3;
 const NIGHTLIFE_MIN_AGE = 21;
 
 function isLocal(user: Doc<"users">, city: string | undefined) {
@@ -89,7 +90,8 @@ export const eventTonight = internalMutation({
           q.eq("userId", user._id).gt("createdAt", now - DEDUPE_MS),
         )
         .collect();
-      const alreadySent = new Set(recent.map((row) => row.link));
+      const sent = recent.filter((row) => row.type === "event_tonight");
+      const alreadySent = new Set(sent.map((row) => row.link));
       const underage = isUnderage(user, now);
       const matches = scorable
         .filter(
@@ -112,7 +114,13 @@ export const eventTonight = internalMutation({
         })
         .filter(({ score }) => score >= MIN_SCORE)
         .sort((a, b) => b.score - a.score)
-        .slice(0, MAX_PER_USER_PER_RUN);
+        .slice(
+          0,
+          Math.max(
+            0,
+            Math.min(MAX_PER_USER_PER_RUN, MAX_PER_USER_PER_DAY - sent.length),
+          ),
+        );
       for (const { event, score, topFeatures } of matches) {
         await notify(ctx, {
           userId: user._id,
