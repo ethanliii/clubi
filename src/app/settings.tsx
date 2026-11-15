@@ -2,7 +2,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, Chip, ChipRow, Header, Screen, Skeleton, SkeletonRows, Text } from "../components";
+import { Button, Chip, ChipRow, Header, Screen, Skeleton, SkeletonRows, Text, useToast } from "../components";
 import {
   DeleteAccountSheet,
   PasswordSheet,
@@ -12,6 +12,7 @@ import {
 } from "../features/settings";
 import { api, type NotifPrefs, type Visibility } from "../lib/api";
 import { useDemoLocation } from "../lib/demoLocation";
+import { errorMessage } from "../lib/errors";
 import { radius, spacing } from "../theme";
 
 const VISIBILITY: { value: Visibility; label: string }[] = [
@@ -34,6 +35,7 @@ export default function SettingsScreen() {
   const settings = useQuery(api.settings.get, {});
   const { signOut } = useAuthActions();
   const toggle = useSettingsToggle();
+  const toast = useToast();
   const { isDemo, setDemo } = useDemoLocation();
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -44,6 +46,8 @@ export default function SettingsScreen() {
     setSigningOut(true);
     try {
       await signOut();
+    } catch (error) {
+      toast(errorMessage(error, "Could not sign out. Try again."), "error");
     } finally {
       setSigningOut(false);
     }
