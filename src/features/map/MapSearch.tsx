@@ -15,7 +15,7 @@ const MIN_LETTERS = 2;
 export function SearchBox({ value, onChangeText }: { value: string; onChangeText: (text: string) => void }) {
   return (
     <View style={styles.box}>
-      <Icon name="search" size={18} color={colors.muted} />
+      <Icon name="search" size={16} color={colors.muted} />
       <TextInput
         accessibilityLabel={SEARCH_PLACEHOLDER}
         placeholder={SEARCH_PLACEHOLDER}
@@ -89,12 +89,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    minHeight: 48,
-    paddingLeft: spacing.md + 2,
+    minHeight: 44,
+    paddingLeft: spacing.md,
     paddingRight: spacing.sm,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
     backgroundColor: colors.surface,
     shadowColor: colors.black,
     shadowOpacity: 0.35,
@@ -104,18 +102,17 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 46,
+    minHeight: 42,
     color: colors.fg,
-    fontSize: fontSize.bodyLg,
+    // 16 in a browser: a phone browser zooms the page in on a smaller text field.
+    fontSize: Platform.OS === "web" ? fontSize.bodyLg : fontSize.body,
     paddingVertical: 0,
     // The rounded box around it is the field; the browser's own focus ring would draw a second one inside.
     ...Platform.select({ web: { outlineStyle: "none" } as object, default: {} }),
   },
   results: {
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface,
     overflow: "hidden",
     shadowColor: colors.black,
     shadowOpacity: 0.45,

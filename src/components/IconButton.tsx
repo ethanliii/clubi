@@ -10,7 +10,7 @@ export type IconButtonProps = {
   onPress?: () => void;
   /** Icon color. Default is the normal text color. */
   color?: string;
-  /** The round button's width and height. Default 40. */
+  /** The round button's width and height. Default 36. */
   size?: number;
   /** A small count on the corner ("3", "99+"). Hidden when empty. */
   badge?: string | null;
@@ -29,7 +29,7 @@ export function IconButton({
   accessibilityLabel,
   onPress,
   color = colors.fg,
-  size = 40,
+  size = 36,
   badge,
   plain = false,
   label,
@@ -61,7 +61,7 @@ export function IconButton({
           </View>
         ) : null}
       </View>
-      {label ? <Text muted>{label}</Text> : null}
+      {label ? <Text variant="caption">{label}</Text> : null}
     </Pressable>
   );
 }
@@ -73,15 +73,15 @@ const styles = StyleSheet.create({
   dimmed: { opacity: 0.6 },
   badge: {
     position: "absolute",
-    top: -3,
-    right: -5,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 5,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { color: colors.white, fontSize: 10.5, lineHeight: 13, fontWeight: fontWeight.bold },
+  badgeText: { color: colors.white, fontSize: 10, lineHeight: 14, fontWeight: fontWeight.semibold },
 });

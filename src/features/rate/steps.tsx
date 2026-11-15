@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Button, Icon, ScoreBadge, Skeleton, SkeletonRows, Text, type IconName } from "../../components";
+import { Button, ScoreBadge, Skeleton, SkeletonRows, Text } from "../../components";
 import type { Bucket, RankResult, RankedListItem, VenueDetail } from "../../lib/api";
 import { categoryLabel, formatScore } from "../../lib/format";
 import { colors, fontWeight, radius, spacing } from "../../theme";
@@ -7,26 +7,21 @@ import { BusyButton, FlowScreen } from "./FlowScreen";
 import { opponentOf, totalRounds, type Search } from "./search";
 
 /** The three answers to "How was it?", with the exact labels from docs/UI-SPEC.md. */
-const BUCKETS: { bucket: Bucket; label: string; icon: IconName; color: string }[] = [
-  { bucket: "loved", label: "Loved it", icon: "heartFilled", color: colors.accent },
-  { bucket: "fine", label: "It was fine", icon: "thumbUp", color: colors.mid },
-  { bucket: "didnt", label: "Didn't like it", icon: "thumbDown", color: colors.muted },
+const BUCKETS: { bucket: Bucket; label: string; emoji: string; color: string }[] = [
+  { bucket: "loved", label: "Loved it", emoji: "\u{1F525}", color: "#7fd8a4" },
+  { bucket: "fine", label: "It was fine", emoji: "\u{1F610}", color: "#f5d27a" },
+  { bucket: "didnt", label: "Didn't like it", emoji: "\u{1F480}", color: "#f28b9b" },
 ];
 
 function Progress({ current, total }: { current: number; total: number }) {
   return (
-    <View style={styles.progressWrap}>
-      <Text muted center accessibilityLabel={`${current} of ${total}`}>
-        {current} of {total}
-      </Text>
-      <View style={styles.track}>
-        <View style={[styles.trackFill, { width: `${(current / Math.max(1, total)) * 100}%` }]} />
-      </View>
-    </View>
+    <Text variant="caption" muted center accessibilityLabel={`${current} of ${total}`}>
+      {current} of {total}
+    </Text>
   );
 }
 
-/** Step 2. Three big buttons. */
+/** Step 2. A card with three big colored circles. */
 export function HowStep({
   venue,
   onPick,
@@ -38,7 +33,7 @@ export function HowStep({
 }) {
   const mine = venue.myRanking;
   return (
-    <FlowScreen title="How was it?" onBack={onBack}>
+    <FlowScreen title="" onBack={onBack}>
       <View style={styles.intro}>
         <Text variant="heading">{venue.name}</Text>
         <Text muted>{categoryLabel(venue.category, venue.subcategory)}</Text>
@@ -48,21 +43,28 @@ export function HowStep({
           </Text>
         ) : null}
       </View>
-      <View style={styles.choices}>
-        {BUCKETS.map(({ bucket, label, icon, color }) => (
-          <Pressable
-            key={bucket}
-            accessibilityRole="button"
-            accessibilityLabel={label}
-            onPress={() => onPick(bucket)}
-            style={({ pressed }) => [styles.choice, pressed && styles.pressed]}
-          >
-            <View style={styles.choiceIcon}>
-              <Icon name={icon} size={22} color={color} />
-            </View>
-            <Text style={styles.choiceLabel}>{label}</Text>
-          </Pressable>
-        ))}
+      <View style={styles.card}>
+        <Text variant="title" center accessibilityRole="header">
+          How was it?
+        </Text>
+        <View style={styles.circles}>
+          {BUCKETS.map(({ bucket, label, emoji, color }) => (
+            <Pressable
+              key={bucket}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              onPress={() => onPick(bucket)}
+              style={({ pressed }) => [styles.circleCol, pressed && styles.pressed]}
+            >
+              <View style={[styles.circle, { backgroundColor: color }]}>
+                <Text style={styles.emoji}>{emoji}</Text>
+              </View>
+              <Text variant="caption" center>
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
     </FlowScreen>
   );
@@ -104,11 +106,16 @@ export function CompareStep({
   const opponent = search === null ? null : opponentOf(search);
   if (search === null || opponent === null) {
     return (
-      <FlowScreen title="Which was better?" onBack={onBack}>
-        <Skeleton height={14} width="30%" style={styles.centered} />
-        <View style={styles.versus}>
-          <Skeleton height={170} round={radius.xl} style={styles.flex} />
-          <Skeleton height={170} round={radius.xl} style={styles.flex} />
+      <FlowScreen title="" onBack={onBack}>
+        <View style={styles.card}>
+          <Text variant="title" center accessibilityRole="header">
+            Which was better?
+          </Text>
+          <Skeleton height={12} width="20%" style={styles.centered} />
+          <View style={styles.versus}>
+            <Skeleton height={140} round={radius.xl} style={styles.flex} />
+            <Skeleton height={140} round={radius.xl} style={styles.flex} />
+          </View>
         </View>
       </FlowScreen>
     );
@@ -116,26 +123,33 @@ export function CompareStep({
   const total = Math.max(totalRounds(search.list.length), search.rounds + 1);
   return (
     <FlowScreen
-      title="Which was better?"
+      title=""
       onBack={onBack}
       footer={<Button title="Too close to call" accessibilityLabel="Too close to call" variant="ghost" onPress={onTooClose} />}
     >
-      <Progress current={search.rounds + 1} total={total} />
-      <View style={styles.versus}>
-        <Contender name={venue.name} note="New" onPress={() => onAnswer(true)} />
-        <Text variant="label" style={styles.vs}>
-          VS
+      <View style={styles.card}>
+        <Text variant="title" center accessibilityRole="header">
+          Which was better?
         </Text>
-        <Contender
-          key={opponent.id}
-          name={opponent.name}
-          note={`You gave it ${formatScore(opponent.score)}`}
-          onPress={() => onAnswer(false)}
-        />
+        <Progress current={search.rounds + 1} total={total} />
+        <View style={styles.versus}>
+          <Contender name={venue.name} note="New" onPress={() => onAnswer(true)} />
+          <View style={styles.vs}>
+            <Text variant="label" style={styles.vsText}>
+              VS
+            </Text>
+          </View>
+          <Contender
+            key={opponent.id}
+            name={opponent.name}
+            note={`You gave it ${formatScore(opponent.score)}`}
+            onPress={() => onAnswer(false)}
+          />
+        </View>
+        <Text variant="caption" muted center>
+          Tap the one you liked more.
+        </Text>
       </View>
-      <Text muted center>
-        Tap the one you liked more.
-      </Text>
     </FlowScreen>
   );
 }
@@ -175,12 +189,15 @@ export function ResultStep({
   return (
     <FlowScreen
       title="Ranked"
+      center
       back={false}
       footer={<BusyButton title={continueLabel} accessibilityLabel={continueLabel} busy={busy} onPress={onContinue} />}
     >
-      <View style={styles.resultCard}>
-        <ScoreBadge score={result.score} size="lg" />
-        <Text variant="heading" accessibilityRole="header">
+      <View style={styles.result}>
+        <View style={styles.centered}>
+          <ScoreBadge score={result.score} size="lg" />
+        </View>
+        <Text variant="heading" center accessibilityRole="header">
           {`${venue.name} is now ${result.label}`}
         </Text>
       </View>
@@ -214,7 +231,7 @@ export function ResultStep({
                 ) : null}
                 {/* The badge pins itself to the top of a row; the wrapper centers it. */}
                 <View style={styles.centered}>
-                  <ScoreBadge score={row.score} />
+                  <ScoreBadge score={row.score} size="sm" />
                 </View>
               </View>
             );
@@ -235,49 +252,8 @@ const styles = StyleSheet.create({
   centered: { alignSelf: "center" },
   pressed: { opacity: 0.7 },
   intro: { gap: spacing.xs },
-  choices: { gap: spacing.md },
-  choice: {
-    minHeight: 76,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  choiceIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.raised,
-  },
-  choiceLabel: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.semibold },
-
-  progressWrap: { gap: spacing.sm },
-  track: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
-  trackFill: { height: "100%", borderRadius: 2, backgroundColor: colors.accent },
-
-  versus: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  vs: { color: colors.muted },
-  contender: {
-    flex: 1,
-    minHeight: 170,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  contenderPressed: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
-
-  resultCard: {
+  // The card from the placeholder screens: filled, thin border, big radius.
+  card: {
     gap: spacing.md,
     padding: spacing.lg,
     borderRadius: radius.xl,
@@ -285,18 +261,51 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
+  circles: { flexDirection: "row", justifyContent: "space-around" },
+  circleCol: { flex: 1, alignItems: "center", gap: 6 },
+  circle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
+  emoji: { fontSize: 24, lineHeight: 30 },
+
+  versus: { flexDirection: "row", alignItems: "center", gap: 6 },
+  vs: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.raised,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: -14,
+    zIndex: 2,
+  },
+  vsText: { color: colors.fg },
+  contender: {
+    flex: 1,
+    minHeight: 140,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: radius.xl,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  contenderPressed: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+
+  result: { gap: spacing.md },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    minHeight: 52,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.lg,
+    gap: 10,
+    minHeight: 48,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
   },
-  rowNew: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent },
-  rowRank: { width: 26, textAlign: "center", fontWeight: fontWeight.bold },
-  rowName: { flex: 1, fontSize: 15 },
+  rowNew: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, borderRadius: radius.md },
+  rowRank: { width: 24, fontWeight: fontWeight.bold },
+  rowName: { flex: 1 },
   rowNameNew: { fontWeight: fontWeight.semibold },
   newMark: { color: colors.accent },
-  more: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  more: { paddingHorizontal: spacing.sm, paddingVertical: spacing.sm },
 });

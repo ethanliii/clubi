@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
 import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
 import { colors } from "../../theme";
-import { PIN, START_ZOOM, pinColor, pinGlow, pinLabel, pinOrder, pinSignature } from "./pinLook";
+import { PIN, PIN_GLOW, START_ZOOM, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
 
 /** The map picture's own credit. The screen shows it after "© OpenStreetMap contributors". */
@@ -39,7 +39,7 @@ const HOVER_ORDER = 6000;
 const STYLE_ID = "clubi-map-style";
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
-// Pins are plain elements styled by class; `--c` is the category color and `--g` its glow.
+// Pins are plain elements styled by class; `--c` is the rating color of the pin's score.
 const CSS = `
 .clubi-map { background: ${colors.page}; outline: none; font-family: ${FONT}; }
 .clubi-map .maplibregl-canvas { outline: none; }
@@ -50,39 +50,40 @@ const CSS = `
   box-sizing: border-box; display: flex; align-items: center; justify-content: center;
   color: ${PIN.text}; font-family: ${FONT}; white-space: nowrap; cursor: pointer;
   -webkit-user-select: none; user-select: none;
-  transition: width .15s ease, height .15s ease, background-color .15s ease, box-shadow .15s ease;
+  transition: transform .15s ease, width .15s ease, height .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 .clubi-anchor:focus-visible .clubi-pin { outline: 2px solid ${colors.white}; outline-offset: 3px; }
 .clubi-top {
-  width: ${PIN.top}px; height: ${PIN.top}px; border-radius: 50%;
-  background: ${PIN.fill}; border: ${PIN.ring}px solid var(--c);
-  box-shadow: 0 0 0 4px var(--g), 0 0 18px var(--g), 0 6px 16px rgba(0,0,0,.55);
-  font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+  height: ${PIN.top}px; padding: 0 9px 0 3px; gap: 4px; border-radius: 99px;
+  background: ${PIN.fill}; border: ${PIN.ring}px solid ${PIN.ringColor};
+  box-shadow: 0 0 14px ${PIN_GLOW}, 0 2px 6px rgba(0,0,0,.35);
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
-.clubi-top.is-event { border-radius: 14px; }
-.clubi-top:hover { box-shadow: 0 0 0 6px var(--g), 0 0 22px var(--g), 0 6px 16px rgba(0,0,0,.55); }
-.clubi-top.is-selected { width: ${PIN.topSelected}px; height: ${PIN.topSelected}px; background: var(--c); color: ${colors.bg}; font-size: 17px; }
+.clubi-top .clubi-icon {
+  flex: none; width: ${PIN.icon}px; height: ${PIN.icon}px; border-radius: 50%; background: var(--c);
+  display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 15px;
+}
+.clubi-top:hover { box-shadow: 0 0 0 4px ${PIN_GLOW}, 0 0 18px ${PIN_GLOW}, 0 2px 6px rgba(0,0,0,.35); }
+.clubi-top.is-event, .clubi-label.is-event { border: 2px dashed ${PIN.event}; }
+.clubi-top.is-selected, .clubi-label.is-selected { transform: translate(-50%, -50%) scale(${PIN.selectedScale}); }
 .clubi-label {
-  height: ${PIN.label}px; max-width: ${PIN.labelMaxWidth}px; padding: 0 10px 0 8px; gap: 6px;
-  border-radius: ${PIN.label / 2}px; background: rgba(20,17,25,.94); border: 1px solid ${PIN.border};
-  box-shadow: 0 4px 12px rgba(0,0,0,.5); font-size: 12px; font-weight: 600;
+  height: ${PIN.label}px; max-width: ${PIN.labelMaxWidth}px; padding: 0 9px 0 7px; gap: 5px;
+  border-radius: ${PIN.label / 2}px; background: ${PIN.fill}; border: 2px solid ${PIN.fill};
+  box-shadow: 0 2px 6px rgba(0,0,0,.35); font-size: 11px; font-weight: 600;
 }
 .clubi-label:hover { border-color: var(--c); }
-.clubi-label .clubi-swatch { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
-.clubi-label.is-event .clubi-swatch { border-radius: 2px; transform: rotate(45deg); }
+.clubi-label .clubi-swatch { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .clubi-label .clubi-name { overflow: hidden; text-overflow: ellipsis; }
-.clubi-label .clubi-score { flex: none; font-weight: 700; color: var(--c); font-variant-numeric: tabular-nums; }
-.clubi-label.is-selected { background: var(--c); border-color: var(--c); color: ${colors.bg}; }
-.clubi-label.is-selected .clubi-swatch { background: ${colors.bg}; }
-.clubi-label.is-selected .clubi-score { color: ${colors.bg}; }
+.clubi-label .clubi-score { flex: none; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.clubi-label.is-selected { border: 2px solid ${PIN.ringColor}; }
 .clubi-dot {
   width: ${PIN.dot}px; height: ${PIN.dot}px; border-radius: 50%;
-  background: var(--c); border: 2px solid ${PIN.fill}; box-shadow: 0 1px 4px rgba(0,0,0,.6);
+  background: var(--c); border: 1.5px solid ${colors.white}; box-shadow: 0 1px 4px rgba(0,0,0,.6);
 }
 .clubi-dot::before { content: ""; position: absolute; top: -12px; right: -12px; bottom: -12px; left: -12px; }
 .clubi-dot.is-event { border-radius: 3px; transform: translate(-50%, -50%) rotate(45deg); }
-.clubi-dot:hover { border-color: ${colors.white}; }
-.clubi-dot.is-selected { width: ${PIN.dotSelected}px; height: ${PIN.dotSelected}px; border-color: ${colors.white}; }
+.clubi-dot:hover { border-color: ${PIN.ringColor}; }
+.clubi-dot.is-selected { width: ${PIN.dotSelected}px; height: ${PIN.dotSelected}px; border: 2.5px solid ${PIN.ringColor}; }
 .clubi-user {
   width: 16px; height: 16px; border-radius: 50%; background: ${PIN.user}; border: 3px solid ${colors.white};
   box-shadow: 0 0 0 9px rgba(74,168,255,.22); cursor: default; pointer-events: none;
@@ -107,13 +108,18 @@ function pinElement(item: NearbyItem, selected: boolean): HTMLElement {
   pin.className = ["clubi-pin", kind, item.kind === "event" ? "is-event" : "", selected ? "is-selected" : ""]
     .filter(Boolean)
     .join(" ");
-  pin.style.setProperty("--c", pinColor(item.category));
-  pin.style.setProperty("--g", pinGlow(item.category));
+  pin.style.setProperty("--c", pinColor(item.score));
   pin.setAttribute("aria-label", pinLabel(item));
   pin.dataset.pin = item.tier;
 
   if (item.tier === "top") {
-    pin.textContent = formatScore(item.score);
+    const icon = document.createElement("span");
+    icon.className = "clubi-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = pinGlyph(item.category);
+    const score = document.createElement("span");
+    score.textContent = formatScore(item.score);
+    pin.append(icon, score);
   } else if (item.tier === "good") {
     const swatch = document.createElement("span");
     swatch.className = "clubi-swatch";

@@ -31,14 +31,14 @@ export function NotificationRow({
       <View style={styles.lead}>
         {actor ? (
           <>
-            <Avatar name={actor.displayName} uri={actor.avatarUrl} size={44} />
+            <Avatar name={actor.displayName} uri={actor.avatarUrl} size={40} />
             <View style={styles.badge}>
-              <Icon name={look.icon} size={12} color={look.tint} />
+              <Icon name={look.icon} size={11} color={look.tint} />
             </View>
           </>
         ) : (
           <View style={styles.icon}>
-            <Icon name={look.icon} size={20} color={look.tint} />
+            <Icon name={look.icon} size={18} color={look.tint} />
           </View>
         )}
       </View>
@@ -47,7 +47,7 @@ export function NotificationRow({
           {item.title}
         </Text>
         {item.body ? (
-          <Text muted numberOfLines={3}>
+          <Text variant="caption" muted numberOfLines={3}>
             {item.body}
           </Text>
         ) : null}
@@ -60,25 +60,24 @@ export function NotificationRow({
   );
 }
 
+// Bryan's list row: 40 round lead, body-size text, muted captions, a full line underneath.
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: 10,
     minHeight: 64,
     paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   pressed: { opacity: 0.6 },
-  lead: { width: 44, height: 44 },
+  lead: { width: 40, height: 40 },
   icon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -86,18 +85,18 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: -4,
     bottom: -4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.raised,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
     borderWidth: 2,
     borderColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
   },
-  text: { flex: 1, gap: 3 },
-  title: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.regular },
+  text: { flex: 1, gap: spacing.xxs },
+  title: { fontWeight: fontWeight.regular },
   unreadTitle: { fontWeight: fontWeight.bold },
-  dotSlot: { width: 10, alignItems: "center" },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
+  dotSlot: { width: 8, alignItems: "center" },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
 });

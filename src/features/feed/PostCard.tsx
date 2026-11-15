@@ -5,7 +5,7 @@ import { api, type FeedItem, type Visibility } from "../../lib/api";
 import { formatRelativeTime, formatScore } from "../../lib/format";
 import { ratePath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, radius, ratingColor, spacing } from "../../theme";
 import { PostPhotos } from "./PostPhotos";
 
 /** The three choices behind "Who sees it", in the order they are offered. */
@@ -47,50 +47,70 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
   // Sending my current emoji again is how the backend removes a reaction; with none, it adds the default heart.
   const onLike = () => void react(post.myReaction ? { postId: post.postId, emoji: post.myReaction } : { postId: post.postId });
 
+  const openAuthor = () => router.push(userPath(author.userId));
+
+  // Bryan's feed post: who ranked what with the score beside it, photos, notes, tags, actions, time.
   return (
-    <View style={styles.card}>
+    <View style={styles.post}>
       <View style={styles.top}>
+        {/* The avatar opens the profile too; the name beside it is the button screen readers and tests find. */}
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${author.displayName}'s profile`}
-          onPress={() => router.push(userPath(author.userId))}
-          style={({ pressed }) => [styles.author, pressed && styles.pressed]}
+          accessible={false}
+          aria-hidden
+          tabIndex={-1}
+          onPress={openAuthor}
+          style={({ pressed }) => pressed && styles.pressed}
         >
           <Avatar name={author.displayName} uri={author.avatarUrl} size={40} />
-          <View style={styles.flex}>
-            <Text numberOfLines={1} style={styles.name}>
-              {author.displayName}
-            </Text>
-            <Text variant="caption" muted>
-              ranked
-            </Text>
-          </View>
         </Pressable>
-        {mine && onMenu ? <IconButton icon="more" accessibilityLabel="Post options" onPress={onMenu} /> : null}
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${target.name}`}
-        onPress={openVenue}
-        style={({ pressed }) => [styles.place, pressed && styles.pressed]}
-      >
         <View style={styles.flex}>
-          <Text variant="title" numberOfLines={2}>
-            {target.name}
-          </Text>
+          <View style={styles.sentence}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${author.displayName}'s profile`}
+              hitSlop={8}
+              onPress={openAuthor}
+              style={({ pressed }) => [styles.shrink, pressed && styles.pressed]}
+            >
+              <Text numberOfLines={1} style={styles.bold}>
+                {author.displayName}
+              </Text>
+            </Pressable>
+            <Text>ranked</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${target.name}`}
+              hitSlop={8}
+              onPress={openVenue}
+              style={({ pressed }) => [styles.shrink, pressed && styles.pressed]}
+            >
+              <Text numberOfLines={2} style={styles.bold}>
+                {target.name}
+              </Text>
+            </Pressable>
+          </View>
           {/* Without a ranking the backend's label is just the place's name again. */}
-          {post.label !== target.name ? <Text muted>{post.label}</Text> : null}
+          {post.label !== target.name ? (
+            <Text variant="caption" muted>
+              {post.label}
+            </Text>
+          ) : null}
         </View>
-        {post.score > 0 ? <ScoreBadge score={post.score} size="lg" /> : null}
-      </Pressable>
+        {post.score > 0 ? <ScoreBadge score={post.score} /> : null}
+        {mine && onMenu ? <IconButton icon="more" accessibilityLabel="Post options" size={36} onPress={onMenu} /> : null}
+      </View>
 
       <PostPhotos urls={post.photoUrls} name={target.name} onPress={openVenue} />
 
-      {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
+      {post.caption ? (
+        <Text>
+          <Text style={styles.bold}>Notes: </Text>
+          {post.caption}
+        </Text>
+      ) : null}
 
       {chips.length > 0 ? (
-        <ChipRow>
+        <ChipRow style={styles.chips}>
           {chips.map((chip, index) => (
             <Chip key={`${chip}-${index}`} label={chip} size="sm" />
           ))}
@@ -98,15 +118,12 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
       ) : null}
 
       {post.myScoreForIt !== undefined ? (
-        <Text muted>You gave it {formatScore(post.myScoreForIt)}</Text>
-      ) : !mine ? (
-        <Button
-          title="Rank it too"
-          accessibilityLabel="Rank it too"
-          variant="ghost"
-          onPress={() => router.push(ratePath(target.kind, target.id))}
-          style={styles.rankToo}
-        />
+        <Text variant="caption" muted>
+          You gave it{" "}
+          <Text variant="caption" style={[styles.bold, { color: ratingColor(post.myScoreForIt) }]}>
+            {formatScore(post.myScoreForIt)}
+          </Text>
+        </Text>
       ) : null}
 
       <View style={styles.actions}>
@@ -118,6 +135,7 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
           disabled={reacting}
           label={reactionCount > 0 ? String(reactionCount) : undefined}
           onPress={onLike}
+          size={40}
           plain
         />
         <IconButton
@@ -125,17 +143,22 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
           accessibilityLabel="Comments"
           label={commentCount > 0 ? String(commentCount) : undefined}
           onPress={onComments}
+          size={40}
           plain
         />
         <View style={styles.flex} />
-        {mine && visibility ? (
-          <View accessibilityLabel={`Who sees it: ${visibility.label}`} style={styles.visibility}>
-            <Icon name={visibility.icon} size={13} color={colors.muted} />
-            <Text variant="caption" muted>
-              {visibility.label}
-            </Text>
-          </View>
+        {post.myScoreForIt === undefined && !mine ? (
+          <Button
+            title="Rank it too"
+            accessibilityLabel="Rank it too"
+            variant="ghost"
+            onPress={() => router.push(ratePath(target.kind, target.id))}
+            style={styles.rankToo}
+          />
         ) : null}
+      </View>
+
+      <View style={styles.foot}>
         {onOpenPost ? (
           <Pressable
             accessibilityRole="button"
@@ -154,6 +177,15 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
             {time}
           </Text>
         )}
+        <View style={styles.flex} />
+        {mine && visibility ? (
+          <View accessibilityLabel={`Who sees it: ${visibility.label}`} style={styles.visibility}>
+            <Icon name={visibility.icon} size={13} color={colors.muted} />
+            <Text variant="caption" muted>
+              {visibility.label}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -162,16 +194,16 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
 /** The shape of a post while the feed is loading. */
 export function PostSkeleton() {
   return (
-    <View style={styles.card}>
+    <View style={styles.post}>
       <View style={styles.top}>
         <Skeleton width={40} height={40} round={20} />
         <View style={[styles.flex, styles.lines]}>
-          <Skeleton width="45%" height={14} />
-          <Skeleton width="20%" height={11} />
+          <Skeleton width="65%" height={14} />
+          <Skeleton width="30%" height={11} />
         </View>
+        <Skeleton width={40} height={25} round={radius.md} />
       </View>
-      <Skeleton width="70%" height={18} />
-      <Skeleton height={150} round={radius.lg} />
+      <Skeleton height={190} round={radius.lg} />
       <Skeleton width="55%" height={12} />
     </View>
   );
@@ -189,24 +221,19 @@ export function PostSkeletons({ count = 3 }: { count?: number }) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
+  // Flat, as on Bryan's feed: no card, a line under each post.
+  post: { gap: 10, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
   flex: { flex: 1 },
-  top: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  author: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 40 },
-  name: { fontSize: 15, fontWeight: fontWeight.semibold },
-  place: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 44 },
-  caption: { fontSize: 15, lineHeight: 21 },
-  rankToo: { width: "auto", alignSelf: "flex-start", paddingVertical: spacing.sm + 2 },
-  actions: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: -spacing.xs },
+  shrink: { flexShrink: 1, maxWidth: "100%" },
+  bold: { fontWeight: fontWeight.bold },
+  top: { flexDirection: "row", alignItems: "center", gap: 10 },
+  sentence: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: spacing.xs },
+  chips: { gap: 6 },
+  rankToo: { width: "auto", paddingVertical: spacing.sm, paddingHorizontal: spacing.md + 2, borderRadius: radius.pill },
+  actions: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: -spacing.xs },
+  foot: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   visibility: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  time: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: 40 },
+  time: { flexDirection: "row", alignItems: "center", gap: 2 },
   pressed: { opacity: 0.6 },
   lines: { gap: spacing.sm },
   skeletons: { gap: spacing.lg },

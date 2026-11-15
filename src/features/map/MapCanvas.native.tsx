@@ -10,7 +10,7 @@ import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
 import { colors, fontWeight } from "../../theme";
 import { DARK_MAP_STYLE } from "./darkMapStyle";
-import { PIN, START_LAT_DELTA, pinColor, pinGlow, pinLabel, pinOrder, pinSignature } from "./pinLook";
+import { PIN, START_LAT_DELTA, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
 
 /** Apple and Google draw their own credit on the map, so there is nothing to add for the picture. */
@@ -160,23 +160,18 @@ function ItemMarker({
 
 /** The picture of one pin. `tier` (from the backend) picks which of the three it is. */
 function Pin({ item, selected }: { item: NearbyItem; selected: boolean }) {
-  const color = pinColor(item.category);
+  const color = pinColor(item.score);
   const isEvent = item.kind === "event";
   const label = pinLabel(item);
 
   if (item.tier === "top") {
-    const size = selected ? PIN.topSelected : PIN.top;
     return (
       <View accessible accessibilityRole="button" accessibilityLabel={label} style={styles.glowRoom}>
-        <View
-          style={[
-            styles.top,
-            { width: size, height: size, borderRadius: isEvent ? 14 : size / 2, borderColor: color, shadowColor: color },
-            selected && { backgroundColor: color },
-          ]}
-        >
-          <View style={[styles.topHalo, { borderRadius: isEvent ? 18 : size, borderColor: pinGlow(item.category) }]} />
-          <Text style={[styles.topScore, selected && styles.topScoreSelected]}>{formatScore(item.score)}</Text>
+        <View style={[styles.bubble, styles.top, isEvent && styles.event, selected && styles.selected]}>
+          <View style={[styles.icon, { backgroundColor: color }]}>
+            <Text style={styles.glyph}>{pinGlyph(item.category)}</Text>
+          </View>
+          <Text style={styles.topScore}>{formatScore(item.score)}</Text>
         </View>
       </View>
     );
@@ -185,14 +180,12 @@ function Pin({ item, selected }: { item: NearbyItem; selected: boolean }) {
   if (item.tier === "good") {
     return (
       <View accessible accessibilityRole="button" accessibilityLabel={label} style={styles.shadowRoom}>
-        <View style={[styles.label, selected && { backgroundColor: color, borderColor: color }]}>
-          <View
-            style={[styles.swatch, { backgroundColor: selected ? colors.bg : color }, isEvent && styles.swatchEvent]}
-          />
-          <Text numberOfLines={1} style={[styles.labelName, selected && styles.onColor]}>
+        <View style={[styles.bubble, styles.label, isEvent && styles.event, selected && styles.labelSelected]}>
+          <View style={[styles.swatch, { backgroundColor: color }]} />
+          <Text numberOfLines={1} style={styles.labelName}>
             {item.name}
           </Text>
-          <Text style={[styles.labelScore, { color: selected ? colors.bg : color }]}>{formatScore(item.score)}</Text>
+          <Text style={styles.labelScore}>{formatScore(item.score)}</Text>
         </View>
       </View>
     );
@@ -216,56 +209,61 @@ function Pin({ item, selected }: { item: NearbyItem; selected: boolean }) {
 
 const styles = StyleSheet.create({
   // Room around a pin so its glow and shadow are not cut off when the pin is turned into a picture.
-  glowRoom: { padding: 8 },
-  shadowRoom: { padding: 6 },
-  top: {
+  glowRoom: { padding: 10 },
+  shadowRoom: { padding: 8 },
+  // The white bubble both labeled pins share.
+  bubble: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     backgroundColor: PIN.fill,
+    borderRadius: 99,
+    shadowColor: colors.black,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  top: {
+    gap: 4,
+    height: PIN.top,
+    paddingLeft: 3,
+    paddingRight: 9,
     borderWidth: PIN.ring,
-    shadowOpacity: 0.7,
+    borderColor: PIN.ringColor,
+    shadowColor: PIN.ringColor,
+    shadowOpacity: 0.6,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
     elevation: 6,
   },
-  topHalo: { position: "absolute", top: -7, right: -7, bottom: -7, left: -7, borderWidth: 4 },
+  event: { borderStyle: "dashed", borderWidth: 2, borderColor: PIN.event },
+  selected: { transform: [{ scale: PIN.selectedScale }] },
+  icon: { width: PIN.icon, height: PIN.icon, borderRadius: PIN.icon / 2, alignItems: "center", justifyContent: "center" },
+  glyph: { fontSize: 12, lineHeight: 15 },
   topScore: {
-    fontSize: 15,
-    lineHeight: 19,
+    fontSize: 13,
+    lineHeight: 16,
     fontWeight: fontWeight.bold,
     color: PIN.text,
     fontVariant: ["tabular-nums"],
   },
-  topScoreSelected: { fontSize: 17, lineHeight: 21, color: colors.bg },
 
-  label: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    height: PIN.label,
-    maxWidth: PIN.labelMaxWidth,
-    paddingLeft: 8,
-    paddingRight: 10,
-    borderRadius: PIN.label / 2,
-    backgroundColor: "rgba(20,17,25,0.94)",
-    borderWidth: 1,
-    borderColor: PIN.border,
-    shadowColor: colors.black,
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
+  label: { gap: 5, height: PIN.label, maxWidth: PIN.labelMaxWidth, paddingLeft: 7, paddingRight: 9 },
+  labelSelected: { borderWidth: 2, borderColor: PIN.ringColor, transform: [{ scale: PIN.selectedScale }] },
+  swatch: { width: 10, height: 10, borderRadius: 5 },
+  labelName: { flexShrink: 1, fontSize: 11, lineHeight: 14, fontWeight: fontWeight.semibold, color: PIN.text },
+  labelScore: {
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: fontWeight.bold,
+    color: PIN.text,
+    fontVariant: ["tabular-nums"],
   },
-  swatch: { width: 9, height: 9, borderRadius: 4.5 },
-  swatchEvent: { borderRadius: 2, transform: [{ rotate: "45deg" }] },
-  labelName: { flexShrink: 1, fontSize: 12, lineHeight: 16, fontWeight: fontWeight.semibold, color: PIN.text },
-  labelScore: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
-  onColor: { color: colors.bg },
 
   dotTarget: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  dot: { borderWidth: 2, borderColor: PIN.fill },
+  dot: { borderWidth: 1.5, borderColor: colors.white },
   dotEvent: { transform: [{ rotate: "45deg" }] },
-  dotSelected: { borderColor: colors.white },
+  dotSelected: { borderWidth: 2.5, borderColor: PIN.ringColor },
 
   userHalo: {
     width: 34,

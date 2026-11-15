@@ -45,7 +45,7 @@ export function CommentRow({
         onPress={openAuthor}
         style={({ pressed }) => pressed && styles.pressed}
       >
-        <Avatar name={author.displayName} uri={author.avatarUrl} size={34} />
+        <Avatar name={author.displayName} uri={author.avatarUrl} size={32} />
       </Pressable>
       <View style={styles.body}>
         <Pressable
@@ -124,7 +124,7 @@ export function CommentComposer({ postId, inputRef }: { postId: Id<"posts">; inp
 /** What a comment list says when there is nothing in it. */
 export function NoComments() {
   return (
-    <Text muted center style={styles.none}>
+    <Text variant="caption" muted center style={styles.none}>
       No comments yet. Say something.
     </Text>
   );
@@ -174,11 +174,12 @@ export function CommentsSheet({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   body: { flex: 1, gap: spacing.sm },
   meta: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-  name: { flexShrink: 1, fontWeight: fontWeight.semibold },
-  text: { fontSize: 15, lineHeight: 21 },
+  name: { flexShrink: 1, fontWeight: fontWeight.bold },
+  // Bryan's body size (14 / 20), as in his feed notes.
+  text: {},
   armed: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   small: { width: "auto", paddingVertical: spacing.sm, paddingHorizontal: spacing.md, minHeight: 40 },
   pressed: { opacity: 0.6 },

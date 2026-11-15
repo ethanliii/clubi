@@ -4,8 +4,8 @@ import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } fr
 import type { NearbyItem } from "../../convex/lib/contract";
 import { categoryHue, categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../lib/format";
 import { venuePath } from "../lib/links";
-import { colors, fontWeight, radius, spacing } from "../theme";
-import { AvatarStack } from "./Avatar";
+import { colors, fontWeight, radius, ratingColor, spacing } from "../theme";
+import { Avatar } from "./Avatar";
 import { ScoreBadge } from "./ScoreBadge";
 import { Text } from "./Text";
 import { VenuePhoto } from "./VenuePhoto";
@@ -58,10 +58,15 @@ function Friends({ item }: { item: NearbyItem }) {
   if (item.friends.length === 0) return null;
   return (
     <View style={styles.friends}>
-      <AvatarStack people={item.friends} size={22} />
-      <Text variant="caption" muted numberOfLines={1} style={styles.flex}>
-        {item.friends.map((friend) => `${friend.displayName.split(" ")[0]} ${formatScore(friend.score)}`).join(" · ")}
-      </Text>
+      {item.friends.map((friend, index) => (
+        <View key={`${friend.displayName}-${index}`} style={[styles.pill, { borderColor: ratingColor(friend.score) }]}>
+          <Avatar name={friend.displayName} uri={friend.avatarUrl} size={18} style={styles.pillAvatar} />
+          <Text numberOfLines={1} style={styles.pillName}>
+            {friend.displayName.split(" ")[0]}
+          </Text>
+          <Text style={[styles.pillScore, { color: ratingColor(friend.score) }]}>{formatScore(friend.score)}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -85,21 +90,19 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
         onPress={open}
         style={({ pressed }) => [styles.card, { width }, pressed && styles.pressed, style]}
       >
-        <View>
-          <Picture item={item} height={120} round={0} />
-          <View style={styles.cardScore}>
-            <ScoreBadge score={item.score} />
-          </View>
-        </View>
+        <Picture item={item} height={Math.round(width * 0.5)} round={0} />
         <View style={styles.cardBody}>
-          <Text variant="title" numberOfLines={1}>
+          <Text numberOfLines={1} style={styles.cardName}>
             {item.name}
           </Text>
+          <View style={styles.metaRow}>
+            <ScoreBadge score={item.score} size="sm" />
+            <Text variant="caption" muted numberOfLines={1} style={styles.flex}>
+              {`${item.matchPct}% match · ${metaLine(item)}`}
+            </Text>
+          </View>
           <Text variant="caption" numberOfLines={2} style={styles.why}>
             {item.why}
-          </Text>
-          <Text variant="caption" muted numberOfLines={1}>
-            {`${item.matchPct}% match · ${metaLine(item)}`}
           </Text>
           {when ? (
             <Text variant="caption" numberOfLines={1} style={styles.when}>
@@ -131,7 +134,7 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
         </Text>
       ) : null}
       <View style={styles.thumb}>
-        <Picture item={item} height={56} round={radius.md} />
+        <Picture item={item} height={56} round={radius.lg} />
       </View>
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
@@ -162,19 +165,31 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   pressed: { opacity: 0.7 },
   image: { width: "100%", backgroundColor: colors.raised },
-  why: { color: colors.fg },
+  why: { color: colors.fg, opacity: 0.85 },
   when: { color: colors.mid, fontWeight: fontWeight.semibold },
-  friends: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: 2 },
-
-  card: {
+  // Bryan's friend-score pills: avatar and score, outlined in the score's colour.
+  friends: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 2 },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingLeft: 2,
+    paddingRight: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    overflow: "hidden",
+    maxWidth: "100%",
   },
-  cardScore: { position: "absolute", top: spacing.sm, right: spacing.sm },
-  cardBody: { padding: spacing.md, gap: 4 },
+  pillAvatar: { borderWidth: 0 },
+  pillName: { fontSize: 12, lineHeight: 15, color: colors.muted, flexShrink: 1 },
+  pillScore: { fontSize: 12, lineHeight: 15, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
+
+  // Bryan's venue card: filled surface, 18 radius, no border, photo flush to the top.
+  card: { backgroundColor: colors.surface, borderRadius: radius.xl, overflow: "hidden" },
+  cardBody: { padding: spacing.md, gap: 6 },
+  cardName: { fontWeight: fontWeight.semibold },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 
   row: {
     flexDirection: "row",
@@ -182,12 +197,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.md,
     minHeight: 72,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   rank: { width: 22, textAlign: "center", fontWeight: fontWeight.bold, marginTop: 18 },
   thumb: { width: 56, height: 56 },
-  rowBody: { flex: 1, gap: 3 },
+  rowBody: { flex: 1, gap: 4 },
   rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  rowName: { flex: 1, fontSize: 15, fontWeight: fontWeight.semibold },
+  rowName: { flex: 1, fontWeight: fontWeight.bold },
 });

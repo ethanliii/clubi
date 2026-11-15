@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { ScoreBadge, Text } from "../../components";
 import type { Id, Kind } from "../../lib/api";
 import { venuePath } from "../../lib/links";
-import { colors, fontWeight, spacing } from "../../theme";
+import { colors, fontWeight, ratingColor, spacing } from "../../theme";
 
 export type RankedRowItem = {
   kind: Kind;
@@ -22,12 +22,15 @@ export function RankedRow({
   item,
   subtitle,
   showPosition = true,
+  ring = false,
   trailing,
 }: {
   item: RankedRowItem;
   subtitle?: string;
   /** Hide the number when the rows come from different lists (compare's "new to me"). */
   showPosition?: boolean;
+  /** The score in a rating-coloured ring (the full rankings list) instead of the small badge. */
+  ring?: boolean;
   trailing?: ReactNode;
 }) {
   return (
@@ -53,7 +56,13 @@ export function RankedRow({
             </Text>
           ) : null}
         </View>
-        <ScoreBadge score={item.score} />
+        {ring ? (
+          <View accessibilityLabel={`Score ${item.score.toFixed(1)}`} style={[styles.ring, { borderColor: ratingColor(item.score) }]}>
+            <Text style={[styles.ringText, { color: ratingColor(item.score) }]}>{item.score.toFixed(1)}</Text>
+          </View>
+        ) : (
+          <ScoreBadge score={item.score} size="sm" />
+        )}
       </Pressable>
       {trailing}
     </View>
@@ -65,13 +74,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    minHeight: 56,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    minHeight: 48,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm + 2 },
+  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: spacing.sm + 2 },
   pressed: { opacity: 0.6 },
-  position: { width: 24, textAlign: "center", fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
-  text: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: fontWeight.semibold },
+  position: { width: 22, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
+  text: { flex: 1, gap: spacing.xxs },
+  name: { fontWeight: fontWeight.bold },
+  ring: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  ringText: { fontSize: 13, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
 });

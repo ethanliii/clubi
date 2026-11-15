@@ -1,11 +1,13 @@
 import { useQuery } from "convex/react";
 import { useState } from "react";
-import { View } from "react-native";
-import { EmptyState, Header, Screen, SectionHeader, SkeletonRows, TextField } from "../components";
+import { StyleSheet, View } from "react-native";
+import { EmptyState, Screen, SkeletonRows, TextField } from "../components";
 import { PerformerRow } from "../features/performers/PerformerRow";
+import { ScreenTop, SectionLabel } from "../features/trips/ScreenTop";
 import { api } from "../lib/api";
 import { useDebounced } from "../lib/useDebounced";
 import { useNow } from "../lib/useNow";
+import { spacing } from "../theme";
 
 export default function FollowingScreen() {
   const now = useNow();
@@ -18,7 +20,7 @@ export default function FollowingScreen() {
 
   return (
     <Screen>
-      <Header title="Following" />
+      <ScreenTop title="Following" kicker="Artists" />
       <TextField
         placeholder="Search artists"
         value={input}
@@ -35,8 +37,8 @@ export default function FollowingScreen() {
         ) : results.length === 0 ? (
           <EmptyState title={`No artists found for "${text}".`} body="Try another spelling, or part of the name." icon="search" />
         ) : (
-          <View>
-            <SectionHeader title="Results" />
+          <View style={styles.section}>
+            <SectionLabel title="Results" />
             {results.map((performer) => (
               <PerformerRow key={performer.performerId} performer={performer} now={now} />
             ))}
@@ -59,3 +61,7 @@ export default function FollowingScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  section: { gap: spacing.xs },
+});

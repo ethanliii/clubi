@@ -214,9 +214,9 @@ function MenuRow({
 
 const styles = StyleSheet.create({
   icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",

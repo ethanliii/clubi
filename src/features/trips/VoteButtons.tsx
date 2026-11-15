@@ -25,6 +25,7 @@ export function VoteButtons({
       <IconButton
         icon="thumbUp"
         accessibilityLabel="Vote up"
+        size={36}
         selected={myVote === 1}
         color={myVote === 1 ? colors.accent : colors.fg}
         label={up === undefined ? undefined : String(up)}
@@ -33,6 +34,7 @@ export function VoteButtons({
       <IconButton
         icon="thumbDown"
         accessibilityLabel="Vote down"
+        size={36}
         selected={myVote === -1}
         color={myVote === -1 ? colors.accent : colors.fg}
         label={down === undefined ? undefined : String(down)}
@@ -43,5 +45,5 @@ export function VoteButtons({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
 });

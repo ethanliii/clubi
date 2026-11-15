@@ -100,9 +100,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: colors.line,
     overflow: "hidden",
     shadowColor: colors.black,
     shadowOpacity: 0.4,
@@ -111,11 +108,12 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   grab: {
+    paddingTop: spacing.xs,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
     ...Platform.select({ web: { cursor: "grab", userSelect: "none" } as object, default: {} }),
   },
   handleButton: { alignSelf: "center", width: 72, height: 22, alignItems: "center", justifyContent: "center" },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.line },
   body: { flex: 1 },
 });

@@ -6,7 +6,6 @@ import {
   Button,
   EmptyState,
   goBack,
-  Header,
   IconButton,
   Screen,
   Sheet,
@@ -15,6 +14,7 @@ import {
 } from "../../components";
 import { citySpot } from "../../features/trips/city";
 import { InviteSheet } from "../../features/trips/InviteSheet";
+import { ScreenTop } from "../../features/trips/ScreenTop";
 import { TripForm } from "../../features/trips/TripForm";
 import { GroupPicks, MemberList, Shortlist, type OnVote } from "../../features/trips/TripSections";
 import type { Vote } from "../../features/trips/VoteButtons";
@@ -43,7 +43,7 @@ export default function TripScreen() {
   if (trip === undefined || leaving) {
     return (
       <Screen>
-        <Header title="Trip" />
+        <ScreenTop title="Trip" />
         <SkeletonRows count={5} />
       </Screen>
     );
@@ -51,7 +51,7 @@ export default function TripScreen() {
   if (trip === null) {
     return (
       <Screen>
-        <Header title="Trip" />
+        <ScreenTop title="Trip" />
         <EmptyState title="This trip was deleted" icon="users" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
@@ -182,18 +182,24 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
   return (
     <Screen>
-      <Header
-        title={trip.name}
-        right={
-          isIn ? (
-            <IconButton icon="more" accessibilityLabel="Trip options" onPress={openMenu} />
-          ) : undefined
-        }
-      />
-      <Text muted>{facts.join(" · ")}</Text>
+      <View style={styles.top}>
+        <ScreenTop
+          title={trip.name}
+          kicker="Trip"
+          right={
+            isIn ? (
+              <IconButton icon="more" accessibilityLabel="Trip options" size={36} onPress={openMenu} />
+            ) : undefined
+          }
+        />
+        <Text muted>{facts.join(" · ")}</Text>
+      </View>
 
       {trip.myStatus === "invited" ? (
         <View style={styles.invite}>
+          <Text variant="label" style={styles.inviteKicker}>
+            Invitation
+          </Text>
           <Text variant="title">{`${trip.ownerName} invited you`}</Text>
           <Text muted>Join to see picks that suit the whole group and vote on where to go.</Text>
           <View style={styles.buttons}>
@@ -286,6 +292,8 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  top: { gap: spacing.xs },
+  inviteKicker: { color: colors.accent },
   invite: {
     gap: spacing.sm,
     padding: spacing.lg,

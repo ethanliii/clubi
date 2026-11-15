@@ -38,8 +38,8 @@ function TasteMeter({ label, pct, delay }: { label: string; pct: number; delay: 
   return (
     <View accessible accessibilityLabel={`${label} ${pct}%`} style={styles.meter}>
       <View style={styles.labels}>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{pct}%</Text>
+        <Text variant="caption" style={styles.label}>{label}</Text>
+        <Text variant="caption" style={styles.value}>{pct}%</Text>
       </View>
       <View style={styles.track}>
         <Animated.View style={[styles.fill, { width }]} />
@@ -49,11 +49,11 @@ function TasteMeter({ label, pct, delay }: { label: string; pct: number; delay: 
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.md + 2 },
-  meter: { gap: spacing.xs + 2 },
+  list: { gap: spacing.md },
+  meter: { gap: spacing.xs },
   labels: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
-  label: { color: colors.white, fontWeight: "600" },
-  value: { color: colors.white, fontWeight: "700", fontVariant: ["tabular-nums"] },
-  track: { height: 8, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.22)", overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 8, backgroundColor: colors.white },
+  label: { color: colors.white },
+  value: { color: colors.white, fontVariant: ["tabular-nums"] },
+  track: { height: 8, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.2)", overflow: "hidden" },
+  fill: { height: "100%", backgroundColor: colors.white },
 });

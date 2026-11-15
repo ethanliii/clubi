@@ -7,21 +7,20 @@ import {
   ChipRow,
   EmptyState,
   goBack,
-  Header,
   Icon,
   ListRow,
   Screen,
-  SectionHeader,
   Skeleton,
   SkeletonRows,
   Text,
 } from "../../components";
 import { FollowButton } from "../../features/performers/FollowButton";
+import { ScreenTop, SectionLabel } from "../../features/trips/ScreenTop";
 import { api, type Id } from "../../lib/api";
 import { formatEventTime, formatScore } from "../../lib/format";
 import { venuePath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
-import { colors, spacing } from "../../theme";
+import { colors, fontWeight, ratingColor, spacing } from "../../theme";
 
 export default function PerformerScreen() {
   const { performerId } = useLocalSearchParams<{ performerId: string }>();
@@ -31,7 +30,7 @@ export default function PerformerScreen() {
   if (performer === undefined) {
     return (
       <Screen>
-        <Header title="" />
+        <ScreenTop title="" kicker="Artist" />
         <View style={styles.top}>
           <Skeleton width={96} height={96} round={48} />
           <View style={styles.topText}>
@@ -47,7 +46,7 @@ export default function PerformerScreen() {
   if (performer === null) {
     return (
       <Screen>
-        <Header title="Artist" />
+        <ScreenTop title="Artist" />
         <EmptyState title="We couldn't find this artist." icon="music" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
@@ -55,7 +54,7 @@ export default function PerformerScreen() {
 
   return (
     <Screen>
-      <Header title={performer.name} />
+      <ScreenTop title={performer.name} kicker="Artist" />
       <View style={styles.top}>
         <Avatar name={performer.name} uri={performer.imageUrl} size={96} />
         <View style={styles.topText}>
@@ -67,7 +66,12 @@ export default function PerformerScreen() {
             </ChipRow>
           ) : null}
           {performer.affinity !== undefined ? (
-            <Text>{`You rate them ${formatScore(performer.affinity)}`}</Text>
+            <Text>
+              {"You rate them "}
+              <Text style={{ fontWeight: fontWeight.bold, color: ratingColor(performer.affinity) }}>
+                {formatScore(performer.affinity)}
+              </Text>
+            </Text>
           ) : (
             <Text muted>Rank one of their shows and your score for them shows up here.</Text>
           )}
@@ -76,8 +80,8 @@ export default function PerformerScreen() {
 
       <FollowButton performerId={performer.performerId} following={performer.following} />
 
-      <View>
-        <SectionHeader title="Upcoming" />
+      <View style={styles.section}>
+        <SectionLabel title="Upcoming" />
         {performer.upcoming.length === 0 ? (
           <Text muted style={styles.none}>
             No dates nearby yet
@@ -89,7 +93,11 @@ export default function PerformerScreen() {
               title={[formatEventTime(event.startsAt, now), event.venueName ?? ""].filter((part) => part !== "").join(" · ")}
               subtitle={event.title}
               accessibilityLabel={`${event.title}, ${formatEventTime(event.startsAt, now)}`}
-              left={<Icon name="calendar" size={20} color={colors.mid} />}
+              left={
+                <View style={styles.date}>
+                  <Icon name="calendar" size={18} color={colors.mid} />
+                </View>
+              }
               right={<Icon name="chevron" size={16} color={colors.muted} />}
               onPress={() => router.push(venuePath("event", event.id))}
             />
@@ -103,5 +111,14 @@ export default function PerformerScreen() {
 const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
   topText: { flex: 1, gap: spacing.sm },
-  none: { paddingVertical: spacing.md },
+  section: { gap: spacing.xs },
+  date: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  none: { paddingVertical: spacing.sm },
 });

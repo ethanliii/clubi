@@ -2,19 +2,27 @@ import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, EmptyState, Header, Icon, ListRow, Screen, Sheet, SkeletonRows } from "../components";
+import { Button, EmptyState, Icon, ListRow, Screen, Sheet, SkeletonRows, VenuePhoto } from "../components";
+import { ScreenTop } from "../features/trips/ScreenTop";
 import { TripForm } from "../features/trips/TripForm";
 import { api, type Id, type TripSummary } from "../lib/api";
 import { formatDateRange, pluralize } from "../lib/format";
 import { tripPath } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
-import { colors, spacing } from "../theme";
+import { colors, radius, spacing } from "../theme";
 
 /** "4 people · Mar 12–15 · New York", or "Invited by Bryan" while the invite is open. */
 function summaryLine(trip: TripSummary): string {
   const facts = [formatDateRange(trip.startDate, trip.endDate), trip.city ?? ""].filter((part) => part !== "");
   if (trip.myStatus === "invited") return [`Invited by ${trip.ownerName}`, ...facts].join(" · ");
   return [pluralize(trip.memberCount, "person", "people"), ...facts].join(" · ");
+}
+
+/** A steady colour for a trip's picture, from its name (decoration only). */
+function hueOf(name: string): number {
+  let hash = 0;
+  for (let index = 0; index < name.length; index += 1) hash = (hash * 31 + name.charCodeAt(index)) % 360;
+  return hash;
 }
 
 export default function TripsScreen() {
@@ -38,8 +46,9 @@ export default function TripsScreen() {
 
   return (
     <Screen>
-      <Header
+      <ScreenTop
         title="Trips"
+        kicker="Plans with friends"
         right={
           // With no trips the one "New trip" button is in the middle of the screen.
           hasTrips ? (
@@ -58,7 +67,7 @@ export default function TripsScreen() {
           onAction={openForm}
         />
       ) : (
-        <View>
+        <View style={styles.list}>
           {trips.map((trip) => (
             <View key={trip.tripId} style={styles.trip}>
               <ListRow
@@ -66,8 +75,11 @@ export default function TripsScreen() {
                 subtitle={summaryLine(trip)}
                 divider={false}
                 left={
-                  <View style={styles.badge}>
-                    <Icon name={trip.startDate !== undefined ? "calendar" : "users"} size={20} color={colors.muted} />
+                  <View style={styles.thumb}>
+                    <VenuePhoto hue={hueOf(trip.name)} height={48} style={styles.thumbPhoto} />
+                    <View style={styles.thumbIcon}>
+                      <Icon name={trip.startDate !== undefined ? "calendar" : "users"} size={18} color={colors.white} />
+                    </View>
                   </View>
                 }
                 right={<Icon name="chevron" size={16} color={colors.muted} />}
@@ -106,15 +118,19 @@ export default function TripsScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  newTrip: { width: "auto", paddingVertical: spacing.sm + 2 },
-  trip: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
-  badge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  newTrip: { width: "auto", paddingVertical: spacing.sm, paddingHorizontal: spacing.md + 2, borderRadius: radius.pill },
+  list: { gap: spacing.md },
+  // Bryan's card: filled surface, 1px line, big radius.
+  trip: {
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.line,
     backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
   },
-  answer: { flexDirection: "row", gap: spacing.sm, paddingBottom: spacing.md },
+  thumb: { width: 48, height: 48 },
+  thumbPhoto: { borderRadius: radius.lg },
+  thumbIcon: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
+  answer: { flexDirection: "row", gap: spacing.sm, paddingBottom: spacing.md - 2 },
 });

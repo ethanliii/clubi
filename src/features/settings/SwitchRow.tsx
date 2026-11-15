@@ -1,6 +1,6 @@
 import { Platform, StyleSheet, Switch, View } from "react-native";
 import { Text } from "../../components";
-import { colors, spacing } from "../../theme";
+import { colors, fontWeight, spacing } from "../../theme";
 
 /** react-native-web paints an "on" switch teal unless told otherwise; native ignores these. */
 const WEB_SWITCH = Platform.OS === "web" ? { activeThumbColor: colors.white, activeTrackColor: colors.accent } : null;
@@ -50,9 +50,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     minHeight: 52,
     paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   text: { flex: 1, gap: 2 },
-  label: { fontSize: 15 },
+  label: { fontWeight: fontWeight.semibold },
 });

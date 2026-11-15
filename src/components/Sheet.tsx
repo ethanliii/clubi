@@ -40,7 +40,7 @@ export function Sheet({ visible, onClose, title, children, scroll = true }: Shee
             <Text variant="title" accessibilityRole="header" numberOfLines={1} style={styles.title}>
               {title ?? ""}
             </Text>
-            <IconButton icon="close" accessibilityLabel="Close sheet" size={36} onPress={onClose} />
+            <IconButton icon="close" accessibilityLabel="Close sheet" size={32} onPress={onClose} />
           </View>
           {scroll ? (
             <ScrollView
@@ -62,7 +62,7 @@ export function Sheet({ visible, onClose, title, children, scroll = true }: Shee
 
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end", alignItems: "center" },
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.6)" },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.45)" },
   sheet: {
     width: "100%",
     maxWidth: 520,
@@ -70,12 +70,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: colors.line,
     paddingTop: spacing.sm,
   },
-  handle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line },
+  handle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: colors.line },
   header: {
     flexDirection: "row",
     alignItems: "center",

@@ -209,9 +209,9 @@ const styles = StyleSheet.create({
   value: { fontWeight: fontWeight.semibold },
   pressed: { opacity: 0.6 },
   calendar: {
-    padding: spacing.sm,
+    padding: spacing.md,
     gap: 2,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.surface,

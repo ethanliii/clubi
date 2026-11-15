@@ -139,7 +139,7 @@ export function FriendButton({
 }
 
 const styles = StyleSheet.create({
-  compact: { width: "auto", paddingVertical: 10, paddingHorizontal: 14 },
+  compact: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
   pair: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   pairWide: { width: "100%" },
   half: { flex: 1, width: "auto" },

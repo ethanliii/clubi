@@ -1,5 +1,5 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, radius, spacing } from "../theme";
+import { colors, spacing } from "../theme";
 import { Button } from "./Button";
 import { Icon, type IconName } from "./Icon";
 import { Text } from "./Text";
@@ -20,7 +20,7 @@ export function EmptyState({ title, body, icon, actionLabel, onAction, style }: 
     <View style={[styles.wrap, style]}>
       {icon ? (
         <View style={styles.icon}>
-          <Icon name={icon} size={22} color={colors.muted} />
+          <Icon name={icon} size={20} color={colors.muted} />
         </View>
       ) : null}
       <Text variant="title" center>
@@ -44,19 +44,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
   },
   icon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.raised,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.xs,
   },
-  button: { marginTop: spacing.md },
+  button: { marginTop: spacing.md, maxWidth: 360 },
 });

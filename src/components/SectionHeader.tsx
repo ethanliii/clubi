@@ -37,8 +37,10 @@ export function SectionHeader({
           onPress={onAction}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >
-          <Text muted>{actionLabel}</Text>
-          <Icon name="chevron" size={14} color={colors.muted} />
+          <Text variant="caption" muted>
+            {actionLabel}
+          </Text>
+          <Icon name="chevron" size={12} color={colors.muted} />
         </Pressable>
       ) : null}
     </View>

@@ -6,7 +6,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Pressable, StyleSheet, View, type TextInput } from "react-native";
 import { api } from "../../convex/_generated/api";
-import { BackButton, Button, Text, TextField } from "../components";
+import { BackButton, Text, TextField } from "../components";
 import { APP_NAME } from "../constants/brand";
 import { birthdayProblem, formatBirthdayInput } from "../features/auth/birthday";
 import { FormScreen } from "../features/auth/FormScreen";
@@ -224,15 +224,18 @@ export default function SignIn() {
         busy={busy}
         onPress={() => void submit()}
       />
-      <Button
-        title={isSignUp ? "Have an account? Sign in" : "New here? Sign up"}
+      <Pressable
+        accessibilityRole="button"
         accessibilityLabel={isSignUp ? "Have an account? Sign in" : "New here? Sign up"}
-        variant="link"
         disabled={busy}
         hitSlop={8}
-        style={styles.switch}
         onPress={switchMode}
-      />
+        style={({ pressed }) => [styles.switch, (pressed || busy) && styles.dimmed]}
+      >
+        <Text center muted>
+          {isSignUp ? "Have an account? Sign in" : "New here? Sign up"}
+        </Text>
+      </Pressable>
     </FormScreen>
   );
 }
@@ -243,5 +246,6 @@ const styles = StyleSheet.create({
   reveal: { alignSelf: "flex-end", minHeight: 32, justifyContent: "center", paddingHorizontal: spacing.xs },
   revealText: { fontWeight: "600" },
   error: { color: "#ff6b6b" },
-  switch: { alignSelf: "center", minHeight: 40, paddingHorizontal: spacing.md },
+  switch: { alignSelf: "center", minHeight: 40, justifyContent: "center", paddingHorizontal: spacing.md },
+  dimmed: { opacity: 0.6 },
 });

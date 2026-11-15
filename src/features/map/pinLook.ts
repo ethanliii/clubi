@@ -3,33 +3,49 @@
  * Which pin an item gets (`tier`) and every number on it come from the backend; this file is paint only.
  */
 import type { Category, NearbyItem } from "../../lib/api";
-import { categoryHue, formatScore } from "../../lib/format";
-import { colors } from "../../theme";
+import { formatScore } from "../../lib/format";
+import { colors, ratingColor } from "../../theme";
 
-/** The pin color for a category: the app's category hue, bright enough to read on a dark map. */
-export function pinColor(category: Category): string {
-  return `hsl(${categoryHue(category)}, 90%, 64%)`;
+/** The pin color: the rating scale (green down to red) for the backend's score, as on every score badge. */
+export function pinColor(score: number): string {
+  return ratingColor(score);
 }
 
-/** The soft glow behind a top pin. */
-export function pinGlow(category: Category): string {
-  return `hsla(${categoryHue(category)}, 90%, 60%, 0.45)`;
+/** The soft accent glow behind a top pin. */
+export const PIN_GLOW = "rgba(255,79,154,0.38)";
+
+const CATEGORY_GLYPH: Record<Category, string> = {
+  nightlife: "🍸",
+  food: "🍴",
+  culture: "🏛",
+  outdoors: "🌳",
+  live: "🎵",
+  popup: "✨",
+};
+
+/** The little picture in a pin's colored circle. */
+export function pinGlyph(category: Category): string {
+  return CATEGORY_GLYPH[category] ?? "📍";
 }
 
 export const PIN = {
-  /** Diameter of the big ringed pin. */
-  top: 46,
-  topSelected: 54,
-  ring: 3,
+  /** Height of the big ringed pin: a white bubble with an accent ring. */
+  top: 34,
+  ring: 2.5,
   /** Height of the labeled pin. */
-  label: 30,
+  label: 28,
   labelMaxWidth: 190,
+  /** Diameter of the colored circle inside a bubble. */
+  icon: 22,
   /** Diameter of the dot. */
-  dot: 14,
-  dotSelected: 20,
-  fill: colors.bg,
-  text: colors.fg,
-  border: "rgba(255,255,255,0.14)",
+  dot: 11,
+  dotSelected: 16,
+  /** How much a picked bubble grows. */
+  selectedScale: 1.15,
+  fill: colors.white,
+  text: "#111111",
+  ringColor: colors.accent,
+  event: colors.mid,
   user: "#4aa8ff",
 } as const;
 

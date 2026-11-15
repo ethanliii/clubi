@@ -6,7 +6,7 @@ import { api, type SettingsResult } from "../../lib/api";
 import { errorMessage } from "../../lib/errors";
 import { pickPhoto, uploadPhoto } from "../../lib/photos";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { spacing } from "../../theme";
+import { colors, spacing } from "../../theme";
 
 type Field = "displayName" | "bio" | "homeCity" | "birthday";
 const FIELDS: Field[] = ["displayName", "bio", "homeCity", "birthday"];
@@ -40,7 +40,7 @@ function AvatarPicker({ settings }: { settings: SettingsResult }) {
   return (
     <View style={styles.avatarRow}>
       <View>
-        <Avatar name={settings.displayName} uri={settings.avatarUrl} size={72} />
+        <Avatar name={settings.displayName} uri={settings.avatarUrl} size={86} style={styles.ring} />
         {uploading ? (
           <View style={styles.avatarBusy}>
             <Loading compact />
@@ -147,18 +147,19 @@ export function ProfileForm({ settings }: { settings: SettingsResult }) {
 
 const styles = StyleSheet.create({
   form: { gap: spacing.lg },
-  avatarRow: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  avatarRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  ring: { borderWidth: 2, borderColor: colors.accent },
   avatarBusy: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 36,
+    borderRadius: 43,
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: { flex: 1, gap: spacing.sm, alignItems: "flex-start" },
-  auto: { width: "auto" },
+  auto: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
 });

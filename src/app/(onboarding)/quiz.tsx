@@ -1,8 +1,10 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Button, Icon, Screen, Text, useToast } from "../../components";
+import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Icon, Text, useToast } from "../../components";
 import { QUIZ_CARDS } from "../../features/onboarding/quizCards";
 import { rememberQuizResult } from "../../features/onboarding/quizResult";
 import { SpinnerButton } from "../../features/onboarding/SpinnerButton";
@@ -11,7 +13,6 @@ import { confirm } from "../../lib/confirm";
 import { errorMessage } from "../../lib/errors";
 import { paths } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, radius, spacing } from "../../theme";
 
 /**
  * Six cards (docs/UI-SPEC.md section 2). The answer for a card is the list of picked option indexes;
@@ -70,32 +71,49 @@ export default function Quiz() {
   };
 
   return (
-    <Screen scroll={false} edges={["top", "bottom"]}>
-      <View style={styles.top}>
-        <Text variant="label" accessibilityLabel={`Quiz, ${step + 1} of ${QUIZ_CARDS.length}`}>
-          Quiz · {step + 1} of {QUIZ_CARDS.length}
-        </Text>
-        <Button
-          title="Sign out"
-          accessibilityLabel="Sign out"
-          variant="link"
-          disabled={busy}
-          hitSlop={12}
-          style={styles.signOut}
-          onPress={() => void leave()}
-        />
-      </View>
+    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+      <StatusBar style="dark" />
       <View style={styles.progress}>
         <View style={[styles.progressFill, { width: `${((step + 1) / QUIZ_CARDS.length) * 100}%` }]} />
       </View>
-      <ScrollView key={step} style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.intro}>
-          <Text variant="heading" accessibilityRole="header">
-            {card.question}
-          </Text>
-          <Text muted>{card.many ? "Pick as many as you like." : "Pick one."}</Text>
-        </View>
-        <View accessibilityRole={card.many ? undefined : "radiogroup"} style={styles.tiles}>
+      <View style={styles.header}>
+        {step > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            disabled={busy}
+            hitSlop={8}
+            onPress={() => setStep(step - 1)}
+            style={({ pressed }) => [styles.back, (pressed || busy) && styles.dimmed]}
+          >
+            <Icon name="back" color={Q.fg} />
+            <Text style={styles.strong}>Back</Text>
+          </Pressable>
+        ) : (
+          <View />
+        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+          disabled={busy}
+          hitSlop={12}
+          onPress={() => void leave()}
+          style={({ pressed }) => [styles.signOut, (pressed || busy) && styles.dimmed]}
+        >
+          <Text style={styles.muted}>Sign out</Text>
+        </Pressable>
+      </View>
+      <ScrollView key={step} style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text variant="caption" center style={styles.muted} accessibilityLabel={`Quiz, ${step + 1} of ${QUIZ_CARDS.length}`}>
+          Quiz · {step + 1} of {QUIZ_CARDS.length}
+        </Text>
+        <Text center accessibilityRole="header" style={styles.title}>
+          {card.question}
+        </Text>
+        <Text center style={styles.muted}>
+          {card.many ? "Pick as many as you like." : "Pick one."}
+        </Text>
+        <View accessibilityRole={card.many ? undefined : "radiogroup"} style={styles.options}>
           {card.options.map((option, index) => {
             const on = picked.includes(index);
             return (
@@ -108,82 +126,74 @@ export default function Quiz() {
                 aria-checked={on}
                 disabled={busy}
                 onPress={() => toggle(index)}
-                style={({ pressed }) => [styles.tile, on && styles.tileOn, pressed && styles.tilePressed]}
+                style={({ pressed }) => [styles.option, on && styles.optionOn, pressed && styles.optionPressed]}
               >
-                <Text style={[styles.tileText, on && styles.tileTextOn]}>{option}</Text>
-                {on ? (
-                  <View style={styles.tick}>
-                    <Icon name="check" size={12} color={colors.white} />
-                  </View>
-                ) : null}
+                <Text style={styles.optionText}>{option}</Text>
+                <View style={[styles.radio, on && styles.radioOn]} />
               </Pressable>
             );
           })}
         </View>
       </ScrollView>
-      <View style={styles.buttons}>
-        {step > 0 ? (
-          // Wrapped so both buttons get the same width (a padded box cannot shrink to an equal share by itself).
-          <View style={styles.button}>
-            <Button
-              title="Back"
-              accessibilityLabel="Back"
-              variant="ghost"
-              disabled={busy}
-              onPress={() => setStep(step - 1)}
-            />
-          </View>
-        ) : null}
+      <View style={styles.footer}>
+        <Text variant="caption" style={[styles.muted, styles.flex]}>
+          Shapes your matches, not your profile
+        </Text>
         <SpinnerButton
           title={isLast ? "See my taste" : "Next"}
           accessibilityLabel={isLast ? "See my taste" : "Next"}
           busy={pending}
           disabled={picked.length === 0 || leaving}
-          style={styles.button}
+          buttonStyle={[styles.next, pending && styles.nextBusy, (picked.length === 0 || busy) && styles.nextOff]}
           onPress={() => void next()}
         />
       </View>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
+// Bryan's quiz look: cream background, serif questions, black accents.
+const Q = { bg: "#f5f3ee", card: "#ffffff", line: "#dedbd3", fg: "#16151a", muted: "#7a7680", raised: "#ecebe6" };
+const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, serif" });
+
 const styles = StyleSheet.create({
-  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 40 },
-  signOut: { minHeight: 40, paddingHorizontal: spacing.xs },
-  progress: { height: 4, borderRadius: 4, backgroundColor: colors.surface, overflow: "hidden" },
-  progressFill: { height: "100%", borderRadius: 4, backgroundColor: colors.accent },
-  body: { flex: 1 },
-  bodyContent: { gap: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.lg },
-  intro: { gap: spacing.sm },
-  tiles: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
-  tile: {
-    width: "47%",
-    flexGrow: 1,
-    minHeight: 64,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
+  root: { flex: 1, backgroundColor: Q.bg },
+  flex: { flex: 1 },
+  progress: { height: 3, backgroundColor: Q.raised },
+  progressFill: { height: "100%", backgroundColor: Q.fg },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: 40,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+  },
+  back: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: 32 },
+  signOut: { minHeight: 32, justifyContent: "center" },
+  dimmed: { opacity: 0.6 },
+  content: { paddingHorizontal: 18, paddingBottom: 24, gap: 6 },
+  title: { fontFamily: serif, fontSize: 30, lineHeight: 34, color: Q.fg },
+  muted: { color: Q.muted },
+  strong: { color: Q.fg, fontWeight: "600" },
+  options: { gap: 8, marginTop: 8 },
+  option: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: Q.card,
     borderWidth: 1.5,
-    borderColor: colors.line,
-    alignItems: "center",
-    justifyContent: "center",
+    borderColor: Q.line,
+    borderRadius: 12,
+    padding: 12,
   },
-  tileOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
-  tilePressed: { opacity: 0.75 },
-  tileText: { fontWeight: "600", fontSize: 15, textAlign: "center" },
-  tileTextOn: { color: colors.white },
-  tick: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttons: { flexDirection: "row", gap: spacing.md },
-  button: { flex: 1 },
+  optionOn: { borderColor: Q.fg, backgroundColor: Q.raised },
+  optionPressed: { opacity: 0.75 },
+  optionText: { color: Q.fg, flex: 1 },
+  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: Q.line },
+  radioOn: { borderWidth: 5, borderColor: Q.fg },
+  footer: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingBottom: 12 },
+  next: { width: "auto", height: 50, paddingVertical: 0, paddingHorizontal: 26, borderRadius: 25, backgroundColor: Q.fg },
+  nextBusy: { paddingRight: 46 },
+  nextOff: { backgroundColor: "#c4c1b9", opacity: 1 },
 });

@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, EmptyState, Header, Screen, SectionHeader, SkeletonRows, Text, TextField } from "../components";
+import { BackButton, Button, EmptyState, Screen, SkeletonRows, Text, TextField } from "../components";
 import { FriendButton, PersonRow, personFacts } from "../features/friends";
 import { api, type FriendSuggestion, type FriendsOverview } from "../lib/api";
 import { pluralize } from "../lib/format";
@@ -56,7 +56,9 @@ function Overview({
     <>
       {incoming.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="Requests" count={incoming.length} />
+          <Text variant="label" accessibilityRole="header">
+            {`Requests (${incoming.length})`}
+          </Text>
           <View>
             {incoming.map((request) => (
               <PersonRow
@@ -80,7 +82,9 @@ function Overview({
 
       {suggestions.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="People you may know" />
+          <Text variant="label" accessibilityRole="header">
+            People you may know
+          </Text>
           <View>
             {suggestions.map((person) => (
               <PersonRow
@@ -104,7 +108,9 @@ function Overview({
 
       {friends.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="Your friends" count={friends.length} />
+          <Text variant="label" accessibilityRole="header">
+            {`Your friends (${friends.length})`}
+          </Text>
           <View>
             {friends.map((friend) => (
               <PersonRow
@@ -127,7 +133,9 @@ function Overview({
 
       {outgoing.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="Sent" count={outgoing.length} />
+          <Text variant="label" accessibilityRole="header">
+            {`Sent (${outgoing.length})`}
+          </Text>
           <View>
             {outgoing.map((request) => (
               <PersonRow
@@ -168,7 +176,10 @@ export default function FriendsScreen() {
 
   return (
     <Screen scroll={false}>
-      <Header title="Friends" />
+      <BackButton />
+      <Text variant="heading" accessibilityRole="header">
+        Friends
+      </Text>
       <TextField
         placeholder="Search by name or username"
         accessibilityLabel="Search by name or username"
@@ -195,6 +206,6 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   scroller: { flex: 1 },
   content: { gap: spacing.lg, paddingBottom: spacing.xl },
-  section: { gap: spacing.xs },
-  rowButton: { width: "auto", paddingVertical: 10, paddingHorizontal: 14 },
+  section: { gap: spacing.sm },
+  rowButton: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
 });

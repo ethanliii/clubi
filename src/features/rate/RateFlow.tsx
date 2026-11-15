@@ -100,11 +100,9 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
 
   if (venue === undefined) {
     return (
-      <FlowScreen title="How was it?" onBack={goBack}>
+      <FlowScreen title="" onBack={goBack}>
         <Skeleton height={30} width="70%" />
-        <Skeleton height={76} round={radius.xl} />
-        <Skeleton height={76} round={radius.xl} />
-        <Skeleton height={76} round={radius.xl} />
+        <Skeleton height={170} round={radius.xl} />
       </FlowScreen>
     );
   }
@@ -257,9 +255,9 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
         right={<Button title="Skip all" accessibilityLabel="Skip all" variant="link" onPress={goToFeed} />}
       >
         <Skeleton height={30} width="80%" />
-        <Skeleton height={60} round={radius.xl} />
-        <Skeleton height={60} round={radius.xl} />
-        <Skeleton height={60} round={radius.xl} />
+        <Skeleton height={58} round={radius.xl} />
+        <Skeleton height={58} round={radius.xl} />
+        <Skeleton height={58} round={radius.xl} />
       </FlowScreen>
     );
   }

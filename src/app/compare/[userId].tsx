@@ -3,9 +3,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import {
   Avatar,
+  BackButton,
   Button,
   EmptyState,
-  Header,
   ScoreBadge,
   Screen,
   SectionHeader,
@@ -19,7 +19,7 @@ import { DualMeter, RankedRow } from "../../features/profile";
 import { api, type CompareResult, type Id } from "../../lib/api";
 import { categoryLabel } from "../../lib/format";
 import { userPath, venuePath } from "../../lib/links";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontSize, fontWeight, radius, spacing } from "../../theme";
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
 
@@ -39,18 +39,14 @@ function SharedRow({ item, theirName }: { item: CompareResult["shared"][number];
           {categoryLabel(item.category)}
         </Text>
       </View>
-      <View style={styles.score}>
-        <Text variant="caption" muted>
-          You
-        </Text>
-        <ScoreBadge score={item.myScore} />
-      </View>
-      <View style={styles.score}>
-        <Text variant="caption" muted numberOfLines={1}>
-          {theirName}
-        </Text>
-        <ScoreBadge score={item.theirScore} />
-      </View>
+      <Text variant="caption" muted>
+        You
+      </Text>
+      <ScoreBadge score={item.myScore} size="sm" />
+      <Text variant="caption" muted numberOfLines={1} style={styles.who}>
+        {theirName}
+      </Text>
+      <ScoreBadge score={item.theirScore} size="sm" />
     </Pressable>
   );
 }
@@ -93,7 +89,10 @@ export default function CompareScreen() {
   if (result === undefined) {
     return (
       <Screen>
-        <Header title="Compare tastes" />
+        <BackButton />
+        <Text variant="heading" accessibilityRole="header">
+          Compare tastes
+        </Text>
         <Skeleton height={120} round={radius.xl} />
         <Skeleton height={190} round={radius.xl} />
         <SkeletonRows count={4} avatar={false} />
@@ -103,7 +102,10 @@ export default function CompareScreen() {
   if (result === null) {
     return (
       <Screen>
-        <Header title="Compare tastes" />
+        <BackButton />
+        <Text variant="heading" accessibilityRole="header">
+          Compare tastes
+        </Text>
         <NoCompare userId={userId} />
       </Screen>
     );
@@ -114,14 +116,20 @@ export default function CompareScreen() {
 
   return (
     <Screen>
-      <Header title={`You and ${theirName}`} />
+      <BackButton />
+      <Text variant="heading" accessibilityRole="header">{`You and ${theirName}`}</Text>
 
       <View style={styles.hero}>
         <View style={styles.faces}>
           <Avatar name={me.displayName} uri={me.avatarUrl} size={56} />
           <Avatar name={them.displayName} uri={them.avatarUrl} size={56} style={styles.overlap} />
         </View>
-        <Text variant="heading" center>{`${result.tasteMatchPct}% taste match`}</Text>
+        <Text center style={styles.pct}>
+          {`${result.tasteMatchPct}%`}
+          <Text muted style={styles.pctLabel}>
+            {" taste match"}
+          </Text>
+        </Text>
         {result.agreePct !== undefined ? (
           <Text muted center>{`You agree on ${result.agreePct}% of the places you both ranked`}</Text>
         ) : null}
@@ -130,7 +138,6 @@ export default function CompareScreen() {
 
       {result.dims.length > 0 ? (
         <View style={styles.card}>
-          <Text variant="label">Taste</Text>
           {result.dims.map((dim) => (
             <DualMeter key={dim.label} label={dim.label} me={dim.me} them={dim.them} theirName={theirName} />
           ))}
@@ -167,35 +174,27 @@ export default function CompareScreen() {
 const styles = StyleSheet.create({
   hero: {
     alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.xs,
     padding: spacing.lg,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
   },
   faces: { flexDirection: "row", alignItems: "center", marginBottom: spacing.xs },
-  overlap: { marginLeft: -14, borderWidth: 3, borderColor: colors.surface },
-  card: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
+  overlap: { marginLeft: -14, borderWidth: 2, borderColor: colors.surface },
+  pct: { fontSize: 44, lineHeight: 50, fontWeight: fontWeight.bold, color: colors.accent },
+  pctLabel: { fontSize: fontSize.body, fontWeight: fontWeight.regular },
+  card: { gap: 10, padding: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg },
   section: { gap: spacing.xs },
   sharedRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    minHeight: 60,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: spacing.sm,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   pressed: { opacity: 0.6 },
-  sharedText: { flex: 1, gap: 2 },
-  sharedName: { fontSize: 15, fontWeight: fontWeight.semibold },
-  score: { alignItems: "center", gap: 2, maxWidth: 64 },
+  sharedText: { flex: 1, gap: spacing.xxs },
+  sharedName: { fontWeight: fontWeight.bold },
+  who: { maxWidth: 64 },
 });

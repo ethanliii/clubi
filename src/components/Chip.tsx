@@ -5,7 +5,7 @@ import { Text } from "./Text";
 
 export type ChipProps = {
   label: string;
-  /** Filled with the accent color when true. */
+  /** Filled light (the page's text colour) with dark text when true. */
   selected?: boolean;
   /** Leave out for a chip that only shows a fact ("Packed", "Mostly 20s"). */
   onPress?: () => void;
@@ -56,7 +56,7 @@ export function Chip({
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected, disabled: !!disabled }}
       disabled={disabled}
-      hitSlop={size === "sm" ? 8 : 4}
+      hitSlop={8}
       onPress={onPress}
       style={({ pressed }) => [...box, (pressed || disabled) && styles.dimmed]}
     >
@@ -96,20 +96,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs + 2,
-    minHeight: 40,
-    paddingHorizontal: spacing.md + 2,
+    minHeight: 31,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
   },
-  chipSm: { minHeight: 26, paddingHorizontal: spacing.sm + 2 },
-  selected: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipSm: { minHeight: 24, paddingVertical: 3, paddingHorizontal: spacing.sm + 2 },
+  selected: { backgroundColor: colors.fg, borderColor: colors.fg },
   dimmed: { opacity: 0.6 },
-  label: { fontWeight: fontWeight.medium },
+  label: { fontSize: 13, lineHeight: 17 },
   labelSm: { fontSize: 12, lineHeight: 16 },
-  labelSelected: { color: colors.white, fontWeight: fontWeight.semibold },
+  labelSelected: { color: colors.bg, fontWeight: fontWeight.semibold },
   scroller: { flexGrow: 0 },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  row: { flexDirection: "row", alignItems: "center", gap: 6 },
   wrap: { flexWrap: "wrap" },
 });

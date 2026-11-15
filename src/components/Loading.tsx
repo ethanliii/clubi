@@ -20,7 +20,7 @@ export function Loading({ label, compact = false }: { label?: string; compact?: 
       accessibilityLabel={label ?? "Loading"}
       style={[styles.loading, compact && styles.compact]}
     >
-      <ActivityIndicator color={colors.accent} />
+      <ActivityIndicator color={colors.muted} />
       {label ? (
         <Text variant="caption" muted>
           {label}
@@ -42,12 +42,12 @@ export function Skeleton({
   round?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const [pulse] = useState(() => new Animated.Value(0.45));
+  const [pulse] = useState(() => new Animated.Value(0.5));
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: Platform.OS !== "web" }),
-        Animated.timing(pulse, { toValue: 0.45, duration: 700, useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(pulse, { toValue: 0.9, duration: 700, useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(pulse, { toValue: 0.5, duration: 700, useNativeDriver: Platform.OS !== "web" }),
       ]),
     );
     loop.start();
@@ -84,7 +84,7 @@ export function SkeletonCards({ count = 3, horizontal = true }: { count?: number
     >
       {Array.from({ length: count }, (_, index) => (
         <View key={index} style={[styles.card, horizontal ? styles.cardFixed : styles.cardWide]}>
-          <Skeleton height={horizontal ? 110 : 170} round={radius.xl} />
+          <Skeleton height={horizontal ? 96 : 200} round={radius.xl} />
           <Skeleton width="70%" height={14} />
           <Skeleton width="45%" height={11} />
         </View>
@@ -96,12 +96,12 @@ export function SkeletonCards({ count = 3, horizontal = true }: { count?: number
 const styles = StyleSheet.create({
   loading: { flex: 1, minHeight: 160, alignItems: "center", justifyContent: "center", gap: spacing.sm },
   compact: { flex: 0, minHeight: 56 },
-  block: { backgroundColor: colors.raised },
-  rows: { gap: spacing.md },
+  block: { backgroundColor: colors.surface },
+  rows: { gap: spacing.lg },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 56 },
   lines: { flex: 1, gap: spacing.sm },
   cardsRow: { flexDirection: "row", gap: spacing.md, overflow: "hidden" },
   card: { gap: spacing.sm },
-  cardFixed: { width: 220 },
+  cardFixed: { width: 170 },
   cardWide: { width: "100%" },
 });
