@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { featurize } from "../ingest";
-import { parsePerformers, titleNamesLineup } from "../lib/performers";
+import { parsePerformers, titleNamesLineup, zonedToEpoch } from "../lib/performers";
 
 // Public Eventbrite events for one city. Eventbrite's search API is gone (404 since 2020), so this
 // reads the public listing pages (robots.txt allows /d/ and /b/, checked 2026-11-15), whose embedded
@@ -102,28 +102,8 @@ type Normal = {
   price?: number;
 };
 
-/** Epoch ms of a wall-clock time ("2026-11-15", "16:00") in an IANA time zone, or NaN. */
-export function zonedToEpoch(date: string | undefined | null, time: string | undefined | null, timeZone: string | undefined): number {
-  const day = date?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const clock = (time ?? "00:00").match(/^(\d{1,2}):(\d{2})/);
-  if (!day || !clock) return NaN;
-  const wall = Date.UTC(+day[1], +day[2] - 1, +day[3], +clock[1], +clock[2]);
-  try {
-    const format = new Intl.DateTimeFormat("en-US", {
-      timeZone: timeZone || "UTC",
-      hourCycle: "h23",
-      year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric",
-    });
-    const offsetAt = (instant: number) => {
-      const part = Object.fromEntries(format.formatToParts(instant).map((p) => [p.type, Number(p.value)]));
-      return Date.UTC(part.year, part.month - 1, part.day, part.hour, part.minute, part.second) - instant;
-    };
-    // Two passes settle the offset on either side of a daylight-saving change.
-    return wall - offsetAt(wall - offsetAt(wall));
-  } catch {
-    return NaN;
-  }
-}
+// Kept here as well because the tests and the Ticketmaster import reach for it from this module.
+export { zonedToEpoch };
 
 /** The JSON a listing page embeds as `window.__SERVER_DATA__`, or null. */
 export function serverData(html: string): unknown {
@@ -156,9 +136,15 @@ export function listingEvents(html: string): ListingEvent[] {
   return [...found.values()];
 }
 
+const clean = (text: string | null | undefined) => text?.replace(/\s+/g, " ").trim() || undefined;
+const OPEN_STATUSES = ["live", "started"];
+/** Eventbrite puts the street in the venue's name when the venue has none ("1351 Polk St"): that is an address, not a name. */
+const venueNameOf = (name: string | null | undefined) => {
+  const text = clean(name);
+  return text && !/^\d+\s/.test(text) ? text : undefined;
+};
 const tagNamed = (tags: Tag[] | undefined, prefix: string) =>
   tags?.find((tag) => tag.prefix === prefix)?.display_name ?? undefined;
-const clean = (text: string | null | undefined) => text?.replace(/\s+/g, " ").trim() || undefined;
 
 function fromListing(event: ListingEvent): Normal | null {
   const id = event.eventbrite_event_id ?? event.id;
@@ -175,7 +161,7 @@ function fromListing(event: ListingEvent): Normal | null {
     end: Number.isFinite(end) && end > start ? end : undefined,
     startHour: Number(event.start_time?.split(":")[0]),
     url: event.url,
-    venueName: clean(event.primary_venue?.name),
+    venueName: venueNameOf(event.primary_venue?.name),
     address: event.primary_venue?.address,
     category: tagNamed(event.tags, "EventbriteCategory"),
     subcategory: tagNamed(event.tags, "EventbriteSubCategory"),
@@ -187,7 +173,8 @@ function fromListing(event: ListingEvent): Normal | null {
 function fromApi(event: ApiEvent): Normal | null {
   const name = clean(event.name?.text);
   if (!event.id || !name) return null;
-  if (event.online_event || event.listed === false || (event.status !== undefined && event.status !== "live")) return null;
+  // "started" is an event that is under way right now: still worth showing, and its price is still its price.
+  if (event.online_event || event.listed === false || (event.status !== undefined && !OPEN_STATUSES.includes(event.status))) return null;
   const start = Date.parse(event.start?.utc ?? "");
   const end = Date.parse(event.end?.utc ?? "");
   const lowest = Number(event.ticket_availability?.minimum_ticket_price?.major_value);
@@ -199,7 +186,7 @@ function fromApi(event: ApiEvent): Normal | null {
     start,
     end: Number.isFinite(end) && end > start ? end : undefined,
     url: event.url,
-    venueName: clean(event.venue?.name),
+    venueName: venueNameOf(event.venue?.name),
     address: address ? { ...address, latitude: address.latitude ?? event.venue?.latitude, longitude: address.longitude ?? event.venue?.longitude } : null,
     category: event.category?.name ?? undefined,
     subcategory: event.subcategory?.name ?? undefined,
@@ -318,12 +305,13 @@ type ImportResult = {
 
 /**
  * Import public in-person Eventbrite events for a city: `npx convex run imports/eventbrite:importEventbrite`.
- * `citySlug` is Eventbrite's own ("ca--san-francisco", the default). Does nothing while the ingest
+ * `citySlug` is Eventbrite's own ("ca--san-francisco", the default); `detailLimit` lowers the cap of 60
+ * price lookups a run. Does nothing while the ingest
  * is frozen. A page that will not load is skipped and listed in `blockedPages`.
  */
 export const importEventbrite = internalAction({
-  args: { citySlug: v.optional(v.string()) },
-  handler: async (ctx, { citySlug }): Promise<ImportResult> => {
+  args: { citySlug: v.optional(v.string()), detailLimit: v.optional(v.number()) },
+  handler: async (ctx, { citySlug, detailLimit }): Promise<ImportResult> => {
     const token = process.env.EVENTBRITE_TOKEN;
     const result: ImportResult = {
       frozen: await ctx.runQuery(internal.ingest.isIngestFrozen, {}),
@@ -376,7 +364,8 @@ export const importEventbrite = internalAction({
     const fresh = [...rows.keys()].filter((id) => !known.has(id));
     result.newEvents = fresh.length;
     if (token) {
-      for (const id of fresh.slice(0, MAX_DETAIL_CALLS)) {
+      const detailCalls = Math.min(MAX_DETAIL_CALLS, Math.max(0, Math.floor(detailLimit ?? MAX_DETAIL_CALLS)));
+      for (const id of fresh.slice(0, detailCalls)) {
         await politely();
         result.detailCalls++;
         const body = await fetchText(`${API}${encodeURIComponent(id)}/?expand=${API_EXPAND}`, {
