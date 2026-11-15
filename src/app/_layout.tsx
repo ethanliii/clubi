@@ -44,7 +44,7 @@ export default function RootLayout() {
             </ToastProvider>
           </View>
         </View>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
       </SessionProvider>
     </ConvexAuthProvider>
   );

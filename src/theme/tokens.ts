@@ -1,16 +1,16 @@
 export const colors = {
-  page: "#0b0a0f",
-  bg: "#141119",
-  surface: "#1e1a26",
-  raised: "#272231",
-  line: "#2f2a3a",
-  fg: "#f2eef7",
-  muted: "#9a92a9",
-  accent: "#ff4f9a",
-  accentSoft: "#3b1a2c",
-  mid: "#ffb547",
-  low: "#6f687c",
-  ok: "#4fd08f",
+  page: "#ececef",
+  bg: "#ffffff",
+  surface: "#f5f5f7",
+  raised: "#ebebef",
+  line: "#e4e4e9",
+  fg: "#111114",
+  muted: "#6d6d78",
+  accent: "#0c6b68",
+  accentSoft: "#e2f1f0",
+  mid: "#d99a00",
+  low: "#a3a3ad",
+  ok: "#12a150",
   white: "#ffffff",
   black: "#000000",
 } as const;
@@ -58,19 +58,19 @@ export const fontWeight = {
 /** Extra colours: quiet fills, the destructive red, and text that sits on photos. */
 export const palette = {
   /** A filled control resting on the page: inputs, secondary buttons, unselected chips. */
-  field: "#1d1924",
-  fieldPressed: "#28222f",
+  field: "#f3f3f5",
+  fieldPressed: "#e8e8ec",
   /** A hairline that is quieter than `colors.line`, for dividers between rows. */
-  hairline: "rgba(255,255,255,0.07)",
+  hairline: "rgba(17,17,20,0.08)",
   /** Second-level text: readable, but clearly below the title. */
-  soft: "#c9c2d6",
-  danger: "#ff6b6b",
-  dangerSoft: "#3a1a22",
+  soft: "#3d3d46",
+  danger: "#d92d20",
+  dangerSoft: "#fdeae8",
   onPhoto: "#ffffff",
   onPhotoMuted: "rgba(255,255,255,0.78)",
   /** Dark glass behind a control that floats on a photo or the map. */
-  glass: "rgba(12,10,16,0.62)",
-  backdrop: "rgba(0,0,0,0.6)",
+  glass: "rgba(255,255,255,0.92)",
+  backdrop: "rgba(0,0,0,0.38)",
 } as const;
 
 /** The type scale. `Text` variants use these; reach for a variant before a raw size. */
@@ -97,8 +97,8 @@ export const layout = {
 /** Shadows. Spread one into a style; on a dark page they mostly matter over photos and the map. */
 export const elevation = {
   none: {},
-  card: { shadowColor: "#000000", shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
-  floating: { shadowColor: "#000000", shadowOpacity: 0.45, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  card: { shadowColor: "#000000", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  floating: { shadowColor: "#000000", shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
 } as const;
 
 /** Gradient stops for text on photos. Pass to `LinearGradient` as `colors` and `locations`. */
