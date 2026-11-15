@@ -1,36 +1,57 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useRef, useState } from "react";
+import { router } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { FlatList, Keyboard, Platform, Pressable, StyleSheet, Switch, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Chip, ChipRow, EmptyState, Icon, ItemCard, SkeletonRows, Text } from "../../components";
-import { DEFAULT_FILTER, MAP_FILTERS } from "../../features/map/filters";
+import { EmptyState, Icon, IconButton, SkeletonRows, Text } from "../../components";
+import { FILTER_HEIGHT, FilterChips } from "../../features/map/FilterChips";
+import { DEFAULT_FILTER } from "../../features/map/filters";
 import { MapCanvas, TILE_ATTRIBUTION } from "../../features/map/MapCanvas";
-import { SearchBox, SearchResults } from "../../features/map/MapSearch";
+import { MapRow, ROW_HEIGHT } from "../../features/map/MapRow";
+import { SEARCH_HEIGHT, SearchBox, SearchResults } from "../../features/map/MapSearch";
 import { MapSheet, type SheetHeights, type SheetSnap } from "../../features/map/MapSheet";
+import { PEEK_CARD_HEIGHT, PeekCard } from "../../features/map/PeekCard";
 import type { Filter, NearbyItem } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { pluralize } from "../../lib/format";
-import { openUrl } from "../../lib/links";
+import { openUrl, venuePath } from "../../lib/links";
 import { useNearby } from "../../lib/useNearby";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, spacing } from "../../theme";
 
 const NO_ITEMS: NearbyItem[] = [];
 /** Shown even before the first answer arrives: the credit is a licence requirement. */
 const DATA_ATTRIBUTION = "© OpenStreetMap contributors";
 const ATTRIBUTION_URL = "https://www.openstreetmap.org/copyright";
 
-/** Search box + gap + chips + gaps, below the status bar. */
-const TOP_BAR = 112;
-/** The demo switch, the attribution and "Recenter", floating above the list. */
-const CONTROLS = 86;
+const GUTTER = spacing.lg - 2;
+/** Space between the status bar and the search field, and between the field and the filters. */
+const TOP_GAP = spacing.sm;
+const FILTER_GAP = 10;
+/** The strip above the list (or the pin's card) that holds the credit and "Recenter". */
+const FLOAT = 56;
+/** The handle, the title and its line of detail: what the list's own header takes. */
+const SHEET_HEADER = 84;
+const CARD_MARGIN = spacing.md;
+
+/** What the list is, in the words of the filter that made it. */
+const TITLES: Record<Filter, string> = {
+  tonight: "Tonight near you",
+  bars: "Bars near you",
+  food: "Food near you",
+  events: "Events near you",
+  popups: "Pop-ups near you",
+  outdoors: "Outdoors near you",
+  all: "Everything near you",
+};
 
 /** react-native-web paints an "on" switch teal unless told otherwise; native ignores these. */
 const WEB_SWITCH = Platform.OS === "web" ? { activeThumbColor: colors.white, activeTrackColor: colors.accent } : null;
 
-function sheetHeights(screen: number, top: number): SheetHeights {
-  const full = Math.max(260, screen - top - CONTROLS - spacing.sm);
-  const mid = Math.min(full, Math.max(240, Math.round(screen * 0.42)));
-  const peek = Math.min(mid, 176);
+/** Peek: the title and the best pick. Half: the map and the list share the screen. Full: up to the search field. */
+function sheetHeights(screen: number, searchBottom: number): SheetHeights {
+  const full = Math.max(280, screen - searchBottom - FILTER_GAP);
+  const peek = Math.min(full, SHEET_HEADER + ROW_HEIGHT + spacing.xs);
+  const mid = Math.min(full, Math.max(peek, Math.round(screen * 0.5)));
   return { peek, mid, full };
 }
 
@@ -42,42 +63,85 @@ export default function MapScreen() {
   const nearby = useNearby(filter);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
-  const [snap, setSnap] = useState<SheetSnap>("mid");
+  const [snap, setSnap] = useState<SheetSnap>("peek");
   const [search, setSearch] = useState("");
+  const [options, setOptions] = useState(false);
   // The real height of this screen (the window minus the tab bar), once it has been laid out.
   const [measured, setMeasured] = useState<number | null>(null);
-  const listRef = useRef<FlatList<NearbyItem>>(null);
+  // How far the list is scrolled: at its very top, a pull down moves the panel instead.
+  const listOffset = useRef(0);
 
   const items = nearby?.items ?? NO_ITEMS;
   const selected = selectedId === null ? null : (items.find((item) => item.id === selectedId) ?? null);
   const center = nearby?.center ?? { lat, lng };
 
-  const top = insets.top + TOP_BAR;
+  const searchTop = insets.top + TOP_GAP;
+  const searchBottom = searchTop + SEARCH_HEIGHT;
+  const filtersBottom = searchBottom + FILTER_GAP + FILTER_HEIGHT;
   const height = measured ?? window.height - 84;
-  const heights = sheetHeights(height, top);
-  // The camera centers in what is left between the search bar and the list. When the list is
-  // pulled all the way up there is no map left to center in, so the middle height stands in.
-  const padding = { top, bottom: heights[snap === "full" ? "mid" : snap] + CONTROLS };
+  const heights = sheetHeights(height, searchBottom);
+  // The camera centers in what is left between the filters and the list (or the pin's card). When the
+  // list is pulled all the way up there is no map left to center in, so the half height stands in.
+  const covered = selected ? PEEK_CARD_HEIGHT + CARD_MARGIN : heights[snap === "full" ? "mid" : snap];
+  const padding = { top: filtersBottom + spacing.sm, bottom: covered + FLOAT };
 
   const attribution = [nearby?.attribution ?? DATA_ATTRIBUTION, TILE_ATTRIBUTION].filter(Boolean).join(" · ");
   const searching = search.trim().length >= 2;
 
-  // The picked card sits at the top of the list: bring the list back up to it.
-  useEffect(() => {
-    if (selectedId !== null) listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, [selectedId]);
+  const open = (item: NearbyItem) => router.push(venuePath(item.kind, item.id));
 
   const pick = (item: NearbyItem | null) => {
     Keyboard.dismiss();
-    setSelectedId(item === null ? null : item.id);
-    // A pin can only be seen with some map showing.
-    if (item !== null && snap === "full") setSnap("mid");
+    // A second tap on the picked pin opens it, the same as tapping its card.
+    if (item !== null && item.id === selectedId) open(item);
+    else setSelectedId(item === null ? null : item.id);
   };
 
   const chooseFilter = (next: Filter) => {
     setFilter(next);
     setSelectedId(null);
   };
+
+  const toggleOptions = () => {
+    setOptions((shown) => !shown);
+    // The option row needs room under the title.
+    if (!options && snap === "peek") setSnap("mid");
+  };
+
+  const onSnap = useCallback((next: SheetSnap) => setSnap(next), []);
+
+  // The credit and "Recenter", floating on the map just above whatever covers its bottom edge.
+  const float = (
+    <View style={styles.float} pointerEvents="box-none">
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={attribution}
+        hitSlop={{ top: 12, bottom: 8, left: 8, right: 8 }}
+        onPress={() => void openUrl(ATTRIBUTION_URL)}
+        style={styles.credit}
+      >
+        <Text numberOfLines={2} style={styles.creditText}>
+          {attribution}
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Recenter"
+        hitSlop={4}
+        onPress={() => setRecenterKey((key) => key + 1)}
+        style={({ pressed }) => [styles.round, pressed && styles.roundPressed]}
+      >
+        <Icon name="navigate" size={20} color={colors.fg} />
+      </Pressable>
+    </View>
+  );
+
+  const detail =
+    nearby === undefined
+      ? "Finding what's good…"
+      : items.length === 0
+        ? "Nothing here yet"
+        : `${pluralize(items.length, "spot")}, ranked for your taste`;
 
   return (
     <View style={styles.screen} onLayout={(event) => setMeasured(event.nativeEvent.layout.height)}>
@@ -92,204 +156,216 @@ export default function MapScreen() {
       />
 
       <LinearGradient
-        colors={["rgba(20,17,25,0.92)", "rgba(20,17,25,0.6)", "rgba(20,17,25,0)"]}
-        locations={[0, 0.6, 1]}
-        style={[styles.scrim, { height: top + spacing.xl }]}
+        colors={["rgba(11,10,15,0.85)", "rgba(11,10,15,0.4)", "rgba(11,10,15,0)"]}
+        locations={[0, 0.55, 1]}
+        style={[styles.scrim, { height: filtersBottom + spacing.xl }]}
       />
 
-      <View style={[styles.top, searching && styles.topSearching, { paddingTop: insets.top + spacing.sm }]}>
-        <View style={styles.gutter}>
-          <SearchBox value={search} onChangeText={setSearch} />
+      {searching ? null : (
+        <View style={[styles.filters, { top: searchBottom + FILTER_GAP }]}>
+          <FilterChips value={filter} onChange={chooseFilter} />
         </View>
-        {searching ? (
-          <View style={styles.gutter}>
-            <SearchResults text={search} lat={lat} lng={lng} ready={ready} maxHeight={Math.max(180, height * 0.5)} />
-          </View>
-        ) : (
-          <ChipRow scroll style={styles.chips}>
-            {MAP_FILTERS.map((option) => (
-              <Chip
-                key={option.filter}
-                label={option.label}
-                accessibilityLabel={`Filter: ${option.label}`}
-                selected={filter === option.filter}
-                onPress={() => chooseFilter(option.filter)}
-                style={styles.chip}
-              />
-            ))}
-          </ChipRow>
-        )}
-      </View>
+      )}
 
-      <View style={styles.bottom}>
-        <View style={styles.controls}>
-          <View style={styles.controlsLeft}>
-            <View style={styles.pill}>
-              <Text aria-hidden variant="caption" muted>
+      <MapSheet
+        snap={snap}
+        onSnap={onSnap}
+        heights={heights}
+        hidden={selected !== null}
+        above={float}
+        aboveHeight={FLOAT}
+        listOffset={listOffset}
+        header={
+          <View style={styles.sheetHeader}>
+            <View style={styles.flex}>
+              <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>
+                {TITLES[filter]}
+              </Text>
+              <Text numberOfLines={1} style={styles.detail}>
+                {isDemo ? `${detail} · Demo area` : detail}
+              </Text>
+            </View>
+            <IconButton
+              icon="more"
+              accessibilityLabel="Map options"
+              size={36}
+              selected={options}
+              onPress={toggleOptions}
+            />
+          </View>
+        }
+      >
+        {options ? (
+          <View style={styles.option}>
+            <View style={styles.flex}>
+              <Text aria-hidden style={styles.optionTitle}>
                 Demo location
               </Text>
-              <Switch
-                accessibilityLabel="Demo location"
-                value={isDemo}
-                onValueChange={setDemo}
-                trackColor={{ false: colors.raised, true: colors.accent }}
-                thumbColor={colors.white}
-                ios_backgroundColor={colors.raised}
-                {...WEB_SWITCH}
-              />
-            </View>
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel={attribution}
-              hitSlop={6}
-              onPress={() => void openUrl(ATTRIBUTION_URL)}
-              style={styles.attribution}
-            >
-              <Text variant="caption" numberOfLines={2} style={styles.attributionText}>
-                {attribution}
+              <Text aria-hidden style={styles.optionBody}>
+                Browse San Francisco instead of where you are.
               </Text>
-            </Pressable>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Recenter"
-            hitSlop={4}
-            onPress={() => setRecenterKey((key) => key + 1)}
-            style={({ pressed }) => [styles.pill, styles.recenter, pressed && styles.pressed]}
-          >
-            <Icon name="locate" size={18} color={colors.fg} />
-            <Text variant="caption" style={styles.pillText}>
-              Recenter
-            </Text>
-          </Pressable>
-        </View>
-
-        <MapSheet
-          snap={snap}
-          onSnap={setSnap}
-          heights={heights}
-          header={
-            <View style={styles.sheetHeader}>
-              <Text variant="title" numberOfLines={1} style={styles.flex}>
-                {selected ? "On the map" : "Ranked for you"}
-              </Text>
-              {selected ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Show all"
-                  hitSlop={10}
-                  onPress={() => setSelectedId(null)}
-                  style={({ pressed }) => pressed && styles.pressed}
-                >
-                  <Text style={styles.link}>Show all</Text>
-                </Pressable>
-              ) : nearby !== undefined && items.length > 0 ? (
-                <Text variant="caption" muted>
-                  {pluralize(items.length, "spot")}
-                </Text>
-              ) : null}
             </View>
-          }
-        >
-          {nearby === undefined ? (
-            <View style={styles.sheetPad}>
-              <SkeletonRows count={4} />
-            </View>
-          ) : items.length === 0 ? (
-            <View style={styles.sheetPad}>
-              <EmptyState
-                icon="map"
-                title="Nothing here yet. We're loading places for this area."
-                style={styles.empty}
-              />
-            </View>
-          ) : (
-            <FlatList
-              ref={listRef}
-              data={items}
-              keyExtractor={(item) => item.id}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.list}
-              ListHeaderComponent={
-                selected ? (
-                  <View style={styles.picked}>
-                    <ItemCard item={selected} showRank style={styles.pickedCard} />
-                  </View>
-                ) : undefined
-              }
-              renderItem={({ item }) => <ItemCard item={item} showRank />}
+            <Switch
+              accessibilityLabel="Demo location"
+              value={isDemo}
+              onValueChange={setDemo}
+              trackColor={{ false: colors.raised, true: colors.accent }}
+              thumbColor={colors.white}
+              ios_backgroundColor={colors.raised}
+              {...WEB_SWITCH}
             />
-          )}
-        </MapSheet>
+          </View>
+        ) : null}
+        {nearby === undefined ? (
+          <View style={styles.sheetPad}>
+            <SkeletonRows count={4} />
+          </View>
+        ) : items.length === 0 ? (
+          <View style={styles.sheetPad}>
+            <EmptyState
+              icon="map"
+              title="Nothing here yet"
+              body="We're loading places for this area."
+              actionLabel={isDemo ? undefined : "Try the demo area"}
+              onAction={isDemo ? undefined : () => setDemo(true)}
+              style={styles.empty}
+            />
+          </View>
+        ) : (
+          <FlatList
+            data={items}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            // Below full height a drag on the list moves the panel; a phone only scrolls the list at full height.
+            scrollEnabled={Platform.OS === "web" ? snap !== "peek" : snap === "full"}
+            getItemLayout={(_data, index) => ({ length: ROW_HEIGHT, offset: ROW_HEIGHT * index, index })}
+            // The panel is always full height and slid down: pad by the part that hangs below the screen.
+            contentContainerStyle={{ paddingBottom: heights.full - heights[snap] + spacing.lg }}
+            scrollEventThrottle={32}
+            onScroll={(event) => {
+              listOffset.current = event.nativeEvent.contentOffset.y;
+            }}
+            onScrollEndDrag={(event) => {
+              // Pulling down past the top of the list at full height lets the map back in.
+              if (snap === "full" && event.nativeEvent.contentOffset.y < -48) setSnap("mid");
+            }}
+            renderItem={({ item, index }) => (
+              <MapRow item={item} showRank last={index === items.length - 1} onPress={() => open(item)} />
+            )}
+          />
+        )}
+      </MapSheet>
+
+      {selected ? (
+        <View style={styles.cardDock} pointerEvents="box-none">
+          <View style={{ height: FLOAT }} pointerEvents="box-none">
+            {float}
+          </View>
+          <View style={styles.cardWrap}>
+            <PeekCard key={selected.id} item={selected} onOpen={() => open(selected)} onClose={() => setSelectedId(null)} />
+          </View>
+        </View>
+      ) : null}
+
+      {searching ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close search"
+          onPress={() => {
+            Keyboard.dismiss();
+            setSearch("");
+          }}
+          style={styles.dim}
+        />
+      ) : null}
+
+      <View style={[styles.search, { top: searchTop }]} pointerEvents="box-none">
+        <SearchBox value={search} onChangeText={setSearch} />
+        {searching ? (
+          <SearchResults
+            text={search}
+            lat={lat}
+            lng={lng}
+            ready={ready}
+            maxHeight={Math.max(200, height - searchBottom - spacing.xl * 2)}
+          />
+        ) : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, overflow: "hidden" },
-  flex: { flex: 1 },
-  pressed: { opacity: 0.7 },
+  // "clip" in a browser: the list panel is slid below the bottom edge, and a "hidden" box would let
+  // the browser scroll the whole screen up to it when something down there takes the focus.
+  screen: {
+    flex: 1,
+    backgroundColor: colors.page,
+    overflow: "hidden",
+    ...Platform.select({ web: { overflow: "clip" } as object, default: {} }),
+  },
+  flex: { flex: 1, minWidth: 0 },
   scrim: { position: "absolute", top: 0, left: 0, right: 0, pointerEvents: "none" },
 
-  top: { position: "absolute", top: 0, left: 0, right: 0, gap: spacing.sm, pointerEvents: "box-none" },
-  // The results drop down over the floating controls and the list, not under them.
-  topSearching: { zIndex: 2, elevation: 12 },
-  gutter: { paddingHorizontal: spacing.md },
-  chips: { paddingHorizontal: spacing.md },
-  // His chips are 30 tall with 14 at the sides; the shared chip is 40.
-  chip: { minHeight: 32, paddingHorizontal: 14 },
+  filters: { position: "absolute", left: 0, right: 0 },
+  // While searching, everything but the field and its results steps back.
+  dim: { ...StyleSheet.absoluteFillObject, zIndex: 3, backgroundColor: "rgba(11,10,15,0.78)" },
+  // The results drop down over the filters, the list and the pin's card.
+  search: { position: "absolute", left: GUTTER, right: GUTTER, gap: spacing.sm, zIndex: 3, elevation: 20 },
 
-  bottom: { position: "absolute", left: 0, right: 0, bottom: 0, pointerEvents: "box-none" },
-  controls: {
+  float: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    pointerEvents: "box-none",
+    gap: spacing.md,
+    paddingHorizontal: GUTTER,
+    paddingBottom: spacing.md,
   },
-  // Takes the width left of "Recenter" and no more, so a long credit wraps instead of sliding under the button.
-  controlsLeft: { flex: 1, minWidth: 0, alignItems: "flex-start", gap: spacing.xs + 2, pointerEvents: "box-none" },
-  pill: {
-    flexDirection: "row",
+  // A dark backing, so the credit can be read whatever pin or street name slides under it.
+  credit: {
+    flexShrink: 1,
+    minWidth: 0,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: "rgba(11,10,15,0.66)",
+  },
+  creditText: { fontSize: 9.5, lineHeight: 13, color: "rgba(242,238,247,0.8)" },
+  round: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
-    gap: spacing.sm,
-    minHeight: 42,
-    paddingLeft: spacing.md + 2,
-    paddingRight: spacing.sm,
-    borderRadius: radius.pill,
+    justifyContent: "center",
     backgroundColor: colors.surface,
     shadowColor: colors.black,
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
   },
-  recenter: { paddingLeft: spacing.md, paddingRight: spacing.md + 2 },
-  pillText: { fontWeight: fontWeight.semibold },
-  attribution: {
-    maxWidth: "100%",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-    backgroundColor: "rgba(20,17,25,0.82)",
-  },
-  attributionText: { color: colors.muted, fontSize: 11, lineHeight: 14 },
+  roundPressed: { backgroundColor: colors.raised },
 
-  sheetHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 28 },
-  link: { color: colors.accent, fontWeight: fontWeight.semibold },
-  sheetPad: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
-  empty: { paddingVertical: spacing.xl },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
-  picked: {
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md, height: SHEET_HEADER - 28 },
+  title: { fontSize: 22, lineHeight: 27, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  detail: { marginTop: 2, fontSize: 13, lineHeight: 17, color: colors.muted },
+  option: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
   },
-  pickedCard: { borderBottomWidth: 0 },
+  optionTitle: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.fg },
+  optionBody: { fontSize: 13, lineHeight: 17, color: colors.muted },
+  sheetPad: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
+  empty: { paddingVertical: spacing.lg },
+
+  cardDock: { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 2 },
+  cardWrap: { paddingHorizontal: CARD_MARGIN, paddingBottom: CARD_MARGIN },
 });
