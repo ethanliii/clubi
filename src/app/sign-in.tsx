@@ -4,22 +4,25 @@ import {
 } from "@convex-dev/auth/methods/username-password/react";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { Pressable, StyleSheet, View, type TextInput } from "react-native";
+import { Animated, Keyboard, Platform, Pressable, StyleSheet, View, type TextInput } from "react-native";
 import { api } from "../../convex/_generated/api";
-import { BackButton, Text, TextField } from "../components";
+import { goBack, Icon, Text } from "../components";
 import { APP_NAME } from "../constants/brand";
-import { birthdayProblem, formatBirthdayInput } from "../features/auth/birthday";
-import { FormScreen } from "../features/auth/FormScreen";
-import { SpinnerButton } from "../features/onboarding/SpinnerButton";
+import { AuthButton } from "../features/auth/AuthButton";
+import { AUTH_ERROR, AuthField } from "../features/auth/AuthField";
+import { AuthScreen } from "../features/auth/AuthScreen";
+import { birthdayEntryToIso, birthdayProblem, formatBirthdayEntry } from "../features/auth/birthday";
 import { authErrorMessage } from "../lib/errors";
-import { spacing } from "../theme";
+import { colors } from "../theme";
 
 type Mode = "signup" | "signin";
+/** Sign up asks in two steps: the account (username, password), then the optional details. */
+type Step = "account" | "details";
 type Errors = { username?: string; password?: string; birthday?: string; form?: string };
 type AuthUserError = Parameters<typeof authErrorMessage>[0];
 
 /** Convex Auth's default (node_modules/@convex-dev/auth/src/lib/password.ts). The backend has the last word. */
-const PASSWORD_HINT = "10 characters or more.";
+const PASSWORD_MIN = 10;
 /** How long to wait for the account to load after a good sign-in before letting the user try again. */
 const ENTER_TIMEOUT_MS = 15_000;
 
@@ -32,12 +35,13 @@ function placeError(userError: AuthUserError): Errors {
 }
 
 /**
- * Sign up or sign in (docs/UI-SPEC.md section 1). Nothing navigates from here: once the backend says
+ * Sign up or sign in, over the welcome footage. Nothing navigates from here: once the backend says
  * we are signed in, the root layout swaps this screen for the quiz (new account) or the tabs.
  */
 export default function SignIn() {
   const params = useLocalSearchParams<{ mode?: string }>();
   const [mode, setMode] = useState<Mode>(params.mode === "signup" ? "signup" : "signin");
+  const [step, setStep] = useState<Step>("account");
   const { signIn, pending: signingIn } = useSignInWithUsernamePassword(api.auth);
   const { signUp, pending: signingUp } = useSignUpWithUsernamePassword(api.auth);
   const [username, setUsername] = useState("");
@@ -45,14 +49,19 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [birthday, setBirthday] = useState("");
+  const [birthdayFocused, setBirthdayFocused] = useState(false);
   const [homeCity, setHomeCity] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   // True between a good sign-in and the root layout taking this screen away.
   const [entering, setEntering] = useState(false);
   const passwordRef = useRef<ComponentRef<typeof TextInput>>(null);
-  const displayNameRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const birthdayRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const homeCityRef = useRef<ComponentRef<typeof TextInput>>(null);
+  // Each step (and each mode) eases in, so the form changes without the screen jumping.
+  const [appear] = useState(() => new Animated.Value(1));
 
   const isSignUp = mode === "signup";
+  const onDetails = isSignUp && step === "details";
   const busy = signingIn || signingUp || entering;
 
   useEffect(() => {
@@ -64,188 +73,291 @@ export default function SignIn() {
     return () => clearTimeout(timer);
   }, [entering]);
 
+  const show = (nextMode: Mode, nextStep: Step) => {
+    setMode(nextMode);
+    setStep(nextStep);
+    appear.setValue(0);
+    Animated.timing(appear, { toValue: 1, duration: 260, useNativeDriver: Platform.OS !== "web" }).start();
+  };
+
   const clear = (field: keyof Errors) =>
     setErrors((current) => (current[field] || current.form ? { ...current, [field]: undefined, form: undefined } : current));
 
-  const submit = async () => {
-    if (busy) return;
-    const name = username.trim();
+  /** What is wrong with the username and password before anything is sent, if anything. */
+  const accountProblems = (): Errors => {
     const found: Errors = {};
-    if (name === "") found.username = isSignUp ? "Pick a username." : "Enter your username.";
+    if (username.trim() === "") found.username = isSignUp ? "Pick a username." : "Enter your username.";
     if (password === "") found.password = isSignUp ? "Pick a password." : "Enter your password.";
-    if (isSignUp) {
-      const problem = birthdayProblem(birthday, new Date());
-      if (problem) found.birthday = problem;
+    else if (isSignUp && password.length < PASSWORD_MIN) found.password = `Make it at least ${PASSWORD_MIN} characters.`;
+    return found;
+  };
+
+  const finish = (result: Awaited<ReturnType<typeof signIn>> | Awaited<ReturnType<typeof signUp>>) => {
+    if (result.status !== "error") {
+      setEntering(true);
+      return;
     }
+    const placed = placeError(result.userError);
+    setErrors(placed);
+    // A username that is taken is only known once the account is sent: go back to where it is fixed.
+    if (onDetails && (placed.username || placed.password)) show("signup", "account");
+  };
+
+  const submitSignIn = async () => {
+    if (busy) return;
+    const found = accountProblems();
     setErrors(found);
     if (Object.keys(found).length > 0) return;
+    finish(await signIn({ username: username.trim(), password }));
+  };
 
-    let result;
-    if (isSignUp) {
-      // The three extra fields are optional: left out when empty, because the backend takes
-      // "YYYY-MM-DD or nothing" for the birthday and falls back to the username for the name.
-      const account = {
-        username: name,
-        password,
-        ...(displayName.trim() !== "" ? { displayName: displayName.trim() } : {}),
-        ...(birthday.trim() !== "" ? { birthday: birthday.trim() } : {}),
-        ...(homeCity.trim() !== "" ? { homeCity: homeCity.trim() } : {}),
-      };
-      result = await signUp(account);
-    } else {
-      result = await signIn({ username: name, password });
+  const continueToDetails = () => {
+    if (busy) return;
+    const found = accountProblems();
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+    Keyboard.dismiss();
+    show("signup", "details");
+  };
+
+  /** Create the account. `withDetails: false` is "Skip for now": just the username and password. */
+  const submitSignUp = async (withDetails: boolean) => {
+    if (busy) return;
+    // The three details are optional: left out when empty, because the backend takes
+    // "YYYY-MM-DD or nothing" for the birthday and falls back to the username for the name.
+    const details: { displayName?: string; birthday?: string; homeCity?: string } = {};
+    if (withDetails) {
+      const iso = birthdayEntryToIso(birthday);
+      const problem = iso === null ? "Finish the date, like 10/23/2004, or clear it." : birthdayProblem(iso, new Date());
+      if (problem) {
+        setErrors({ birthday: problem });
+        return;
+      }
+      if (displayName.trim() !== "") details.displayName = displayName.trim();
+      if (iso) details.birthday = iso;
+      if (homeCity.trim() !== "") details.homeCity = homeCity.trim();
     }
-    if (result.status === "error") setErrors(placeError(result.userError));
-    else setEntering(true);
+    setErrors({});
+    finish(await signUp({ username: username.trim(), password, ...details }));
+  };
+
+  const back = () => {
+    if (busy) return;
+    if (onDetails) {
+      setErrors({});
+      show("signup", "account");
+    } else goBack();
   };
 
   const switchMode = () => {
     setErrors({});
-    setMode(isSignUp ? "signin" : "signup");
+    show(isSignUp ? "signin" : "signup", "account");
   };
 
+  const passwordReady = password.length >= PASSWORD_MIN;
+  const primaryTitle = !isSignUp ? "Sign in" : onDetails ? "Create account" : "Continue";
+  const primaryPress = !isSignUp ? () => void submitSignIn() : onDetails ? () => void submitSignUp(true) : continueToDetails;
+  const secondaryLabel = onDetails ? "Skip for now" : isSignUp ? "Have an account? Sign in" : `New to ${APP_NAME}? Sign up`;
+
   return (
-    <FormScreen>
-      <BackButton />
-      <View style={styles.intro}>
-        <Text variant="heading" accessibilityRole="header">
-          {isSignUp ? `Join ${APP_NAME}` : "Welcome back"}
-        </Text>
-        <Text muted>
-          {isSignUp
-            ? "Pick a username and a password. The rest is optional and you can change it later."
-            : "Sign in with your username and password."}
-        </Text>
-      </View>
-      <TextField
-        label="Username"
-        placeholder="Username"
-        autoCapitalize="none"
-        autoCorrect={false}
-        spellCheck={false}
-        autoComplete="username"
-        textContentType="username"
-        returnKeyType="next"
-        submitBehavior="submit"
-        editable={!busy}
-        value={username}
-        error={errors.username}
-        onChangeText={(text) => {
-          setUsername(text);
-          clear("username");
-        }}
-        onSubmitEditing={() => passwordRef.current?.focus()}
-      />
-      <View style={styles.passwordBlock}>
-        <TextField
-          ref={passwordRef}
-          label="Password"
-          placeholder="Password"
-          secureTextEntry={!showPassword}
-          autoCapitalize="none"
-          autoCorrect={false}
-          spellCheck={false}
-          autoComplete={isSignUp ? "new-password" : "current-password"}
-          textContentType={isSignUp ? "newPassword" : "password"}
-          returnKeyType={isSignUp ? "next" : "go"}
-          submitBehavior={isSignUp ? "submit" : "blurAndSubmit"}
-          editable={!busy}
-          value={password}
-          error={errors.password}
-          hint={isSignUp ? PASSWORD_HINT : undefined}
-          onChangeText={(text) => {
-            setPassword(text);
-            clear("password");
-          }}
-          onSubmitEditing={() => (isSignUp ? displayNameRef.current?.focus() : void submit())}
-        />
+    <AuthScreen>
+      <View style={styles.bar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={showPassword ? "Hide password" : "Show password"}
-          hitSlop={10}
-          onPress={() => setShowPassword((shown) => !shown)}
-          style={styles.reveal}
+          accessibilityLabel="Back"
+          disabled={busy}
+          hitSlop={6}
+          onPress={back}
+          style={({ pressed }) => [styles.back, pressed && styles.pressed]}
         >
-          <Text variant="caption" muted style={styles.revealText}>
-            {showPassword ? "Hide password" : "Show password"}
-          </Text>
+          <Icon name="back" size={20} color={colors.fg} />
         </Pressable>
+        {isSignUp ? (
+          <View accessibilityLabel={onDetails ? "Step 2 of 2" : "Step 1 of 2"} style={styles.steps}>
+            <View style={[styles.stepMark, styles.stepDone]} />
+            <View style={[styles.stepMark, onDetails && styles.stepDone]} />
+          </View>
+        ) : null}
       </View>
-      {isSignUp ? (
-        <>
-          <TextField
-            ref={displayNameRef}
-            label="Display name"
-            placeholder="Your name"
-            hint="Optional. What friends see."
-            autoCapitalize="words"
-            autoComplete="name"
-            returnKeyType="next"
-            editable={!busy}
-            value={displayName}
-            onChangeText={setDisplayName}
-          />
-          <TextField
-            label="Birthday"
-            placeholder="YYYY-MM-DD"
-            hint="Optional. If you're under 21 we leave 21+ spots out of your picks."
-            keyboardType="number-pad"
-            autoCorrect={false}
-            maxLength={10}
-            editable={!busy}
-            value={birthday}
-            error={errors.birthday}
-            onChangeText={(text) => {
-              setBirthday(formatBirthdayInput(text));
-              clear("birthday");
-            }}
-          />
-          <TextField
-            label="Home city"
-            placeholder="San Francisco"
-            hint="Optional. Marks you as a local there."
-            autoCapitalize="words"
-            returnKeyType="go"
-            editable={!busy}
-            value={homeCity}
-            onChangeText={setHomeCity}
-            onSubmitEditing={() => void submit()}
-          />
-        </>
-      ) : null}
-      {errors.form ? (
-        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
-          {errors.form}
-        </Text>
-      ) : null}
-      <SpinnerButton
-        title={isSignUp ? "Sign up" : "Sign in"}
-        accessibilityLabel={isSignUp ? "Sign up" : "Sign in"}
-        busy={busy}
-        onPress={() => void submit()}
-      />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={isSignUp ? "Have an account? Sign in" : "New here? Sign up"}
-        disabled={busy}
-        hitSlop={8}
-        onPress={switchMode}
-        style={({ pressed }) => [styles.switch, (pressed || busy) && styles.dimmed]}
+
+      <Animated.View
+        style={[
+          styles.form,
+          { opacity: appear, transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] },
+        ]}
       >
-        <Text center muted>
-          {isSignUp ? "Have an account? Sign in" : "New here? Sign up"}
-        </Text>
-      </Pressable>
-    </FormScreen>
+        <View style={styles.intro}>
+          <Text accessibilityRole="header" style={styles.headline}>
+            {!isSignUp ? "Welcome back" : onDetails ? "A little about you" : "Create your account"}
+          </Text>
+          {onDetails ? <Text style={styles.sub}>All optional. Change any of it later in settings.</Text> : null}
+        </View>
+
+        {onDetails ? (
+          <View key="details" style={styles.fields}>
+            <AuthField
+              label="Name"
+              autoCapitalize="words"
+              autoComplete="name"
+              textContentType="name"
+              returnKeyType="next"
+              submitBehavior="submit"
+              editable={!busy}
+              value={displayName}
+              onChangeText={setDisplayName}
+              onSubmitEditing={() => birthdayRef.current?.focus()}
+            />
+            <AuthField
+              ref={birthdayRef}
+              label="Birthday"
+              placeholder={birthdayFocused ? "MM/DD/YYYY" : "Birthday"}
+              keyboardType="number-pad"
+              autoCorrect={false}
+              maxLength={10}
+              editable={!busy}
+              value={birthday}
+              error={errors.birthday}
+              hint={<Text style={styles.hint}>Under 21? We leave 21+ spots out of your picks.</Text>}
+              onFocus={() => setBirthdayFocused(true)}
+              onBlur={() => setBirthdayFocused(false)}
+              onChangeText={(text) => {
+                setBirthday(formatBirthdayEntry(text));
+                clear("birthday");
+              }}
+              onSubmitEditing={() => homeCityRef.current?.focus()}
+            />
+            <AuthField
+              ref={homeCityRef}
+              label="Home city"
+              autoCapitalize="words"
+              textContentType="addressCity"
+              returnKeyType="go"
+              editable={!busy}
+              value={homeCity}
+              onChangeText={setHomeCity}
+              onSubmitEditing={() => void submitSignUp(true)}
+            />
+          </View>
+        ) : (
+          <View key="account" style={styles.fields}>
+            <AuthField
+              label="Username"
+              prefix="@"
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
+              autoComplete="username"
+              textContentType="username"
+              returnKeyType="next"
+              submitBehavior="submit"
+              editable={!busy}
+              value={username}
+              error={errors.username}
+              onChangeText={(text) => {
+                setUsername(text);
+                clear("username");
+              }}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+            />
+            <AuthField
+              ref={passwordRef}
+              label="Password"
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+              textContentType={isSignUp ? "newPassword" : "password"}
+              returnKeyType={isSignUp ? "next" : "go"}
+              submitBehavior={isSignUp ? "submit" : "blurAndSubmit"}
+              editable={!busy}
+              value={password}
+              error={errors.password}
+              hint={
+                isSignUp ? (
+                  <View style={styles.hintRow}>
+                    {passwordReady ? <Icon name="check" size={14} color={colors.ok} /> : null}
+                    <Text style={styles.hint}>{PASSWORD_MIN} characters or more</Text>
+                  </View>
+                ) : undefined
+              }
+              trailing={
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  hitSlop={12}
+                  onPress={() => setShowPassword((shown) => !shown)}
+                  style={({ pressed }) => [styles.reveal, pressed && styles.pressed]}
+                >
+                  <Text style={styles.revealText}>{showPassword ? "Hide" : "Show"}</Text>
+                </Pressable>
+              }
+              onChangeText={(text) => {
+                setPassword(text);
+                clear("password");
+              }}
+              onSubmitEditing={isSignUp ? continueToDetails : () => void submitSignIn()}
+            />
+          </View>
+        )}
+
+        <View style={styles.actions}>
+          {errors.form ? (
+            <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.formError}>
+              {errors.form}
+            </Text>
+          ) : null}
+          <AuthButton title={primaryTitle} busy={busy} onPress={primaryPress} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={secondaryLabel}
+            disabled={busy}
+            onPress={onDetails ? () => void submitSignUp(false) : switchMode}
+            style={({ pressed }) => [styles.secondary, (pressed || busy) && styles.pressed]}
+          >
+            {onDetails ? (
+              <Text style={styles.secondaryStrong}>Skip for now</Text>
+            ) : (
+              <Text style={styles.secondaryText}>
+                {isSignUp ? "Have an account? " : `New to ${APP_NAME}? `}
+                <Text style={styles.secondaryStrong}>{isSignUp ? "Sign in" : "Sign up"}</Text>
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </Animated.View>
+    </AuthScreen>
   );
 }
 
+const soft = "rgba(242,238,247,0.62)";
+
 const styles = StyleSheet.create({
-  intro: { gap: spacing.sm },
-  passwordBlock: { gap: spacing.xs },
-  reveal: { alignSelf: "flex-end", minHeight: 32, justifyContent: "center", paddingHorizontal: spacing.xs },
-  revealText: { fontWeight: "600" },
-  error: { color: "#ff6b6b" },
-  switch: { alignSelf: "center", minHeight: 40, justifyContent: "center", paddingHorizontal: spacing.md },
-  dimmed: { opacity: 0.6 },
+  bar: { height: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  back: {
+    width: 44,
+    height: 44,
+    marginLeft: -12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  steps: { flexDirection: "row", gap: 6 },
+  stepMark: { width: 22, height: 3, borderRadius: 2, backgroundColor: "rgba(242,238,247,0.24)" },
+  stepDone: { backgroundColor: colors.fg },
+  form: { paddingTop: 20 },
+  intro: { gap: 10 },
+  headline: { fontSize: 34, lineHeight: 38, fontWeight: "700", letterSpacing: -0.8, color: colors.fg },
+  sub: { fontSize: 16, lineHeight: 22, color: soft },
+  fields: { marginTop: 22, gap: 10 },
+  hintRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  hint: { fontSize: 13, lineHeight: 18, color: soft },
+  reveal: { minHeight: 44, minWidth: 44, alignItems: "flex-end", justifyContent: "center" },
+  revealText: { fontSize: 15, fontWeight: "600", color: colors.fg },
+  actions: { marginTop: 30, gap: 6 },
+  formError: { color: AUTH_ERROR, fontSize: 14, lineHeight: 20, marginBottom: 8 },
+  secondary: { alignSelf: "center", minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
+  secondaryText: { fontSize: 15, color: soft },
+  secondaryStrong: { fontSize: 15, fontWeight: "600", color: colors.fg },
+  pressed: { opacity: 0.55 },
 });
