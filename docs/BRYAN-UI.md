@@ -42,3 +42,44 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 | E13 | Pinned favorites / highlights on a profile (photo ids + titles), followers count for public accounts | Profile |
 | E12 | Public / private accounts: `isPublic` setting, `follows` (follow / unfollow, follower counts), `ProfileResult.user.isPublic`, `canSee` true for public | Q20 |
 | — | Vibe filter on `discover.tonight` / `forGroup` (Vibe chips pass to Plan my night for now) | Search |
+
+## Pass 5 (Hinge sign-up + "You're in")
+- **Create account (`(onboarding)/create-account.tsx`), Hinge-style, one question per screen:** name → "An easier way to sign back in" (Google / Apple, No thanks) → username → password → birthday + "You're 19" confirm card → home city → Create account (`signUp`, then `settings.update`) → quiz. `sign-in.tsx` stays for signing back in.
+- **"You're in" (`(onboarding)/youre-in.tsx`) replaces the taste card + Find friends:** persona line, Sync contacts (stub), People you may know / Similar taste (`friends.suggestions`, split by mutual friends, order kept), Picked for you tonight (`discover.tonight`), Let's go.
+- **Needs backend:** phone / email verification codes (Hinge asks for both) need an SMS / email provider; contact sync needs `expo-contacts` + a hashed-number lookup.
+
+## Pass 6 (Home spotlight)
+- **Home:** "Last night" / "All friends" toggle. Last night = one big photo card per friend (their newest post, feed order), swipe or "Next friend →", dots, "See all friends' posts". All friends = the full feed.
+- **Photo shape:** edge-to-edge 4:5 portrait, square corners (Instagram), one friend per screen width. Only the friend (avatar, name, time) sits on the photo.
+- **Under the photo:** heart · comment · bookmark (with counts), score pill on the right with the post's `label` in tiny text under it, then the place name and the caption.
+- **Quick actions on each spotlight card (Instagram-style):** double-tap the photo to like (`posts.react`), hold to save (`saves.toggle` "want"). Small action row under the photo: heart · comment (opens `CommentsSheet`) on the left, bookmark on the right. Tap the place name to open the venue.
+- **Needs backend (E14):** "closest friend first" ordering (e.g. by interactions or taste match) and a "went out last night" window on `posts.feed`; the UI keeps the backend's order.
+
+## Pass 7 (profile = photos first)
+- **Profile (`ProfileView`):** taste meters and the highlight circles removed (taste stays on Compare). New **Favorites** row: up to 3 big photos from `onboarding.pins` (pin order); before anyone pins, their newest photo posts. Hold a photo in your own grid to pin / unpin (`onboarding.setPins`). New **Top spots**: the #1 of each list (backend order, max 3) with photo, name, score. Photos tab is first.
+- **Needs deploy:** `onboarding.pins` / `setPins` are on this branch only, so Favorites works after the merge + deploy from `main`.
+
+## Pass 8 (dark onboarding)
+- Create account + taste quiz now use the app's dark palette (`src/theme/onboarding.ts`, `onboardingColors`), so the whole app is dark like the rest (app.json is dark-only). The cream Hinge palette is kept there as `ONBOARDING_LIGHT` for a future light theme. "You're in" already used the dark theme.
+
+## Pass 9 (entry points for main's screens, branding)
+- **`src/lib/links.ts` copied byte-for-byte from `main`** so the merge has nothing to resolve there. New buttons use its `paths` / `postPath`.
+- **Buttons for main's screens (same labels as main):** Profile tab → gear "Settings", links Friends · Saved · Following · Trips · My rankings · Notifications; "Edit profile" → `/settings`; friend profile → "Invite <name> to a trip" (→ `/trips`); Search → Trips · Saved under Plan my night; feed card → "View post" (`/post/<id>`); profile grid photo → `/post/<id>`. These routes (`trips`, `trip/[tripId]`, `saved`, `settings`, `following`, `post/[postId]`, `performer/[performerId]`) come from `main` on merge.
+- **Brand:** name "clubi", tagline "Go where your friends go.", `DESCRIPTION` in `src/constants/brand.ts` + `app.json` description. Google / Apple buttons smaller (16 px mark, 14 px label).
+
+## Backend added on this branch (for Ethan to review, then deploy from `main`)
+Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
+
+| File | What |
+|---|---|
+| `convex/tables/ui.ts` (new) | `quizExtras`, `accountPrivacy`, `follows`, `profilePins` tables |
+| `convex/follows.ts` (new) | `setPublic`, `follow` (public accounts only), `unfollow`, `status` → `FollowStatus`, `followers` |
+| `convex/onboarding.ts` (new) | `saveExtendedQuiz` / `myExtendedQuiz` (E1), `seedRatings` (E6, "Been here?" → private `rankings.rank` at the bottom of each bucket), `setPins` / `pins` (E13) |
+| `convex/schema.ts` | `...uiTables` |
+| `convex/_generated/api.d.ts` | `follows`, `onboarding`, `tables/ui` entries (regenerated anyway on the next `npx convex dev` from main) |
+| `convex/lib/contract.ts` | `FollowStatus` (new type, additive) |
+| `tests/ui.follows.test.mjs` (new) | 5 tests: follows, privacy, quiz extras, pins |
+
+**INTEGRATION (People):** `profile.get` should return `canSee: true` for public accounts; `users.deleteUserRows` should also delete this user's rows in `follows`, `accountPrivacy`, `quizExtras`, `profilePins`.
+**INTEGRATION (Brain):** `quizExtras.answers` (song stars, scenarios, hot takes, nights) is there to refine the taste prior when you want it.
+**Still open:** E3 describe-your-night (needs an LLM key), E5 `friendsAvg` on `NearbyItem` (Brain's `discover.ts`), E11 Apple/Google OAuth (needs provider keys).

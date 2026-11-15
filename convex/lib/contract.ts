@@ -202,6 +202,14 @@ export type PerformerCard = {
   nextEvent?: { id: Id<"events">; title: string; startsAt: number; venueName?: string };
 };
 
+// Follows and public accounts (owner: Bryan, convex/follows.ts). Additive: decision Q20.
+export type FollowStatus = {
+  isPublic: boolean;        // public accounts can be followed without a request
+  followers: number; following: number;
+  iFollow: boolean;         // the viewer follows this user
+  isMe: boolean;
+};
+
 // Saves (owner: People)
 export type SaveType = "want" | "going";
 export type SavedItem = {

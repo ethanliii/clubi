@@ -80,10 +80,11 @@ export default function OverlordScreen() {
       rows: [
         { label: "Settings", href: paths.settings },
         { label: "Welcome", href: paths.welcome },
+        { label: "Create account", href: "/create-account" as Href },
         { label: "Sign up", href: signInPath("signup") },
         { label: "Sign in", href: signInPath("signin") },
         { label: "Taste quiz", href: paths.quiz },
-        { label: "Taste card", href: paths.tasteCard },
+        { label: "You're in", href: "/youre-in" as Href },
         { label: "Page not found", href: "/this-page-does-not-exist" as Href },
       ],
     },

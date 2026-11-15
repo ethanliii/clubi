@@ -2,6 +2,7 @@
   "expo": {
     "name": "clubi",
     "slug": "clubi",
+    "description": "Rank the spots you go out to, see where your friends went last night, and get picks for tonight that match your taste.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -15,3 +15,4 @@ export * from "./Screen";
 export * from "./Text";
 export * from "./VenueCard";
 export * from "./VenuePhoto";
+export * from "./SocialButton";

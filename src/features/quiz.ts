@@ -23,7 +23,7 @@ export type QuizAnswers = {
   dealbreakers: number[];
   locationAsked?: boolean;
   notifications?: boolean;
-  beenHere: Record<string, "loved" | "fine" | "didnt" | "skip">;   // venue id → bucket
+  beenHere: Record<string, { kind: "place" | "event"; bucket: "loved" | "fine" | "didnt" | "skip" }>;   // venue id → bucket
 };
 
 export const emptyAnswers = (): QuizAnswers => ({

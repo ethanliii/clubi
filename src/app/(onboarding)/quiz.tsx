@@ -4,7 +4,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { Icon, Text, VenuePhoto } from "../../components/bryan";
+import { onboardingColors } from "../../theme";
 import {
   AGREE, BUDGET, DAYS, DEALBREAKERS, DRINKING, INTERESTS, SCENARIOS, SONGS, SQUAD, TAKES,
   THIS_OR_THAT, TRANSPORT, nightCaption, toBackendCards, type QuizAnswers, type Stars,
@@ -14,7 +16,7 @@ import { useNearby } from "../../lib/useNearby";
 import { useOnboarding } from "../../state/onboarding";
 
 // Hinge-style onboarding look: cream background, serif questions, black accents.
-const Q = { bg: "#f5f3ee", card: "#ffffff", line: "#dedbd3", fg: "#16151a", muted: "#7a7680", raised: "#ecebe6" };
+const Q = onboardingColors;
 const serif = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, serif" });
 
 type Step = { title: string; sub: string; note?: string; done: (a: QuizAnswers) => boolean; body: () => ReactNode };
@@ -22,6 +24,8 @@ type Step = { title: string; sub: string; note?: string; done: (a: QuizAnswers) 
 export default function Quiz() {
   const { answers: a, update, setTasteSummary, startQuiz } = useOnboarding();
   const saveQuiz = useMutation(api.users.saveQuiz);
+  const saveExtended = useMutation(api.onboarding.saveExtendedQuiz);
+  const seedRatings = useMutation(api.onboarding.seedRatings);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   useEffect(startQuiz, [startQuiz]);
@@ -200,7 +204,12 @@ export default function Quiz() {
     try {
       const { tasteSummary } = await saveQuiz({ answers: toBackendCards(a) });
       setTasteSummary(tasteSummary);
-      router.push("/taste-card");
+      // Extras: the full quiz and the "Been here?" picks. A failure here doesn't block onboarding.
+      const seeds = Object.entries(a.beenHere).flatMap(([id, v]) =>
+        v.bucket === "skip" ? [] : [{ kind: v.kind, id: id as Id<"places"> | Id<"events">, bucket: v.bucket }],
+      );
+      await Promise.allSettled([saveExtended({ answers: a }), seeds.length ? seedRatings({ items: seeds }) : null]);
+      router.push("/youre-in");
     } catch (e) {
       Alert.alert("Couldn't save", e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -225,8 +234,8 @@ export default function Quiz() {
         <Text variant="caption" style={[styles.muted, styles.flex]}>{s.note ?? "Shapes your matches, not your profile"}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={last ? "See my taste" : "Next"}
           disabled={!s.done(a) || saving} onPress={next}
-          style={[styles.nextBtn, (!s.done(a) || saving) && { backgroundColor: "#c4c1b9" }]}>
-          <Icon name="back" color="#fff" size={20} />
+          style={[styles.nextBtn, (!s.done(a) || saving) && { backgroundColor: Q.off }]}>
+          <Icon name="back" color={Q.onFg} size={20} />
         </Pressable>
       </View>
     </SafeAreaView>
@@ -234,7 +243,7 @@ export default function Quiz() {
 }
 
 function BeenHere() {
-  // Nearby spots to seed ratings. Answers stay on the device until the backend has a bulk seed call (ask E6).
+  // Nearby spots to seed ratings. Saved with onboarding.seedRatings when the quiz is saved.
   const nearby = useNearby("all");
   const { answers: a, update } = useOnboarding();
   if (nearby === undefined) return <Text center style={styles.muted}>Finding spots near you…</Text>;
@@ -248,8 +257,8 @@ function BeenHere() {
           <View style={styles.pills}>
             {(["loved", "fine", "didnt", "skip"] as const).map((b) => (
               <Pill key={b} label={{ loved: "🔥 Loved it", fine: "😐 It was fine", didnt: "💀 Didn't like it", skip: "Haven't been" }[b]}
-                on={a.beenHere[String(v.id)] === b}
-                onPress={() => update((x) => ({ beenHere: { ...x.beenHere, [String(v.id)]: b } }))} />
+                on={a.beenHere[String(v.id)]?.bucket === b}
+                onPress={() => update((x) => ({ beenHere: { ...x.beenHere, [String(v.id)]: { kind: v.kind, bucket: b } } }))} />
             ))}
           </View>
         </View>
@@ -270,7 +279,7 @@ function Option({ label, on, onPress }: { label: string; on: boolean; onPress: (
 function Pill({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ selected: on }} onPress={onPress} style={[styles.pill, on && styles.pillOn]}>
-      <Text variant="caption" style={{ color: on ? "#fff" : Q.fg }}>{label}</Text>
+      <Text variant="caption" style={{ color: on ? Q.onFg : Q.fg }}>{label}</Text>
     </Pressable>
   );
 }
@@ -297,7 +306,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Q.card, borderWidth: 1, borderColor: Q.line, borderRadius: 14, padding: 8 },
   cover: { width: 44, borderRadius: 8 },
   stars: { flexDirection: "row" },
-  star: { fontSize: 20, lineHeight: 24, color: "#d6d2c9", paddingHorizontal: 1 },
+  star: { fontSize: 20, lineHeight: 24, color: Q.starOff, paddingHorizontal: 1 },
   starOn: { color: "#f5b301" },
   ttLabel: { position: "absolute", left: 14, bottom: 12, color: "#fff", fontSize: 20, fontWeight: "700" },
   days: { flexDirection: "row", justifyContent: "space-between" },
