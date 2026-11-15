@@ -4,7 +4,7 @@ import { QueryCtx } from "../_generated/server";
 import type { Category, Filter, FriendScore, NearbyItem, Tier } from "./contract";
 import { isOpenAt } from "./hours";
 import {
-  FEATURES, NEUTRAL_TASTE, Rater, clip, cosine, mapRank, matchPct, predict, whyFromFeatures,
+  FEATURES, NEUTRAL_TASTE, Rater, clip, mapRank, matchPct, predict, similarity, whyFromFeatures,
 } from "./recs";
 
 export const ALGO = "hybrid-v2";
@@ -64,10 +64,6 @@ export type Scored = {
   vector: number[];
   mine: Doc<"rankings"> | null;
   friendRows: FriendRow[];
-  terms: {
-    content: number; crowd: number; lambda: number; elo: number; eloTerm: number; predicted: number;
-    distancePenalty: number; timeMatch: number; timeTerm: number; raters: number; ownScore?: number;
-  };
 };
 
 export type UserLoader = (id: Id<"users">) => Promise<Doc<"users"> | null>;
@@ -134,7 +130,8 @@ export async function loadViewer(ctx: QueryCtx, now: number): Promise<Viewer> {
   };
 }
 
-export async function loadCandidates(ctx: QueryCtx, lat: number, lng: number, radiusMeters: number, now: number): Promise<Candidate[]> {
+/** Every place and upcoming event within the radius, nearest first. */
+export async function loadInRadius(ctx: QueryCtx, lat: number, lng: number, radiusMeters: number, now: number): Promise<Candidate[]> {
   const dLat = radiusMeters / METERS_PER_DEGREE;
   const dLng = radiusMeters / (METERS_PER_DEGREE * Math.cos((lat * Math.PI) / 180));
   const places = await ctx.db
@@ -155,9 +152,12 @@ export async function loadCandidates(ctx: QueryCtx, lat: number, lng: number, ra
     .map((c) => ({ c, d: haversineMeters(lat, lng, c.doc.lat, c.doc.lng) }))
     .filter((x) => x.d <= radiusMeters)
     .sort((a, b) => a.d - b.d)
-    .slice(0, MAX_CANDIDATES)
     .map((x) => x.c);
 }
+
+/** The nearest candidates that pass the filter, capped so scoring stays bounded. */
+export const nearestMatching = (pool: Candidate[], matches: (c: Candidate) => boolean) =>
+  pool.filter(matches).slice(0, MAX_CANDIDATES);
 
 export const isPastEvent = (event: Doc<"events">, now: number) =>
   (event.end ?? event.start + EVENT_DEFAULT_LENGTH_MS) <= now;
@@ -213,7 +213,7 @@ export async function scoreCandidate(
       ? sameCity(user.homeCity, doc.city)
       : ranking.wasLocal ?? false;
     const friend = viewer.friendIds.has(ranking.userId);
-    raters.push({ taste: tasteOf(user), score: ranking.score, local, friend, name: displayNameOf(user) });
+    raters.push({ taste: tasteOf(user), score: clip(ranking.score, 1, 10), local, friend, name: displayNameOf(user) });
     if (friend) friendRows.push({ ranking, user, local });
   }
   friendRows.sort((a, b) => b.ranking.score - a.ranking.score);
@@ -254,19 +254,6 @@ export async function scoreCandidate(
     vector,
     mine,
     friendRows,
-    terms: {
-      content: prediction.content,
-      crowd: prediction.crowd,
-      lambda: prediction.lam,
-      elo,
-      eloTerm: prediction.eloTerm,
-      predicted: prediction.score,
-      distancePenalty: exact + 0 * time.timeMatch - mapRank(exact, distance, 0),
-      timeMatch: time.timeMatch,
-      timeTerm: order - mapRank(exact, distance, 0),
-      raters: raters.length,
-      ownScore,
-    },
   };
 }
 
@@ -278,41 +265,34 @@ export const friendScoreOf = (row: FriendRow): FriendScore => ({
   isLocal: row.local,
 });
 
-/** Everything near a point, scored for the viewer, minus what they must not or need not see. */
-export async function scoreNearby(ctx: QueryCtx, lat: number, lng: number, radiusMeters: number, now: number) {
-  const viewer = await loadViewer(ctx, now);
-  const candidates = await loadCandidates(ctx, lat, lng, radiusMeters, now);
-  const scored = await scoreAll(ctx, candidates, viewer, lat, lng, now);
-  return { viewer, scored };
-}
-
 export async function scoreAll(ctx: QueryCtx, candidates: Candidate[], viewer: Viewer, lat: number, lng: number, now: number): Promise<Scored[]> {
   const getUser = userLoader(ctx);
-  const scored = await Promise.all(candidates.map((c) => scoreCandidate(ctx, c, viewer, lat, lng, now, getUser)));
-  return scored.filter((s) => isVisibleTo(s.item, viewer));
+  return await Promise.all(candidates.map((c) => scoreCandidate(ctx, c, viewer, lat, lng, now, getUser)));
 }
 
-export const isVisibleTo = (item: Scored["item"], viewer: Viewer) =>
-  item.openNow !== false && !(viewer.under21 && item.category === "nightlife");
+/** Closed places are hidden from lists, and nightlife is hidden from viewers under 21. */
+export const isVisibleTo = (c: Candidate, viewer: Viewer, now: number) =>
+  timeContext(c, now).openNow !== false && !(viewer.under21 && c.doc.category === "nightlife");
 
-export function matchesFilter(item: Scored["item"], filter: Filter, now: number): boolean {
+export function matchesFilter(c: Candidate, filter: Filter, now: number): boolean {
+  const { category } = c.doc;
   switch (filter) {
     case "all":
       return true;
     case "tonight":
-      return item.kind === "event"
-        ? (item.startsAt ?? 0) <= now + TONIGHT_WINDOW_MS
-        : item.category === "nightlife" || item.category === "popup" || item.category === "live";
+      return c.kind === "event"
+        ? c.doc.start <= now + TONIGHT_WINDOW_MS
+        : category === "nightlife" || category === "popup" || category === "live";
     case "bars":
-      return item.category === "nightlife";
+      return category === "nightlife";
     case "food":
-      return item.category === "food";
+      return category === "food";
     case "events":
-      return item.kind === "event" || item.category === "live";
+      return c.kind === "event" || category === "live";
     case "popups":
-      return item.category === "popup";
+      return category === "popup";
     case "outdoors":
-      return item.category === "outdoors";
+      return category === "outdoors";
   }
 }
 
@@ -324,7 +304,7 @@ export function rankItems(scored: Scored[], limit: number): NearbyItem[] {
   const top: Scored[] = [];
   const rest: Scored[] = [];
   for (const s of [...scored].sort((a, b) => b.order - a.order)) {
-    const duplicate = top.some((t) => cosine(t.vector, s.vector) > DIVERSITY_MAX_COSINE);
+    const duplicate = top.some((t) => similarity(t.vector, s.vector) > DIVERSITY_MAX_COSINE);
     if (top.length < TOP_TIER_SIZE && !duplicate) top.push(s);
     else rest.push(s);
   }
