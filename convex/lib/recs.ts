@@ -16,6 +16,8 @@ export const CROWD_HALF_WEIGHT = 3;
 export const DISTANCE_D0_METERS = 400;
 export const DISTANCE_DELTA = 1;
 export const TIME_TAU = 0.5;
+export const GROUP_BETA = 0.5;
+export const GROUP_VETO_SCORE = 4;
 export const LOVED_STEP = 0.1;
 export const DIDNT_STEP = 0.05;
 export const QUIZ_BASELINE = 0.3;
@@ -190,3 +192,10 @@ export function predict(tU: number[], fI: number[], eloI: number, raters: Rater[
 /** 8.4: map ordering. distanceM from haversine, timeMatch in [0, 1]. */
 export const mapRank = (score: number, distanceM: number, timeMatch: number) =>
   score - DISTANCE_DELTA * Math.log(1 + distanceM / DISTANCE_D0_METERS) + TIME_TAU * timeMatch;
+
+/** 8.7: half the group's average, half its least happy member; null when anyone would hate it. */
+export function groupScore(scores: number[]): number | null {
+  if (scores.length === 0 || scores.some((x) => x < GROUP_VETO_SCORE)) return null;
+  const mean = scores.reduce((s, x) => s + x, 0) / scores.length;
+  return (1 - GROUP_BETA) * mean + GROUP_BETA * Math.min(...scores);
+}

@@ -80,7 +80,7 @@ export type NotificationItem = {
 | --- | --- | --- | --- |
 | `api.discover.nearby` | query | `{lat, lng, radiusMeters?=2500, filter?="all", limit?=60}` → `NearbyResult` | C1 |
 | `api.discover.tonight` | query | `{lat, lng}` → `{topPicks, friendsGoing, events}: NearbyItem[]` | C1 |
-| `api.discover.plan` | query (stretch) | `{lat, lng, memberIds, vibe}` → 3 stops with each member's score | C1 |
+| `api.discover.plan` | query | `{lat, lng, memberIds?, vibe?}` → `PlanResult`: `{stops: PlanStop[] (≤3), members, vibe, center, algo, generatedAt}`. `PlanStop` = `NearbyItem` (its `score` is the group score) + `{slot: "early" \| "mid" \| "late", slotLabel, memberScores: {userId, displayName, avatarUrl?, score}[]}`. `vibe`: `chill` \| `balanced` (default) \| `wild`. `memberIds` are accepted friends; others are ignored. | C1 |
 | `api.places.get` | query | `{kind, id}` → `VenueDetail \| null` | C1 |
 | `api.places.search` | query | `{text, lat, lng}` → `NearbyItem[]` (≤10) | C1 |
 | `lib/useNearby.ts` | hook | `useNearby(filter)` → `NearbyResult \| undefined` | C1 |

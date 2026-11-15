@@ -67,6 +67,7 @@ export type Scored = {
   vector: number[];
   mine: Doc<"rankings"> | null;
   friendRows: FriendRow[];
+  raters: (Rater & { userId: Id<"users"> })[];
   terms: {
     content: number; crowd: number; lambda: number; elo: number; eloTerm: number; predicted: number;
     ownScore?: number; score: number; distanceMeters: number; distancePenalty: number;
@@ -93,7 +94,7 @@ export function venueVectorOf(doc: { venueVector?: number[]; category: Category 
 export const tasteOf = (user: Doc<"users"> | null) =>
   user?.tasteVector?.length === FEATURES.length ? user.tasteVector : NEUTRAL_TASTE;
 
-const sameCity = (a: string | undefined, b: string | undefined) =>
+export const sameCity = (a: string | undefined, b: string | undefined) =>
   a !== undefined && b !== undefined && a.trim() !== "" && a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export const displayNameOf = (user: Doc<"users">) => user.displayName ?? user.username ?? "A friend";
@@ -253,7 +254,7 @@ export async function scoreCandidate(
   const known = viewer.knownRankings.get(doc._id) ?? [];
   const rankings = [...known, ...sample.filter((r) => !known.some((k) => k._id === r._id))];
   let mine: Doc<"rankings"> | null = null;
-  const raters: Rater[] = [];
+  const raters: Scored["raters"] = [];
   const friendRows: FriendRow[] = [];
   for (const ranking of rankings) {
     if (ranking.userId === viewer.userId) {
@@ -266,7 +267,7 @@ export async function scoreCandidate(
       ? sameCity(user.homeCity, doc.city)
       : ranking.wasLocal ?? false;
     const friend = viewer.friendIds.has(ranking.userId);
-    raters.push({ taste: tasteOf(user), score: clip(ranking.score, 1, 10), local, friend, name: displayNameOf(user) });
+    raters.push({ userId: user._id, taste: tasteOf(user), score: clip(ranking.score, 1, 10), local, friend, name: displayNameOf(user) });
     if (friend) friendRows.push({ ranking, user, local });
   }
   friendRows.sort((a, b) => b.ranking.score - a.ranking.score);
@@ -307,6 +308,7 @@ export async function scoreCandidate(
     vector,
     mine,
     friendRows,
+    raters,
     terms: {
       content: prediction.content,
       crowd: prediction.crowd,

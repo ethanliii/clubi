@@ -60,3 +60,12 @@ export type NotificationItem = {
   read: boolean; createdAt: number;
   actor?: { userId: Id<"users">; displayName: string; avatarUrl?: string };
 };
+
+export type PlanSlot = "early" | "mid" | "late";
+export type PlanMember = { userId: Id<"users">; displayName: string; avatarUrl?: string };
+export type PlanStop = NearbyItem & {
+  slot: PlanSlot;
+  slotLabel: string;      // "Start", "Then", "End the night"
+  memberScores: (PlanMember & { score: number })[];   // the item's score is the group score
+};
+export type PlanResult = { stops: PlanStop[]; members: PlanMember[]; vibe: string; center: { lat: number; lng: number }; algo: string; generatedAt: number };
