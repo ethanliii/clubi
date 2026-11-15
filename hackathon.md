@@ -11,7 +11,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-11-15T17:53:13Z
-- **Last updated:** 2026-11-15T20:14:24Z
+- **Last updated:** 2026-11-15T20:17:00Z
 
 ## Log
 
@@ -48,3 +48,17 @@ Ranking and notification functions exist as stubs with the contract shapes so
 screens can wire up. Pushed to the Convex dev deployment. Convex features:
 queries, mutations, Convex Auth components (`convex/auth.ts`, `convex/users.ts`,
 `convex/rankings.ts`, `convex/notifications.ts`).
+
+### 2026-11-15 - 2a19940
+Moved discovery to the hybrid-v2 score. Each place now blends the taste match
+with ratings from people with similar taste, weighting locals and accepted
+friends higher, and shows the viewer's own score when they ranked it. The reason
+line names a friend or locals when their ratings carry the score, and adds
+"Open now" or the event start. Lists hide closed places, past events and, for
+viewers under 21, nightlife; the top five pins skip near-duplicates. The taste
+match is measured from a no-signal baseline so scores spread out instead of all
+landing near 9. Venue detail returns friends' rankings with captions and the
+viewer's own position. Added four tests for the pure scoring functions, run with
+Node's built-in runner. Convex features: queries, indexes, file storage URLs
+(`convex/lib/discovery.ts`, `convex/lib/hours.ts`, `convex/lib/recs.ts`,
+`convex/discover.ts`, `convex/places.ts`, `tests/recs.test.mjs`).
