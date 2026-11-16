@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
+import { isDark } from "./mode";
 
-export const colors = {
+const lightColors = {
   page: "#ececef",
   bg: "#ffffff",
   surface: "#f4f4f6",
@@ -16,6 +17,31 @@ export const colors = {
   white: "#ffffff",
   black: "#000000",
 } as const;
+
+/**
+ * The same roles on a dark page. `white` is the one surprise: across the app it is the label on a
+ * filled control (a selected pill, the red button) and the fill of a few white surfaces, so in dark
+ * mode it is the dark page colour, which keeps both readable. Text on photos uses `palette.onPhoto`,
+ * which stays white.
+ */
+const darkColors: Record<keyof typeof lightColors, string> = {
+  page: "#000000",
+  bg: "#101013",
+  surface: "#1a1a1f",
+  raised: "#24242a",
+  line: "#2e2e36",
+  fg: "#f2f2f5",
+  muted: "#9c9ca8",
+  accent: "#ff4f66",
+  accentSoft: "#3a141b",
+  mid: "#e6ad1f",
+  low: "#7c7c88",
+  ok: "#2fc774",
+  white: "#101013",
+  black: "#000000",
+};
+
+export const colors: Record<keyof typeof lightColors, string> = isDark ? darkColors : lightColors;
 
 export const spacing = {
   xxs: 2,
@@ -58,7 +84,7 @@ export const fontWeight = {
 // ---------------------------------------------------------------------------------------------
 
 /** Extra colours: quiet fills, the destructive red, and text that sits on photos. */
-export const palette = {
+const lightPalette = {
   /** A filled control resting on the page: inputs, secondary buttons, unselected chips. */
   field: "#f0f0f2",
   fieldPressed: "#e6e6ea",
@@ -74,6 +100,21 @@ export const palette = {
   glass: "rgba(255,255,255,0.92)",
   backdrop: "rgba(0,0,0,0.38)",
 } as const;
+
+const darkPalette: Record<keyof typeof lightPalette, string> = {
+  field: "#1e1e24",
+  fieldPressed: "#2a2a31",
+  hairline: "rgba(255,255,255,0.10)",
+  soft: "#c8c8d1",
+  danger: "#ff6b5e",
+  dangerSoft: "#3b1613",
+  onPhoto: "#ffffff",
+  onPhotoMuted: "rgba(255,255,255,0.78)",
+  glass: "rgba(22,22,26,0.92)",
+  backdrop: "rgba(0,0,0,0.6)",
+};
+
+export const palette: Record<keyof typeof lightPalette, string> = isDark ? darkPalette : lightPalette;
 
 /** The type scale. `Text` variants use these; reach for a variant before a raw size. */
 export const type = {

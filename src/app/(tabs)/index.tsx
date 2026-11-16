@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { FlatList, Platform, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, EmptyState, IconButton, Loading, Text } from "../../components";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { CommentsSheet } from "../../features/feed/Comments";
 import { PostCard, PostDivider, PostSkeletons } from "../../features/feed/PostCard";
 import { PostMenu } from "../../features/feed/PostMenu";
@@ -85,6 +86,7 @@ export default function FeedTab() {
           clubi
         </Text>
         <View style={styles.icons}>
+          <ThemeToggle />
           <IconButton icon="calendar" size={40} plain accessibilityLabel="Trips" onPress={() => router.push(paths.trips)} />
           <IconButton
             icon="bell"
