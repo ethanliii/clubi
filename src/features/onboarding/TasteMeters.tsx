@@ -7,7 +7,7 @@ type Meter = { label: string; pct: number };
 
 /**
  * The taste card's meters. Each bar fills to the percent the backend sent while its number counts
- * up, one after the other: slim accent bars on a grey track. `highlight` is the label of the strongest
+ * up, one after the other: rounded accent bars on a grey track. `highlight` is the label of the strongest
  * meter, whose number is drawn in the accent too.
  * Nothing is computed here.
  */
@@ -77,12 +77,12 @@ function TasteMeter({ label, pct, strong, delay }: Meter & { strong: boolean; de
 }
 
 const styles = StyleSheet.create({
-  list: { gap: 18 },
-  meter: { gap: 8 },
+  list: { gap: 20 },
+  meter: { gap: 9 },
   labels: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12 },
   label: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, letterSpacing: -0.2, color: colors.fg },
   value: { fontSize: 15, lineHeight: 21, fontWeight: fontWeight.bold, color: colors.fg, fontVariant: ["tabular-nums"] },
   valueStrong: { color: colors.accent },
-  track: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 2, backgroundColor: colors.accent },
+  track: { height: 8, borderRadius: 4, backgroundColor: colors.raised, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 4, backgroundColor: colors.accent },
 });

@@ -102,9 +102,6 @@ export default function Quiz() {
           ) : (
             <View style={styles.back} />
           )}
-          <Text style={styles.count} accessibilityLabel={`Quiz, ${step + 1} of ${QUIZ_CARDS.length}`}>
-            {step + 1} of {QUIZ_CARDS.length}
-          </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Sign out"
@@ -124,6 +121,9 @@ export default function Quiz() {
         showsVerticalScrollIndicator={false}
       >
         <Rise axis="x" from={direction * 28} style={styles.question}>
+          <Text style={styles.count} accessibilityLabel={`Quiz, ${step + 1} of ${QUIZ_CARDS.length}`}>
+            Question {step + 1} of {QUIZ_CARDS.length}
+          </Text>
           <Text accessibilityRole="header" style={styles.title}>
             {card.question}
           </Text>
@@ -170,18 +170,28 @@ const FADE_FROM = `${colors.bg}00`;
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  top: { paddingHorizontal: SIDE, paddingTop: 4, gap: 6 },
+  top: { paddingHorizontal: SIDE, paddingTop: 4, gap: 8 },
   bar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", height: 48 },
   back: { width: 76, height: 44, marginLeft: -10, paddingLeft: 10, justifyContent: "center" },
-  count: { color: colors.fg, fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, fontVariant: ["tabular-nums"] },
+  // The small bold uppercase label the rest of the app uses above a section.
+  count: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 4,
+    fontVariant: ["tabular-nums"],
+  },
   signOut: { width: 76, height: 44, alignItems: "flex-end", justifyContent: "center" },
-  signOutText: { color: colors.muted, fontSize: 15, lineHeight: 20 },
+  signOutText: { color: colors.fg, fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold },
   dimmed: { opacity: 0.5 },
   // The question, then the answers straight under it; a short screen scrolls.
-  content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 28, paddingBottom: 30, gap: 24 },
+  content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 30, paddingBottom: 30, gap: 26 },
   question: { gap: 8 },
-  title: { fontSize: 32, lineHeight: 37, fontWeight: "800", letterSpacing: -0.8, color: colors.fg },
-  hint: { color: colors.muted, fontSize: 16, lineHeight: 22 },
+  title: { fontSize: 34, lineHeight: 39, fontWeight: "800", letterSpacing: -0.8, color: colors.fg },
+  hint: { color: colors.muted, fontSize: 15, lineHeight: 21 },
   options: { gap: 10 },
   footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 10 },
   fade: { position: "absolute", left: 0, right: 0, top: -28, height: 28, pointerEvents: "none" },

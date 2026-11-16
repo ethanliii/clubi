@@ -11,7 +11,7 @@ import { tasteHeadline } from "../../features/onboarding/tasteHeadline";
 import { TasteMeters } from "../../features/onboarding/TasteMeters";
 import { paths } from "../../lib/links";
 import { useMe, useSession } from "../../state/session";
-import { colors, elevation, fontWeight, layout, palette, radius } from "../../theme";
+import { colors, fontWeight, layout, palette, radius } from "../../theme";
 
 /**
  * The reveal after the quiz: the four meters the backend worked out (`users.me.tasteSummary`, or the
@@ -57,7 +57,7 @@ export default function TasteCard() {
           <Rise delay={480} from={18}>
             <View style={styles.card}>
               <View style={styles.cardHead}>
-                <Text variant="title">Your taste</Text>
+                <Text style={styles.section}>Your taste</Text>
                 <Text variant="caption" muted>
                   From your answers
                 </Text>
@@ -66,7 +66,7 @@ export default function TasteCard() {
               {tags.length > 0 ? (
                 <Rise delay={1400}>
                   <View style={styles.into}>
-                    <Text variant="label">You're into</Text>
+                    <Text style={styles.section}>You're into</Text>
                     <View accessible accessibilityLabel={`Into ${listOf(tags)}`} style={styles.tags}>
                       {tags.map((tag) => (
                         <View key={tag} style={styles.tag}>
@@ -110,24 +110,17 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 40, paddingBottom: 20, gap: 26 },
-  name: { gap: 4 },
-  lead: { fontSize: 16, lineHeight: 22, color: colors.muted },
-  title: { fontSize: 32, lineHeight: 37, fontWeight: "800", letterSpacing: -0.8, color: colors.fg },
-  // The one card on the page: white on white, held by a hairline and a soft shadow.
-  card: {
-    gap: 20,
-    padding: 18,
-    borderRadius: radius.xl,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    backgroundColor: colors.bg,
-    ...elevation.card,
-  },
+  name: { gap: 8 },
+  lead: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, letterSpacing: 1, textTransform: "uppercase", color: colors.muted },
+  title: { fontSize: 36, lineHeight: 40, fontWeight: "800", letterSpacing: -0.8, color: colors.fg },
+  // No box: the meters sit straight on the page under a small uppercase label, like every other section.
+  card: { gap: 20, paddingTop: 22, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  section: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, letterSpacing: 1, textTransform: "uppercase", color: colors.fg },
   cardHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 },
-  into: { gap: 10, paddingTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  into: { gap: 14, marginTop: 6, paddingTop: 22, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tag: { height: 32, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: palette.field, justifyContent: "center" },
-  tagText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.medium, color: colors.fg },
+  tag: { height: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: palette.field, justifyContent: "center" },
+  tagText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.fg },
   footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 12 },
   go: { minHeight: 54 },
 });
