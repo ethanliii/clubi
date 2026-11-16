@@ -81,7 +81,7 @@ const TIER_STYLES = {
   lo: { backgroundColor: colors.surface, color: colors.muted },
 } as const;
 
-/** How well a place fits you, as a quiet pill: teal when it is a strong match, grey otherwise. */
+/** How well a place fits you, as a quiet pill: red when it is a strong match, grey otherwise. */
 export function MatchBadge({ match, size = "md" }: { match: number; size?: Size }) {
   const spec = SIZES[size];
   const tier = TIER_STYLES[matchTier(match)];

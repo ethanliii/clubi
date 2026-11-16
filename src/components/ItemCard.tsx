@@ -86,7 +86,7 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
         onPress={open}
         style={({ pressed }) => [styles.card, { width }, pressed && styles.pressed, style]}
       >
-        <Photo uri={item.imageUrl} category={item.category} height={Math.round(width * 0.62)} round={radius.lg} />
+        <Photo uri={item.imageUrl} category={item.category} height={Math.round(width * 0.6)} round={radius.lg} />
         <View style={styles.cardFoot}>
           <View style={styles.cardTitles}>
             <Text numberOfLines={1} style={styles.cardName}>
@@ -165,8 +165,8 @@ const styles = StyleSheet.create({
   friendScore: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
 
   // Card: no box and no border. A wide photo, then the name, one grey line, and the score ring.
-  card: { gap: spacing.sm + 2 },
-  cardFoot: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  card: { gap: spacing.sm },
+  cardFoot: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   cardTitles: { flex: 1, gap: 2 },
   cardName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
   cardExtra: { gap: spacing.xs },

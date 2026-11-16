@@ -10,11 +10,11 @@ import { Icon, type IconName } from "./Icon";
 // warm categories, so a pale yellow or orange reads as peach or butter and not as tan.
 const CATEGORY_LOOK: Record<Category, { hue: number; tint: number; icon: IconName }> = {
   nightlife: { hue: 320, tint: 318, icon: "cocktail" },
-  food: { hue: 28, tint: 18, icon: "utensils" },
+  food: { hue: 28, tint: 12, icon: "utensils" },
   culture: { hue: 265, tint: 262, icon: "landmark" },
   outdoors: { hue: 150, tint: 158, icon: "tree" },
   live: { hue: 200, tint: 212, icon: "music" },
-  popup: { hue: 48, tint: 42, icon: "spark" },
+  popup: { hue: 48, tint: 348, icon: "spark" },
 };
 
 function lookFor(category: Category | undefined, hue: number | undefined): { hue: number; icon: IconName | null } {
@@ -82,7 +82,7 @@ export function Photo({
   };
 
   const kind = scrim === true ? "bottom" : scrim;
-  const glyph = Math.round(Math.min(36, Math.max(20, size * 0.3)));
+  const glyph = Math.round(Math.min(32, Math.max(18, size * 0.26)));
 
   return (
     <View
@@ -92,15 +92,15 @@ export function Photo({
     >
       <LinearGradient
         // A pale wash of the category's colour: it sits on a white page the way a photo placeholder does.
-        colors={[`hsl(${look.hue}, 60%, 96%)`, `hsl(${look.hue}, 56%, 93%)`, `hsl(${look.hue}, 52%, 89%)`]}
+        colors={[`hsl(${look.hue}, 70%, 97%)`, `hsl(${look.hue}, 66%, 95%)`, `hsl(${look.hue}, 62%, 92%)`]}
         locations={[0, 0.55, 1]}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      {!imageUri && look.icon ? (
+      {look.icon ? (
         <View style={styles.glyph}>
-          <Icon name={look.icon} size={glyph} color={`hsla(${look.hue}, 45%, 56%, 0.75)`} />
+          <Icon name={look.icon} size={glyph} color={`hsla(${look.hue}, 48%, 58%, 0.8)`} />
         </View>
       ) : null}
       {imageUri ? (
