@@ -48,7 +48,7 @@ export function FriendButton({
       const result = await request.run({ userId });
       if (result) toast(result.status === "friends" ? `You and ${displayName} are now friends` : "Request sent", "success");
     };
-    if (compact) return <RowButton title={addLabel} kind="outline" disabled={pending} onPress={() => void add()} />;
+    if (compact) return <RowButton title={addLabel} kind="solid" disabled={pending} onPress={() => void add()} />;
     return <Button title={addLabel} accessibilityLabel={addLabel} disabled={pending} onPress={add} />;
   }
 

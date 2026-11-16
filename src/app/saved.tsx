@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { EmptyState, Header, Icon, IconButton, Screen, SectionHeader, Skeleton, Text, VenuePhoto } from "../components";
 import { api, type SavedItem, type SaveType } from "../lib/api";
 import { categoryHue, categoryLabel, formatEventTime } from "../lib/format";
-import { venuePath } from "../lib/links";
+import { paths, venuePath } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
 import { colors, fontSize, fontWeight, palette, radius, spacing } from "../theme";
@@ -122,8 +122,14 @@ export default function SavedScreen() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={type === "going" ? "calendar" : "bookmark"}
-          title={type === "going" ? "Nothing on your calendar yet." : "Tap Save on any place to keep it here."}
-          body={type === "going" ? "Tap I'm going on an event and it shows up here." : undefined}
+          title={type === "going" ? "Nothing on your calendar" : "Nothing saved yet"}
+          body={
+            type === "going"
+              ? "Tap I'm going on an event and it shows up here."
+              : "Tap the bookmark on any place to keep it here."
+          }
+          actionLabel={type === "going" ? "Browse events" : "Find places"}
+          onAction={() => router.push(type === "going" ? paths.recs : paths.map)}
         />
       ) : (
         <View style={styles.list}>
@@ -144,7 +150,7 @@ export default function SavedScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Two light-grey pills, a line icon and a bold label each; the chosen one fills with the accent.
+  // Two light-grey pills, a line icon and a bold label each; the chosen one fills black.
   tabs: { flexDirection: "row", gap: spacing.sm },
   tab: {
     flexDirection: "row",
@@ -156,7 +162,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tabOn: { backgroundColor: colors.accent },
+  tabOn: { backgroundColor: colors.fg },
   tabLabel: { fontSize: 15, lineHeight: 19, fontWeight: fontWeight.bold, color: colors.fg },
   tabLabelOn: { color: colors.white },
   list: { paddingTop: spacing.sm },

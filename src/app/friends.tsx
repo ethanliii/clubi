@@ -15,13 +15,10 @@ const SUGGESTION_PREVIEW = 3;
 const mutualLine = (count: number | undefined) => (count ? pluralize(count, "mutual friend") : null);
 
 /**
- * The backend's reason ("Also in San Francisco · 100% taste match"), unchanged in wording, set on
- * two lines: the first fact, then the rest. One long line would be cut off beside the button.
+ * The backend's reason ("4 mutual friends · 91% taste match") on one line, with "taste match"
+ * shortened to "match" so it fits beside the button.
  */
-const reasonLines = (reason: string) => {
-  const [first, ...rest] = reason.split(" · ");
-  return rest.length > 0 ? `${first}\n${rest.join(" · ")}` : first;
-};
+const reasonLine = (reason: string) => reason.replace(/taste match/g, "match");
 
 /** A titled run of people. The count sits beside the title, quieter than it. */
 function Section({
@@ -143,7 +140,7 @@ function Overview({
               key={person.userId}
               user={person}
               last={index === shown.length - 1}
-              subtitle={reasonLines(person.reason)}
+              subtitle={reasonLine(person.reason)}
               right={
                 <FriendButton
                   compact
@@ -168,15 +165,9 @@ function Overview({
               subtitle={personFacts([
                 `@${friend.username}`,
                 friend.rankedCount !== undefined ? `${friend.rankedCount} ranked` : null,
+                // A match with someone who has ranked nothing says nothing, so it is left out.
+                friend.tasteMatchPct !== undefined && friend.rankedCount !== 0 ? `${friend.tasteMatchPct}% match` : null,
               ])}
-              right={
-                friend.tasteMatchPct !== undefined ? (
-                  <View accessible accessibilityLabel={`${friend.tasteMatchPct}% match`} style={styles.match}>
-                    <Text style={styles.matchPct}>{`${friend.tasteMatchPct}%`}</Text>
-                    <Text style={styles.matchLabel}>match</Text>
-                  </View>
-                ) : undefined
-              }
             />
           ))}
         </Section>
@@ -239,7 +230,7 @@ export default function FriendsScreen() {
 
 const styles = StyleSheet.create({
   scroller: { flex: 1 },
-  content: { gap: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xxl * 2 },
+  content: { gap: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl * 2 },
   sectionHead: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 32, marginBottom: 2 },
   // The reference's section label: small, bold, uppercase, letter-spaced.
   sectionTitle: {
@@ -250,12 +241,9 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.fg,
   },
-  count: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, letterSpacing: 0.5, color: colors.muted },
+  count: { fontSize: 13, lineHeight: 16, color: colors.muted },
   grow: { flex: 1 },
   seeAll: { minHeight: 32, justifyContent: "center" },
   seeAllLabel: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.2, color: colors.fg },
   pressed: { opacity: 0.55 },
-  match: { alignItems: "flex-end", minWidth: 48 },
-  matchPct: { fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
-  matchLabel: { fontSize: 11, lineHeight: 14, color: colors.muted },
 });
