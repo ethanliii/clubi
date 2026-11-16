@@ -52,8 +52,9 @@ export function SectionHeader({
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 28 },
   // Small, bold, uppercase and letter-spaced: the label names the section without competing with it.
-  title: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase", color: colors.fg },
-  count: { flex: 0, color: colors.low, fontWeight: "700" },
+  title: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase", color: colors.fg },
+  // The count is quieter than the label: regular weight, grey, not letter-spaced.
+  count: { flex: 0, color: colors.low, fontWeight: "400", letterSpacing: 0 },
   action: { flexDirection: "row", alignItems: "center", minHeight: 28, paddingLeft: spacing.md },
   actionText: { fontSize: 14, lineHeight: 18, color: colors.fg, fontWeight: "700", letterSpacing: 0.2 },
   pressed: { opacity: 0.5 },

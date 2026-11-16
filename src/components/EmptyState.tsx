@@ -20,7 +20,7 @@ export function EmptyState({ title, body, icon, actionLabel, onAction, style }: 
     <View style={[styles.wrap, style]}>
       {icon ? (
         <View style={styles.icon}>
-          <Icon name={icon} size={24} color={colors.muted} />
+          <Icon name={icon} size={28} color={colors.low} />
         </View>
       ) : null}
       <Text variant="headline" center style={styles.title}>
@@ -42,11 +42,11 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
     gap: 6,
-    paddingVertical: spacing.xxl + spacing.sm,
+    paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
   },
   // The icon stands on its own: no disc behind it.
-  icon: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", marginBottom: spacing.sm },
+  icon: { alignItems: "center", justifyContent: "center", marginBottom: spacing.sm },
   title: { fontSize: 18, lineHeight: 24, fontWeight: "700", letterSpacing: -0.2, maxWidth: 300 },
   body: { fontSize: 15, lineHeight: 21, maxWidth: 290 },
   button: { marginTop: spacing.lg, width: "auto", minWidth: 168 },

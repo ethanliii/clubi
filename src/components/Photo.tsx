@@ -14,7 +14,7 @@ const CATEGORY_LOOK: Record<Category, { hue: number; tint: number; icon: IconNam
   culture: { hue: 265, tint: 262, icon: "landmark" },
   outdoors: { hue: 150, tint: 158, icon: "tree" },
   live: { hue: 200, tint: 212, icon: "music" },
-  popup: { hue: 48, tint: 348, icon: "spark" },
+  popup: { hue: 48, tint: 268, icon: "ticket" },
 };
 
 function lookFor(category: Category | undefined, hue: number | undefined): { hue: number; icon: IconName } {
@@ -86,7 +86,10 @@ export function Photo({
   };
 
   const kind = scrim === true ? "bottom" : scrim;
-  const glyph = Math.round(Math.min(26, Math.max(16, size * 0.22)));
+  // A small tile (list rows, peek cards) reads as a category icon, not a missing image: a pale tint
+  // of the category colour with its glyph at 40% of the tile.
+  const small = size < 80;
+  const glyph = small ? Math.round(Math.max(18, size * 0.4)) : Math.round(Math.min(30, Math.max(20, size * 0.16)));
   // With no picture under white text, the tile goes deep so the words still read.
   const dark = (deep ?? !!kind) && !imageUri;
 
@@ -97,8 +100,8 @@ export function Photo({
       style={[styles.photo, { width, borderRadius: round }, height !== undefined && { height }, aspectRatio ? { aspectRatio } : null, style]}
     >
       {/* The fallback: a soft light tile with a small line glyph. The photo fades in over it. */}
-      <View style={[styles.glyph, dark && { backgroundColor: `hsl(${look.hue}, 30%, 28%)`, justifyContent: "flex-start", paddingTop: Math.round(size * 0.2) }]}>
-        <Icon name={look.icon} size={dark ? glyph + 4 : glyph} color={dark ? "rgba(255,255,255,0.55)" : FALLBACK_GLYPH} />
+      <View style={[styles.glyph, !dark && { backgroundColor: `hsl(${look.hue}, 46%, ${small ? 94 : 95}%)` }, dark && { backgroundColor: `hsl(${look.hue}, 30%, 28%)`, justifyContent: "flex-start", paddingTop: Math.round(size * 0.2) }]}>
+        <Icon name={look.icon} size={dark ? glyph + 4 : glyph} color={dark ? "rgba(255,255,255,0.55)" : `hsl(${look.hue}, 38%, ${small ? 52 : 66}%)`} />
       </View>
       {imageUri ? (
         <Animated.Image
@@ -120,8 +123,6 @@ export function Photo({
     </View>
   );
 }
-
-const FALLBACK_GLYPH = "#b4b4be";
 
 const styles = StyleSheet.create({
   photo: { overflow: "hidden", backgroundColor: colors.surface },

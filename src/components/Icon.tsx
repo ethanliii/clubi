@@ -93,7 +93,13 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
           <Path d="M4 21c1-4 4-6 8-6s7 2 8 6" {...stroke} />
         </>
       )}
-      {name === "spark" && <Path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" {...stroke} />}
+      {/* "Picked for you": a compass, not a sparkle. */}
+      {name === "spark" && (
+        <G>
+          <Circle cx={12} cy={12} r={9} {...stroke} />
+          <Path d="M15.6 8.4l-1.9 5.3-5.3 1.9 1.9-5.3z" {...stroke} />
+        </G>
+      )}
       {name === "search" && (
         <>
           <Circle cx={11} cy={11} r={7} {...stroke} />

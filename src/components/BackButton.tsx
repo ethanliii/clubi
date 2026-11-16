@@ -26,7 +26,7 @@ export function BackButton({
       onPress={onPress}
       style={({ pressed }) => [styles.button, onPhoto && styles.onPhoto, pressed && styles.pressed, style]}
     >
-      <Icon name="back" size={20} color={colors.fg} />
+      <Icon name="back" size={onPhoto ? 20 : 22} color={colors.fg} />
     </Pressable>
   );
 }
