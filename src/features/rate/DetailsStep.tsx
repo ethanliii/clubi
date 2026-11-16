@@ -78,11 +78,9 @@ function Row({
       <Text numberOfLines={1} style={styles.rowLabel}>
         {label}
       </Text>
-      {value ? (
-        <Text numberOfLines={1} style={styles.rowValue}>
-          {value}
-        </Text>
-      ) : null}
+      <Text numberOfLines={1} style={styles.rowValue}>
+        {value ?? ""}
+      </Text>
       <Icon name={open ? "chevronDown" : "chevron"} size={16} color={colors.low} />
     </Pressable>
   );

@@ -308,7 +308,7 @@ export function ResultStep({
         </Pop>
         <Rise delay={120}>
           <View style={styles.place_pill}>
-            <Text style={styles.placePillText}>{result.label}</Text>
+            <Text style={styles.placePillText}>{result.label.split(" · ")[0]}</Text>
           </View>
         </Rise>
       </View>
@@ -414,13 +414,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.bg,
   },
   actionPressed: { backgroundColor: palette.field },
   actionOff: { opacity: 0.38 },
-  actionText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
+  actionText: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.fg, textDecorationLine: "underline" },
 
   result: { alignItems: "center", gap: spacing.lg, paddingTop: spacing.sm },
   resultName: { alignSelf: "stretch", gap: 3 },
