@@ -64,7 +64,7 @@ export const follow = mutation({
     }
     const target = await ctx.db.get("users", args.userId);
     if (target === null) {
-      throw new Error("This person isn't on clubi anymore");
+      throw new Error("This person isn't on Vioma anymore");
     }
     if (!(await isPublicAccount(ctx, args.userId))) {
       throw new Error("This account is private. Send a friend request instead");

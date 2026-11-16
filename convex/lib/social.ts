@@ -11,6 +11,23 @@ export const BUCKET_RANGE: Record<Bucket, [number, number]> = {
   fine: [3.4, 6.7],
   didnt: [0, 3.3],
 };
+/**
+ * A user's first rankings in a category are scored directly, 1.0 to 10.0: there is nothing yet to
+ * compare against. From this many rankings on, a new one is placed by "which was better?" instead,
+ * and every score in the category comes from its position.
+ */
+export const DIRECT_SCORE_RANKINGS = 5;
+export const MIN_DIRECT_SCORE = 1;
+export const MAX_DIRECT_SCORE = 10;
+
+/** The bucket a directly given score belongs to. */
+export const bucketOfScore = (score: number): Bucket =>
+  score >= BUCKET_RANGE.loved[0] ? "loved" : score >= BUCKET_RANGE.fine[0] ? "fine" : "didnt";
+
+/** The score to show for a ranking: the one its owner gave while the category is still small, else the one its position gives. */
+export const shownScore = (placedScore: number, manualScore: number | undefined, rankingsInCategory: number) =>
+  manualScore !== undefined && rankingsInCategory <= DIRECT_SCORE_RANKINGS ? manualScore : placedScore;
+
 export const CATEGORY_NOUN: Record<Category, string> = {
   nightlife: "bars",
   food: "food spots",

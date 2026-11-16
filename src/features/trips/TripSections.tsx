@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Button, EmptyState, Skeleton, Text } from "../../components";
 import type { GroupItem, GroupResult, Kind, TripDetail, TripShortlistItem } from "../../lib/api";
-import { categoryLabel } from "../../lib/format";
+import { categoryLabel, displayName } from "../../lib/format";
 import { userPath, venuePath } from "../../lib/links";
 import { colors, fontWeight, radius, spacing } from "../../theme";
 import { AddFace, Face, FaceRow } from "./Faces";
@@ -207,7 +207,7 @@ export function Shortlist({
               />
               <View style={styles.flex}>
                 <Text numberOfLines={2} style={styles.listedName}>
-                  {`${index + 1}. ${item.name}`}
+                  {`${index + 1}. ${displayName(item.name)}`}
                 </Text>
                 <Text muted numberOfLines={1} style={styles.listedMeta}>
                   {[categoryLabel(item.category), item.addedBy ? `added by ${item.addedBy.displayName.split(" ")[0]}` : ""]

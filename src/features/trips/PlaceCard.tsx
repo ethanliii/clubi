@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ScoreBadge, Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
-import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
+import { categoryLabel, displayName, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
 import { venuePath } from "../../lib/links";
 import { fontWeight, palette, radius, scrim, spacing } from "../../theme";
 import { PlacePhoto } from "./PlacePhoto";
@@ -78,7 +78,7 @@ export function PlaceCard({
         <View style={styles.head}>
           <View style={styles.text}>
             <Text numberOfLines={2} style={styles.name}>
-              {showRank ? `${item.rank}. ${item.name}` : item.name}
+              {showRank ? `${item.rank}. ${displayName(item.name)}` : displayName(item.name)}
             </Text>
             <Text muted numberOfLines={1} style={styles.meta}>
               {performers ? `${performers} · ${metaLine(item)}` : metaLine(item)}
@@ -124,7 +124,7 @@ export function PlaceRow({ item, now, children }: { item: NearbyItem; now: numbe
         <PlacePhoto uri={item.imageUrl} category={item.category} height={THUMB} width={THUMB} round={radius.md + 2} />
         <View style={styles.text}>
           <Text numberOfLines={1} style={styles.rowName}>
-            {item.name}
+            {displayName(item.name)}
           </Text>
           <Text muted numberOfLines={1} style={styles.meta}>
             {when ? `${when} · ${rowMeta(item)}` : rowMeta(item)}

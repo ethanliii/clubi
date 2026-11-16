@@ -1,54 +1,122 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { router } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
-import { api } from "../../../convex/_generated/api";
-import { Button, Icon, ProfileView, Screen, Skeleton, Text, ThemeToggle, type IconName } from "../../components/bryan";
+import { router, type Href } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { EmptyState, Icon, Screen, TabHeader, Text, type IconName } from "../../components";
+import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel } from "../../features/profile";
+import { FavoritesGallery } from "../../features/profile/FavoritesGallery";
+import { api } from "../../lib/api";
 import { paths, rankingsPath } from "../../lib/links";
-import { colors, radius } from "../../theme";
+import { useNow } from "../../lib/useNow";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
-// Same links + labels as main's profile (Friends, Saved, Following, Trips), plus My rankings / Notifications.
-const LINKS: { label: string; icon: IconName; href: Parameters<typeof router.push>[0] }[] = [
-  { label: "Friends", icon: "users", href: paths.friends },
+const SHORTCUTS: { label: string; icon: IconName; href: Href }[] = [
   { label: "Saved", icon: "bookmark", href: paths.saved },
-  { label: "Following", icon: "music", href: paths.following },
-  { label: "Trips", icon: "calendar", href: paths.trips },
-  { label: "My rankings", icon: "check", href: rankingsPath() },
-  { label: "Notifications", icon: "bell", href: paths.notifications },
+  { label: "Plans", icon: "users", href: paths.trips },
+  { label: "Artists", icon: "music", href: paths.following },
 ];
 
-/** My profile. UI-SPEC §8. */
+/** My profile: who I am, my taste, my counts and my ranked lists, all from `api.profile.get`. */
 export default function ProfileScreen() {
   const profile = useQuery(api.profile.get, {});
-  const { signOut } = useAuthActions();
+  const now = useNow();
+
+  // null only while signing out; the gate moves the user on.
+  if (profile === undefined || profile === null) {
+    return (
+      <Screen>
+        <TabHeader title="" style={styles.bar} />
+        <ProfileSkeleton />
+      </Screen>
+    );
+  }
+
+  // A post shows the place's photo when its author added none: the same `imageUrl` its ranked row has.
+  const photoOf = new Map<string, string>();
+  for (const list of profile.lists) {
+    for (const item of list.items) if (item.imageUrl) photoOf.set(`${item.kind}-${item.id}`, item.imageUrl);
+  }
+
   return (
     <Screen>
-      <View style={styles.head}>
-        <Text variant="heading">Profile</Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <ThemeToggle />
-          <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} style={styles.gear} hitSlop={8}>
-            <Icon name="gear" size={20} color={colors.fg} />
-          </Pressable>
+      <TabHeader title="" style={styles.bar} />
+      <ProfileHeader
+        user={profile.user}
+        counts={profile.counts}
+        onPressFriends={() => router.push(paths.friends)}
+      >
+        <View style={styles.buttons}>
+          <OutlineButton title="Edit profile" onPress={() => router.push(paths.settings)} />
+          <OutlineButton title="My rankings" onPress={() => router.push(rankingsPath())} />
         </View>
-      </View>
-      {profile === undefined ? <Skeleton height={300} /> : profile === null ? <Text muted>Not signed in</Text> : <ProfileView profile={profile} />}
-      <View style={styles.links}>
-        {LINKS.map((l) => (
-          <Pressable key={l.label} accessibilityRole="button" accessibilityLabel={l.label} onPress={() => router.push(l.href)} style={styles.link}>
-            <Icon name={l.icon} size={18} color={colors.fg} />
-            <Text style={{ fontWeight: "600" }}>{l.label}</Text>
+      </ProfileHeader>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pills} contentContainerStyle={styles.pillRow}>
+        {SHORTCUTS.map((shortcut) => (
+          <Pressable
+            key={shortcut.label}
+            accessibilityRole="button"
+            accessibilityLabel={shortcut.label}
+            hitSlop={{ top: 4, bottom: 4 }}
+            onPress={() => router.push(shortcut.href)}
+            style={({ pressed }) => [styles.pill, pressed && styles.pillPressed]}
+          >
+            <Icon name={shortcut.icon} size={16} color={colors.fg} />
+            <Text style={styles.pillLabel}>{shortcut.label}</Text>
           </Pressable>
         ))}
-      </View>
-      <Button title="Sign out" variant="ghost" onPress={() => void signOut()} />
+      </ScrollView>
+
+      <FavoritesGallery userId={profile.user.userId} mine hasRanked={profile.lists.length > 0} />
+
+      {profile.lists.length === 0 ? (
+        <EmptyState
+          icon="star"
+          title="Nothing ranked yet"
+          body="Rank a place you've been and your lists start here."
+          actionLabel="Rank your first place"
+          onAction={() => router.push(paths.rate)}
+        />
+      ) : (
+        <RankedLists lists={profile.lists} limit={5} onSeeAll={(category) => router.push(rankingsPath(category))} />
+      )}
+
+      {profile.recentPosts.length > 0 ? (
+        <View style={styles.section}>
+          <SectionLabel title="Recent" />
+          <View style={styles.posts}>
+            {profile.recentPosts.map((post) => (
+              <PostCard
+                key={post.postId}
+                post={post}
+                now={now}
+                imageUrl={photoOf.get(`${post.target.kind}-${post.target.id}`)}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  gear: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
-  links: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  link: { flexDirection: "row", alignItems: "center", gap: 8, width: "48.5%", paddingVertical: 12, paddingHorizontal: 12, borderRadius: radius.lg, backgroundColor: colors.surface },
+  // Only the icons: the name is in the header right under them.
+  bar: { height: 40, marginBottom: -spacing.sm },
+  buttons: { flexDirection: "row", gap: spacing.sm },
+  // Light-grey icon pills in one row that scrolls sideways and bleeds to the screen edges.
+  pills: { flexGrow: 0, marginHorizontal: -spacing.lg },
+  pillRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: palette.field,
+  },
+  pillPressed: { backgroundColor: palette.fieldPressed },
+  pillLabel: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
+  section: { gap: spacing.md, paddingTop: spacing.sm },
+  posts: { gap: spacing.lg },
 });

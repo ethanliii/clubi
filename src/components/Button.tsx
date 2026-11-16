@@ -4,24 +4,27 @@ import { Icon, type IconName } from "./Icon";
 import { Text } from "./Text";
 
 /**
- * Bryan's button look (rounded-rect, accent primary, outlined ghost, white pill `light`) with the
- * extra API main's screens use: `secondary` / `quiet` / `destructive`, `size`, `loading`, `icon`.
+ * `primary` the one main action on a screen (solid accent, white label) · `secondary` a light grey
+ * action beside it (`ghost` is the old name for the same thing) · `quiet` text only, for the least
+ * important action · `destructive` red outline, red label: delete, leave, sign out · `light` white, for use on
+ * photos and video · `link` inline text in the accent.
  */
 type Variant = "primary" | "secondary" | "ghost" | "quiet" | "destructive" | "light" | "link";
 
 export type ButtonProps = Omit<PressableProps, "style" | "children"> & {
   title: string;
   variant?: Variant;
-  /** `lg` (default) the main action, `md` actions in a row, `sm` inline ones. */
+  /** `lg` (default) 50 tall for the main action, `md` 44 for actions in a row, `sm` 36 for inline ones. */
   size?: "lg" | "md" | "sm";
-  /** Spinner in place of the label; ignores taps. The label stays for screen readers and tests. */
+  /** Shows a spinner in place of the label and ignores taps. The label stays for screen readers and tests. */
   loading?: boolean;
+  /** An icon in front of the label. */
   icon?: IconName;
   style?: StyleProp<ViewStyle>;
 };
 
 export function Button({ title, variant = "primary", size = "lg", loading = false, icon, disabled, style, ...props }: ButtonProps) {
-  const kind = variant === "secondary" ? "ghost" : variant;
+  const kind = variant === "ghost" ? "secondary" : variant;
   const ink = INK[kind];
   return (
     <Pressable
@@ -33,14 +36,17 @@ export function Button({ title, variant = "primary", size = "lg", loading = fals
         styles.base,
         kind !== "link" && sizes[size],
         styles[kind],
-        (pressed || (disabled && !loading)) && styles.dimmed,
+        pressed && (kind === "link" || kind === "quiet" ? styles.pressedText : styles.pressed),
+        disabled && !loading && styles.disabled,
         style,
       ]}
       {...props}
     >
       <View style={[styles.content, loading && styles.hidden]}>
         {icon ? <Icon name={icon} size={size === "sm" ? 15 : 18} color={ink} /> : null}
-        <Text numberOfLines={1} style={[styles.label, size === "sm" && styles.labelSm, { color: ink }]}>{title}</Text>
+        <Text numberOfLines={1} style={[styles.label, size === "sm" && styles.labelSm, kind === "link" && styles.labelLink, { color: ink }]}>
+          {title}
+        </Text>
       </View>
       {loading ? (
         <View style={styles.spinner}>
@@ -51,33 +57,41 @@ export function Button({ title, variant = "primary", size = "lg", loading = fals
   );
 }
 
-const INK: Record<Exclude<Variant, "secondary">, string> = {
+const INK: Record<Exclude<Variant, "ghost">, string> = {
   primary: colors.white,
-  ghost: colors.fg,
+  secondary: colors.fg,
   quiet: colors.fg,
   destructive: palette.danger,
-  light: "#14111a",
-  link: colors.fg,
+  light: colors.fg,
+  link: colors.accent,
 };
 
 const sizes = StyleSheet.create({
-  lg: { paddingVertical: spacing.md + 2, paddingHorizontal: spacing.lg },
-  md: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
-  sm: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  lg: { minHeight: 50, paddingHorizontal: spacing.xl - 2 },
+  md: { minHeight: 44, paddingHorizontal: spacing.lg },
+  sm: { minHeight: 36, paddingHorizontal: spacing.md + 2 },
 });
 
 const styles = StyleSheet.create({
-  base: { width: "100%", borderRadius: radius.lg, alignItems: "center", justifyContent: "center" },
+  base: {
+    width: "100%",
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   content: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm },
   hidden: { opacity: 0 },
-  spinner: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  spinner: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   primary: { backgroundColor: colors.accent },
-  ghost: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  secondary: { backgroundColor: palette.field },
   quiet: { backgroundColor: "transparent" },
-  destructive: { backgroundColor: palette.dangerSoft, borderWidth: 1, borderColor: colors.line },
-  light: { backgroundColor: colors.white, borderRadius: radius.pill, paddingVertical: 15 },
-  link: { backgroundColor: "transparent", paddingVertical: spacing.xs, width: "auto" },
-  dimmed: { opacity: 0.6 },
-  label: { fontWeight: fontWeight.semibold, textAlign: "center" },
-  labelSm: { fontSize: 13 },
+  destructive: { backgroundColor: colors.bg, borderWidth: 1.5, borderColor: palette.danger },
+  light: { backgroundColor: colors.white, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.hairline },
+  link: { backgroundColor: "transparent", paddingVertical: spacing.xs, width: "auto", minHeight: 32 },
+  pressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
+  pressedText: { opacity: 0.55 },
+  disabled: { opacity: 0.38 },
+  label: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, textAlign: "center" },
+  labelSm: { fontSize: 14, lineHeight: 18 },
+  labelLink: { fontSize: 14, lineHeight: 20 },
 });

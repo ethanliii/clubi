@@ -16,9 +16,8 @@ import {
   useSettingsToggle,
 } from "../features/settings";
 import { api, type NotifPrefs, type Visibility } from "../lib/api";
-import { useDemoLocation } from "../lib/demoLocation";
 import { errorMessage } from "../lib/errors";
-import { radius, setThemeMode, spacing, themeMode } from "../theme";
+import { colors, radius, spacing } from "../theme";
 
 const VISIBILITY: { value: Visibility; label: string }[] = [
   { value: "friends", label: "Friends" },
@@ -31,7 +30,7 @@ const NOTIFICATIONS: { key: keyof NotifPrefs; label: string }[] = [
   { key: "friendRequests", label: "Friend requests" },
   { key: "eventsTonight", label: "Events tonight" },
   { key: "artistAlerts", label: "Artists I like" },
-  { key: "tripUpdates", label: "Trips" },
+  { key: "tripUpdates", label: "Plans with friends" },
   { key: "reactions", label: "Likes and comments" },
 ];
 
@@ -43,7 +42,6 @@ export default function SettingsScreen() {
   const { signOut } = useAuthActions();
   const toggle = useSettingsToggle();
   const toast = useToast();
-  const { isDemo, setDemo } = useDemoLocation();
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -74,12 +72,12 @@ export default function SettingsScreen() {
         {settings === undefined || settings === null ? (
           <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
             <View style={styles.loadingFace}>
-              <Skeleton width={96} height={96} round={48} />
-              <Skeleton width={140} height={20} />
+              <Skeleton width={72} height={72} round={36} />
+              <Skeleton width={96} height={14} />
             </View>
-            <Skeleton height={210} round={radius.xl} />
-            <Skeleton height={150} round={radius.xl} />
-            <Skeleton height={260} round={radius.xl} />
+            <Skeleton height={200} round={radius.lg} />
+            <Skeleton height={150} round={radius.lg} />
+            <Skeleton height={260} round={radius.lg} />
           </View>
         ) : (
           <>
@@ -119,27 +117,10 @@ export default function SettingsScreen() {
               ))}
             </SettingsGroup>
 
-            <SettingsGroup title="Appearance" footer="The app restarts to switch.">
-              <View style={{ padding: 12 }}>
-                <Segmented
-                  options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]}
-                  value={themeMode}
-                  onChange={(m) => setThemeMode(m)}
-                />
-              </View>
-            </SettingsGroup>
-
-            <SettingsGroup
-              title="Location"
-              footer="Puts you at the demo spot in San Francisco. It stays on while your real location isn't available."
-            >
-              <SwitchRow label="Demo location" value={isDemo} onValueChange={setDemo} />
-            </SettingsGroup>
-
             <SettingsGroup title="Account">
               <SettingsRow label="Username" value={`@${settings.username}`} />
               <SettingsRow label="Change password" onPress={() => setPasswordOpen(true)} />
-              <SettingsRow label="Sign out" chevron={false} disabled={signingOut} onPress={() => void onSignOut()} />
+              <SettingsRow label="Sign out" tone="action" chevron={false} disabled={signingOut} onPress={() => void onSignOut()} />
             </SettingsGroup>
 
             {VERSION ? (
@@ -149,7 +130,7 @@ export default function SettingsScreen() {
             ) : null}
 
             <View style={styles.apart}>
-              <SettingsGroup>
+              <SettingsGroup footer="Removes your rankings, posts and friends for good.">
                 <SettingsRow label="Delete account" tone="danger" chevron={false} onPress={() => setDeleteOpen(true)} />
               </SettingsGroup>
             </View>
@@ -171,8 +152,8 @@ const styles = StyleSheet.create({
   scroller: { flex: 1 },
   content: { gap: spacing.xl + spacing.xs, paddingBottom: spacing.xxl * 2 },
   loading: { gap: spacing.xl },
-  loadingFace: { alignItems: "center", gap: spacing.md, paddingBottom: spacing.sm },
-  choice: { gap: spacing.md, paddingHorizontal: ROW_INSET, paddingTop: 14, paddingBottom: ROW_INSET },
+  loadingFace: { alignItems: "center", gap: spacing.sm, paddingBottom: spacing.sm },
+  choice: { gap: spacing.md, paddingHorizontal: ROW_INSET, paddingTop: spacing.md, paddingBottom: spacing.md + 2 },
   choiceText: { gap: 2 },
-  apart: { marginTop: spacing.md },
+  apart: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: spacing.sm },
 });

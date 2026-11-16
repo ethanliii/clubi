@@ -14,14 +14,11 @@ export const paths = {
   home: "/" as Href,
   map: "/map" as Href,
   rate: "/rate" as Href,
-  /** The friend feed is the Home tab since Bryan's tab order (Home = feed, Search = tonight picks). */
+  /** The feed is the first tab, the screen the app opens on. */
   feed: "/" as Href,
-  search: "/search" as Href,
+  /** The "For you" tab: recommendations. */
+  recs: "/recs" as Href,
   profile: "/profile" as Href,
-  /** Main's "For you" tab is Bryan's Search tab. */
-  recs: "/search" as Href,
-  /** Main's group map (friends' picks on one map). */
-  groupMap: "/group-map" as Href,
   notifications: "/notifications" as Href,
   friends: "/friends" as Href,
   settings: "/settings" as Href,
@@ -30,6 +27,7 @@ export const paths = {
   following: "/following" as Href,
   plan: "/plan" as Href,
   rankings: "/rankings" as Href,
+  groupMap: "/group-map" as Href,
   welcome: "/welcome" as Href,
   quiz: "/quiz" as Href,
   tasteCard: "/taste-card" as Href,
@@ -56,7 +54,7 @@ const STATIC_ROUTES = new Set([
   "/",
   "/map",
   "/rate",
-  "/search",
+  "/recs",
   "/profile",
   "/notifications",
   "/friends",
@@ -66,6 +64,7 @@ const STATIC_ROUTES = new Set([
   "/following",
   "/plan",
   "/rankings",
+  "/group-map",
 ]);
 
 /** `/venue/<kind>/<id>` and `/rate/<kind>/<id>`: two parameters, the first is place or event. */
@@ -84,6 +83,8 @@ export function resolveLink(link: string | null | undefined): Href | null {
   const queryStart = trimmed.search(/[?#]/);
   const path = (queryStart === -1 ? trimmed : trimmed.slice(0, queryStart)).replace(/\/+$/, "") || "/";
   const query = queryStart === -1 ? "" : trimmed.slice(queryStart);
+  // The feed used to be its own tab at "/feed"; a link saved from then opens the first tab, where it lives now.
+  if (path === "/feed") return `/${query}` as Href;
   if (STATIC_ROUTES.has(path)) return `${path}${query}` as Href;
 
   const [root, first, second, ...rest] = path.slice(1).split("/");

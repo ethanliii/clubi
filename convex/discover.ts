@@ -3,7 +3,7 @@ import { query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { QueryCtx } from "./_generated/server";
 import type {
-  Category, GroupItem, GroupResult, NearbyItem, NearbyResult, PlanMember, PlanResult, PlanSlot, PlanStop,
+  Category, GroupItem, GroupResult, NearbyItem, NearbyResult, PlanMember, PlanResult, PlanSlot, PlanStop, Filter,
 } from "./lib/contract";
 import {
   ALGO, ATTRIBUTION, AffinityRow, Candidate, DEFAULT_LIMIT, DEFAULT_RADIUS_METERS, EVENT_DEFAULT_LENGTH_MS, MAX_CANDIDATES,
@@ -63,6 +63,9 @@ const filterValidator = v.union(
   v.literal("popups"), v.literal("outdoors"), v.literal("all"),
 );
 
+/** The radius a filter searches when the caller sets none, where it is not the usual 2.5 km. */
+const FILTER_RADIUS_METERS: Partial<Record<Filter, number>> = { bars: 5000, tonight: 4000 };
+
 export const nearby = query({
   args: {
     lat: v.number(),
@@ -78,8 +81,11 @@ export const nearby = query({
     // A radius the caller set (a circle drawn on the map) is searched as a whole: the candidates are
     // spread across it. Without one, the list is the nearest matches within the default radius, as before.
     const custom = args.radiusMeters !== undefined;
-    const radiusMeters = custom ? clip(args.radiusMeters!, MIN_RADIUS_METERS, MAX_RADIUS_METERS) : DEFAULT_RADIUS_METERS;
-    const pool = await loadInRadius(ctx, args.lat, args.lng, radiusMeters, now, custom ? WIDE_SCAN_LIMIT_PER_SIDE : undefined);
+    // A night out is worth a longer trip than a coffee: bars and "tonight" look further by default.
+    const usual = FILTER_RADIUS_METERS[filter] ?? DEFAULT_RADIUS_METERS;
+    const radiusMeters = custom ? clip(args.radiusMeters!, MIN_RADIUS_METERS, MAX_RADIUS_METERS) : usual;
+    const wide = custom || usual > DEFAULT_RADIUS_METERS;
+    const pool = await loadInRadius(ctx, args.lat, args.lng, radiusMeters, now, wide ? WIDE_SCAN_LIMIT_PER_SIDE : undefined);
     const matches = (c: Candidate) => isVisibleTo(c, viewer, now) && matchesFilter(c, filter, now);
     const candidates = custom ? spreadCandidates(pool.filter(matches)) : nearestMatching(pool, matches);
     const scored = await scoreAll(ctx, candidates, viewer, args.lat, args.lng, now);

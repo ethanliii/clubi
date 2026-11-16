@@ -4,7 +4,7 @@
  * pinLayout.ts, so the two draw the same pins.
  */
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Image, Platform, StyleSheet, View, useWindowDimensions } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 import Svg, { Path } from "react-native-svg";
 import { Text } from "../../components";
@@ -13,7 +13,7 @@ import { formatScore } from "../../lib/format";
 import { colors, fontWeight } from "../../theme";
 import { LIGHT_MAP_STYLE } from "./darkMapStyle";
 import { layoutPins, scaleForRegion, type PinMode } from "./pinLayout";
-import { PIN, START_LAT_DELTA, bubbleSize, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_LAT_DELTA } from "./pinLook";
+import { PHOTO_PIN, PIN, START_LAT_DELTA, bubbleSize, pinColor, pinSize, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_LAT_DELTA } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
 import { displayName } from "./names";
 
@@ -131,12 +131,13 @@ export function MapCanvas({ items, center, user, userIsDemo, selectedId, onSelec
             // bubble to dot) would sit off its place. A new key on iOS has it measured afresh.
             key={
               Platform.OS === "ios"
-                ? `${item.id}|${placement.mode}|${placement.name ? 1 : 0}|${item.id === selectedId ? 1 : 0}`
+                ? `${item.id}|${placement.mode}|${placement.name ? 1 : 0}|${item.id === selectedId ? 1 : 0}|${placement.photo ? 1 : 0}`
                 : item.id
             }
             item={item}
             mode={placement.mode}
             named={placement.name}
+            photo={!!placement.photo && !!item.imageUrl}
             selected={item.id === selectedId}
             onSelect={selectPin}
           />
@@ -175,10 +176,10 @@ const NO_OFFSET = { x: 0, y: 0 };
 const PIN_ROOM = 6;
 
 /** Where the place's point falls inside a bubble's view: `pointY` from the top, at the end of the tip. */
-function bubbleGeometry(item: NearbyItem, named: boolean, selected: boolean) {
+function bubbleGeometry(item: NearbyItem, named: boolean, selected: boolean, photo = false) {
   const grown = selected ? PIN.selectedScale : 1;
   const tip = Math.round(PIN.tip * grown);
-  const pointY = PIN_ROOM + Math.round(bubbleSize(item).height * grown) + tip;
+  const pointY = PIN_ROOM + Math.round(pinSize(item, photo).height * grown) + tip;
   return { tip, pointY, height: pointY + (named ? PIN.name.gap + PIN.name.height : 0) };
 }
 
@@ -186,25 +187,29 @@ function ItemMarker({
   item,
   mode,
   named,
+  photo,
   selected,
   onSelect,
 }: {
   item: NearbyItem;
   mode: PinMode;
   named: boolean;
+  photo: boolean;
   selected: boolean;
   onSelect: (item: NearbyItem | null) => void;
 }) {
+  // The picture arrives after the pin is first drawn: when it has, the pin is drawn once more with it.
+  const [pictured, setPictured] = useState(false);
   // A custom pin is redrawn on every frame while `tracksViewChanges` is on. Keep it on until the
   // pin's current look has been on screen for a moment, then freeze it; a new look thaws it again.
-  const signature = `${pinSignature(item, selected)}|${mode}|${named ? "1" : "0"}`;
+  const signature = `${pinSignature(item, selected)}|${mode}|${named ? "1" : "0"}|${photo ? (pictured ? "p1" : "p0") : ""}`;
   const [settled, setSettled] = useState<string | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => setSettled(signature), SETTLE_MS);
     return () => clearTimeout(timer);
   }, [signature]);
 
-  const geo = mode === "bubble" ? bubbleGeometry(item, named, selected) : null;
+  const geo = mode === "bubble" ? bubbleGeometry(item, named, selected, photo) : null;
 
   return (
     <Marker
@@ -222,7 +227,7 @@ function ItemMarker({
         onSelect(item);
       }}
     >
-      <Pin item={item} mode={mode} named={named} selected={selected} />
+      <Pin item={item} mode={mode} named={named} selected={selected} photo={photo} onPicture={() => setPictured(true)} />
     </Marker>
   );
 }
@@ -233,11 +238,16 @@ const Pin = memo(function Pin({
   mode,
   named,
   selected,
+  photo = false,
+  onPicture,
 }: {
   item: NearbyItem;
   mode: PinMode;
   named: boolean;
   selected: boolean;
+  /** Draw the place's picture in a circle with the score on a chip, not the score pill. */
+  photo?: boolean;
+  onPicture?: () => void;
 }) {
   const color = pinColor(item.score);
   const label = pinLabel(item);
@@ -247,6 +257,40 @@ const Pin = memo(function Pin({
       // The dot is small; the clear box around it is the tap target.
       <View accessible accessibilityRole="button" accessibilityLabel={label} style={styles.dotTarget}>
         <View style={[styles.dot, { backgroundColor: color }]} />
+      </View>
+    );
+  }
+
+  if (photo && item.imageUrl) {
+    const grown = selected ? PIN.selectedScale : 1;
+    const side = Math.round(pinSize(item, true).width * grown);
+    const geo = bubbleGeometry(item, named, selected, true);
+    const edge = selected ? PIN.selectedFill : PIN.fill;
+    return (
+      <View
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={[styles.pin, { width: named ? PIN.name.maxWidth : side + 12, height: geo.height, paddingTop: PIN_ROOM }]}
+      >
+        <View style={[styles.photo, { width: side, height: side, borderRadius: side / 2, borderColor: edge, backgroundColor: PIN.fill }]}>
+          <Image
+            source={{ uri: item.imageUrl }}
+            onLoad={onPicture}
+            style={{ width: side - PHOTO_PIN.border * 2, height: side - PHOTO_PIN.border * 2, borderRadius: side / 2 }}
+          />
+        </View>
+        <View style={[styles.tip, { borderTopWidth: geo.tip, borderTopColor: edge }]} />
+        <View style={[styles.chip, { top: PIN_ROOM + side - PHOTO_PIN.chipHeight + PHOTO_PIN.chipDrop }]}>
+          <Text allowFontScaling={false} style={[styles.chipText, { color }]}>
+            {formatScore(item.score)}
+          </Text>
+        </View>
+        {named ? (
+          <Text allowFontScaling={false} numberOfLines={1} style={[styles.name, selected && styles.nameSelected]}>
+            {displayName(item.name, true)}
+          </Text>
+        ) : null}
       </View>
     );
   }
@@ -315,6 +359,30 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
+  photo: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: PHOTO_PIN.border,
+    overflow: "hidden",
+    shadowColor: colors.black,
+    shadowOpacity: 0.22,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  chip: {
+    position: "absolute",
+    alignSelf: "center",
+    height: PHOTO_PIN.chipHeight,
+    paddingHorizontal: 6,
+    borderRadius: PHOTO_PIN.chipHeight / 2,
+    justifyContent: "center",
+    backgroundColor: PIN.fill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: PIN.hairline,
+    elevation: 5,
+  },
+  chipText: { fontSize: PHOTO_PIN.chipFont, lineHeight: PHOTO_PIN.chipHeight - 2, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
   bubbleSelected: { borderColor: PIN.selectedFill, shadowOpacity: 0.3, shadowRadius: 7, elevation: 7 },
   score: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"], letterSpacing: -0.2 },
   name: {

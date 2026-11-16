@@ -2,13 +2,13 @@ import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, ScoreBadge, Skeleton, Text, type IconName } from "../../components";
 import type { Bucket, RankResult, RankedListItem, VenueDetail } from "../../lib/api";
-import { categoryLabel, formatEventTime, formatPrice, formatScore } from "../../lib/format";
+import { categoryLabel, displayName, formatEventTime, formatPrice, formatScore } from "../../lib/format";
 import { colors, fontWeight, palette, radius, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
 import { opponentOf, totalRounds, type Search } from "./search";
 import { BigScore, BUCKET_LOOK, PlacePhoto, Pop, PressScale, Rise, type } from "./ui";
 
-/** The three answers to "Would you go back?", in the order they are drawn. */
+/** The three answers to "How was it?", in the order they are drawn. */
 const BUCKETS: { bucket: Bucket; icon: IconName }[] = [
   { bucket: "loved", icon: "thumbUp" },
   { bucket: "fine", icon: "minus" },
@@ -27,7 +27,7 @@ function venueLine(venue: VenueDetail): string {
     .join(" · ");
 }
 
-/** Step 2. The place fills the top; "Would you go back?" and three round answers sit at the bottom, within reach of a thumb. */
+/** Step 2. The place fills the top; "How was it?" and three round answers sit at the bottom, within reach of a thumb. */
 export function HowStep({
   venue,
   picked = null,
@@ -53,7 +53,7 @@ export function HowStep({
       footer={
         <View style={styles.ask}>
           <Text accessibilityRole="header" style={[type.question, styles.center]}>
-            Would you go back?
+            How was it?
           </Text>
           <View style={styles.circles}>
             {BUCKETS.map(({ bucket, icon }) => {
@@ -93,7 +93,7 @@ export function HowStep({
           <PlacePhoto uri={venue.imageUrl} category={venue.category} height={photoHeight} round={PHOTO_ROUND} />
           <View style={styles.placeText}>
             <Text numberOfLines={2} style={styles.placeName}>
-              {venue.name}
+              {displayName(venue.name)}
             </Text>
             <Text numberOfLines={1} style={type.meta}>
               {venueLine(venue)}
@@ -106,7 +106,7 @@ export function HowStep({
           <PlacePhoto category={venue.category} height={64} width={64} round={32} />
           <View style={styles.placeText}>
             <Text numberOfLines={3} style={[styles.placeName, styles.placeNameBare]}>
-              {venue.name}
+              {displayName(venue.name)}
             </Text>
             <Text numberOfLines={1} style={[type.meta, styles.center]}>
               {venueLine(venue)}
@@ -331,7 +331,7 @@ export function ResultStep({
         <Rise style={styles.resultName}>
           <View accessible accessibilityRole="header" accessibilityLabel={`${venue.name} is now ${result.label}`}>
             <Text numberOfLines={2} style={styles.resultHeading}>
-              {venue.name}
+              {displayName(venue.name)}
             </Text>
           </View>
           <Text numberOfLines={1} style={[type.meta, styles.center]}>
@@ -369,7 +369,7 @@ export function ResultStep({
               >
                 <View style={styles.rowText}>
                   <Text numberOfLines={1} style={[type.strong, isNew && styles.rowNameNew]}>
-                    {`${row.position}. ${row.name}`}
+                    {`${row.position}. ${displayName(row.name)}`}
                   </Text>
                   {isNew ? (
                     <Text numberOfLines={1} style={styles.rowMetaNew}>

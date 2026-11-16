@@ -20,7 +20,7 @@ Branch `bryan-ui-input`, merged up to `main` first. Decisions come from the merg
 
 ## Pass 3 (reference recordings: Beli feed + rank flow, Letterboxd, Instagram, TikTok)
 - **Feed card (Beli):** "Name ranked Place" + colored score ring, up to 2 photos side by side (no placeholder when there are none), "Notes:", tags, "You gave it X", heart · comment · share on the left, ⊕ Rank it too + bookmark on the right, Today / Yesterday dividers.
-- **Rank flow (Beli):** "Add to my list of …", "Would you go back?" as three colored circles, "Which do you prefer?" with OR, and Undo · Too tough · Skip (Skip compares against the next place instead).
+- **Rank flow (Beli):** "Add to my list of …", "How was it?" as three colored circles, "Which do you prefer?" with OR, and Undo · Too tough · Skip (Skip compares against the next place instead).
 - **Later, needs backend:** a "For You" full-screen mode (Instagram/TikTok) needs a public feed; "ranked with Nicole, Leanna…" needs tagged friends on a post; visit count needs a visits field. Letterboxd-style quick sheet (Been / Save / Going + share to stories) can be added to the venue page.
 
 ## Pass 4 (references: Beli My Lists, Google Maps place card, Instagram profile)
@@ -66,49 +66,6 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 - **`src/lib/links.ts` copied byte-for-byte from `main`** so the merge has nothing to resolve there. New buttons use its `paths` / `postPath`.
 - **Buttons for main's screens (same labels as main):** Profile tab → gear "Settings", links Friends · Saved · Following · Trips · My rankings · Notifications; "Edit profile" → `/settings`; friend profile → "Invite <name> to a trip" (→ `/trips`); Search → Trips · Saved under Plan my night; feed card → "View post" (`/post/<id>`); profile grid photo → `/post/<id>`. These routes (`trips`, `trip/[tripId]`, `saved`, `settings`, `following`, `post/[postId]`, `performer/[performerId]`) come from `main` on merge.
 - **Brand:** name "clubi", tagline "Go where your friends go.", `DESCRIPTION` in `src/constants/brand.ts` + `app.json` description. Google / Apple buttons smaller (16 px mark, 14 px label).
-
-## Pass 10 (Add a spot + Near me)
-- **Add tab (was Rate):** tab label "Add", heading "Add a spot". Tap a row to rank it (same flow). Bookmark button on each row saves it to Want to go (`saves.toggle` type "want"). The "Would you go back?" step also has "Haven't been yet? Save for later". Search box keeps the accessibility label "Where did you go?" for Revyl; **Revyl tests that tap the "Rate" tab need the new label "Add".**
-- **Map → Near me:** pill before the filter chips. Shows events within 1.5 km from `discover.nearby({ filter: "events", radiusMeters: 1500 })`, in the backend's order (fit + distance + timing, `mapRank`), with a header "Events near you". Tapping any other filter turns it off.
-
-- **Rank question:** "Would you go back?" (was "How was it?"), answers below.
-- **Bucket labels, no emojis:** "Absolutely" (`loved`) · "Depends" (`fine`) · "Nope" (`didnt`), plain colored circles. Same in `(tabs)/rate.tsx`, main's `features/rate/steps.tsx` and the quiz's "Been here?". Backend bucket values unchanged. **Revyl tests and UI-SPEC §6 still say "Loved it / It was fine / Didn't like it" and need the new labels.**
-
-## Pass 11 (full search, references: Spotify search + Beli search)
-- Search tab box now opens `features/search/SearchMode.tsx`: search box + **Cancel**, **Places / People** tabs (Beli's Restaurants / Members), "Current location" row, pills **Near me** (opens Map with Near me on, `?nearMe=1`) · **Want to go** (`/saved`) · **Plan my night**, then **Recent searches** (this device only, `src/lib/recentSearches.ts`, SecureStore, 8 max) or live results.
-- Rows (Spotify): 48 px thumbnail, name, "Place · Bar · 0.4 mi" / "@username · 2 mutual", ⊕ add to Want to go → green ✓, ✕ remove from recents. People rows use `FriendButton`. Results from `places.search` / `friends.search`, backend order.
-- Search box keeps the accessibility label "Describe your night". The free-text "describe your night" parser is still backend ask E3.
-
-## Pass 12 (merge of Ethan's `ui-overhaul`: Ethan's code, Bryan's look)
-Branch `merge-ui-overhaul` = `main` + `origin/ui-overhaul`. Rule agreed by Bryan and Ethan: keep all of Ethan's code, and wherever the display differs, Bryan's wins.
-- **From Ethan (kept):** all backend changes (Google Places photos in Convex storage, `imageUrl` on feed targets / trips / compare / rank rows, both sides' functions), his screens (Trips, Trip, Plan, Saved, Settings, Following, artist page, Post, Notifications), new shared pieces (`Photo`, `ItemCard`, `Sheet`, `Toast`, `ListRow`, `TextField`…), `features/rate/RateFlow` + `steps` (with Bryan's "Would you go back?" Absolutely / Depends / Nope), map internals (`MapCanvas`, `MapSheet`), additive theme tokens (`palette`, `type`, `layout`, `elevation`, `scrim`, `motion`).
-- **Bryan's kept over Ethan's restyle:** every tab (Home spotlight, Map, Add, Search, Profile), onboarding (welcome, create-account, quiz, You're in; Ethan's taste-card and `(tabs)/feed` removed again), friends, user, compare, rankings, venue page, sign-in, root `_layout` (Bryan's gating + `OnboardingProvider`), `lib/links.ts`, overlord menu, and Bryan's components (`Bits`, `ProfileView`, `Spotlight`, `SearchMode`, `VenueCard`, map surface/peek…).
-- **Shared foundation merged by hand:** `Text`, `Button`, `ScoreBadge`, `VenuePhoto` keep Bryan's look and also accept Ethan's new options (`headline`, `bodyLg`, `soft`; `secondary` / `quiet` / `destructive`, `size`, `loading`, `icon`; score `variant` / `style`; `VenuePhoto` shows the real photo when `uri` is set, Bryan's glow placeholder otherwise).
-- Two lint-only suppressions in Ethan's `MapCanvas.web.tsx` / `MapSheet.tsx` (React Compiler false positives that also fail on his branch).
-- **Not taken (Bryan's display wins):** Ethan's restyled venue page (`features/venue/VenuePage`: I'm going, Get tickets, performers, More like this) and his precise-pin native map. Worth folding into Bryan's venue page / map later.
-
-## Pass 13 (light / dark mode)
-- `src/theme/mode.ts`: the choice is read synchronously at startup (SecureStore `getItem`, localStorage on web), default dark. Switching saves it and reloads the app (`DevSettings.reload()`; a production build will need `expo-updates` `reloadAsync`), because every StyleSheet is built once at startup.
-- `tokens.ts`: `colors` / `palette` = light or dark set (light values = the prototype's light mode). `onboardingColors` = cream Hinge look in light, dark palette in dark. Status bar, both native maps and `app.json` (`userInterfaceStyle: automatic`) follow.
-- Buttons: sun/moon `ThemeToggle` next to the gear on the Profile tab, and Settings → Appearance (Dark / Light).
-
-## Pass 14 (stand-in photos)
-- `src/constants/placeholderPhotos.ts`: free Unsplash photos per category (nightlife, live, food, culture, outdoors, popup), picked per place with a stable seed. Used by `VenueCard`'s `Photo`, `VenuePhoto` (hue-only callers with a category hue), map pins, Spotlight, profile. Real `imageUrl` (Google Places, backend) always wins; the glow placeholder sits underneath if a stand-in fails to load. Quiz covers stay glow-only.
-
-## Pass 15 (map polish, photo upload, theme button everywhere)
-- **Map list:** drag the handle down to hide it (only the handle, a "N places" line and the OSM credit stay), drag up or tap to bring it back; tapping a pin opens it again. Legend: Friends (pink ring) · Public (grey, people icon) · For you (score color).
-- **Zoom:** + / − buttons (animated `animateToRegion`), rotate/pitch off, and pins stop re-rendering ~1.5 s after they change (`tracksViewChanges` off) so pan/zoom stay smooth.
-- **Pins by zoom:** zoomed out only the top 3–5 (backend `rank`) are photo pins; zoom in and more become photos (8 → 14 → 24 → all). The rest are small score-colored dots you can tap.
-- **Who rated it:** friends rated it → their faces + the top friend's score (pink ring) on the pin, list row and place card; nobody I know → **public score** (grey pill with a people icon, "Public 7.6 · 23 ratings"); no ratings → the "for you" prediction.
-- **Backend (small, additive, for Ethan to review):** `NearbyItem.publicScore?` in `contract.ts` and set in `convex/lib/discovery.ts` (average of everyone else's rankings in the crowd sample, one decimal; totals only).
-- **Add a photo** in the rank flow (Details step): pick from the library (`lib/photos.pickPhoto`), uploaded on Post via `posts.generateUploadUrl`, sent as `rankings.rank({ photoStorageId })`.
-- **Light / dark button** (sun/moon) now also on Home, Search, Map and Welcome (top right), not only Profile / Settings.
-
-## Pass 16 (second ui-overhaul merge: Ethan's newest backend, Bryan's screens)
-- From `ui-overhaul` (up to `ef119d3`): all `convex/` changes (Google **area import** with a $100 spend ceiling and caller-set radius, catalog/discover/rankings updates), tests, his new **group map** (`/group-map`, `features/groupmap`), and his own screens/components.
-- Kept Bryan's: every tab, onboarding, profile, friends, compare, rankings, venue, sign-in, settings, root layout, theme (dark default; his `isDark` / `toggleThemeMode` names now map onto Bryan's `mode.ts`, same storage key), links, map surface/peek, foundation components.
-- Not taken: his `(tabs)/recs` "For you" tab (Bryan's Search covers it; `paths.recs` → `/search`), his removed `home/Hero` / `Shortcuts`.
-- Three lint suppressions in his `feed/Comments.tsx` (React Compiler rules; same code as on his branch).
 
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.

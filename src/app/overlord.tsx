@@ -37,10 +37,10 @@ export default function OverlordScreen() {
     {
       title: "Tabs",
       rows: [
-        { label: "Home / Feed", href: paths.home },
+        { label: "Feed (opens first)", href: paths.feed },
         { label: "Map", href: paths.map },
         { label: "Rate: pick a spot", href: paths.rate },
-        { label: "Search / Tonight", href: paths.search },
+        { label: "Search", href: paths.recs },
         { label: "Profile", href: paths.profile },
       ],
     },
@@ -80,11 +80,10 @@ export default function OverlordScreen() {
       rows: [
         { label: "Settings", href: paths.settings },
         { label: "Welcome", href: paths.welcome },
-        { label: "Create account", href: "/create-account" as Href },
         { label: "Sign up", href: signInPath("signup") },
         { label: "Sign in", href: signInPath("signin") },
         { label: "Taste quiz", href: paths.quiz },
-        { label: "You're in", href: "/youre-in" as Href },
+        { label: "Taste card", href: paths.tasteCard },
         { label: "Page not found", href: "/this-page-does-not-exist" as Href },
       ],
     },

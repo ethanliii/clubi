@@ -228,3 +228,77 @@ test("someone under 21 can't rank nightlife, and can rank everything else", asyn
   await t.db.patch(me, { birthday: "1990-01-01" });
   assert.equal((await rank(me, bars[0])).position, 1);
 });
+
+test("the first five rankings of a category take a direct score; from the sixth on they are compared", async () => {
+  const { t, f, me, bars, rank } = await world();
+  const more = [];
+  for (const name of ["Epsilon", "Zeta"]) more.push(await f.place(name, { venueVector: taste({ 0: 0.5 }) }));
+  const all = [...bars, ...more];
+  const direct = (id, score) => rank(me, id, { bucket: "fine", position: 99, score });
+  // The score decides the bucket and the place in it, whatever bucket and position were sent.
+  const a = await direct(all[0], 8.3);
+  assert.deepEqual([a.score, a.position, a.outOf], [8.3, 1, 1]);
+  const b = await direct(all[1], 9.14);
+  assert.deepEqual([b.score, b.position], [9.1, 1]);
+  await direct(all[2], 5);
+  await direct(all[3], 2.5);
+  const e = await direct(all[4], 8.9);
+  assert.deepEqual([e.score, e.position, e.outOf], [8.9, 2, 5]);
+  const rows = () => t.all("rankings").sort((x, y) => y.score - x.score).map((r) => [r.bucket, r.position, r.score, r.manualScore]);
+  assert.deepEqual(rows(), [["loved", 1, 9.1, 9.1], ["loved", 2, 8.9, 8.9], ["loved", 3, 8.3, 8.3], ["fine", 1, 5, 5], ["didnt", 1, 2.5, 2.5]]);
+  await assert.rejects(direct(all[0], 11), /from 1 to 10/);
+  await assert.rejects(direct(all[0], 0.5), /from 1 to 10/);
+  // Re-scoring one of the five is still direct.
+  assert.equal((await direct(all[0], 9.5)).position, 1);
+  // The sixth has five to compare against: a typed score is refused, and comparisons place it.
+  await assert.rejects(direct(all[5], 7), /compare/);
+  const sixth = await rank(me, all[5], { position: 2, comparisons: [{ winnerId: all[0], loserId: all[5] }, { winnerId: all[5], loserId: all[1] }] });
+  assert.deepEqual([sixth.position, sixth.outOf], [2, 6]);
+  // With six, every score in the category comes from its position again.
+  const loved = await t.run(rankings.listInBucket, me, { category: "nightlife", bucket: "loved" });
+  assert.deepEqual(loved.map((item) => [item.name, item.position, item.score]), [["Alpha", 1, 9.6], ["Zeta", 2, 8.8], ["Beta", 3, 7.9], ["Epsilon", 4, 7.1]]);
+});
+
+test("a low score lowers what is like it and lifts what is unlike it; a high score does the reverse; lower scores move more", async () => {
+  const { contentScore } = await load("lib/recs");
+  // Feature 0 and 1 high: a loud club. Feature 5 and 6 high: a quiet wine bar. The user starts in between.
+  const loud = taste({ 0: 0.95, 1: 0.9 });
+  const quiet = taste({ 5: 0.9, 6: 0.9 });
+  const start = taste({ 0: 0.5, 1: 0.5, 5: 0.5, 6: 0.5 });
+  const after = async (score) => {
+    const t = backend();
+    const f = fixtures(t);
+    const me = await f.user("ethan", { homeCity: "San Francisco", tasteVector: start, tastePrior: start });
+    const club = await f.place("The Loud Club", { venueVector: loud });
+    await t.run(rankings.rank, me, { kind: "place", id: club, bucket: "fine", position: 1, comparisons: [], tags: [], score });
+    const mine = (await t.db.get(me)).tasteVector;
+    return { similar: contentScore(mine, taste({ 0: 0.9, 1: 0.95 })), opposite: contentScore(mine, quiet), taste: mine };
+  };
+  const before = { similar: contentScore(start, taste({ 0: 0.9, 1: 0.95 })), opposite: contentScore(start, quiet) };
+  const hated = await after(1.5);
+  const disliked = await after(3.2);
+  const middling = await after(5);
+  const loved = await after(9.5);
+  // Rated low: another loud club now scores lower for me, the quiet wine bar a little higher.
+  assert.ok(hated.similar < before.similar - 0.05, `${hated.similar} vs ${before.similar}`);
+  assert.ok(hated.opposite > before.opposite, `${hated.opposite} vs ${before.opposite}`);
+  // The lower the score, the bigger the move.
+  assert.ok(hated.similar < disliked.similar && disliked.similar < before.similar);
+  // A 5 says nothing either way.
+  assert.deepEqual(middling.taste, start);
+  // Rated high: the reverse.
+  assert.ok(loved.similar > before.similar + 0.02 && loved.opposite < before.opposite);
+
+  // Every ranking is one step, and a re-rank counts again only when the score really moved.
+  const t = backend();
+  const f = fixtures(t);
+  const me = await f.user("ethan", { homeCity: "San Francisco", tasteVector: start, tastePrior: start });
+  const club = await f.place("The Loud Club", { venueVector: loud });
+  const rate = (score) => t.run(rankings.rank, me, { kind: "place", id: club, bucket: "fine", position: 1, comparisons: [], tags: [], score });
+  await rate(2);
+  const once = (await t.db.get(me)).tasteVector;
+  await rate(2.4);
+  assert.deepEqual((await t.db.get(me)).tasteVector, once, "0.4 of a point is the same opinion");
+  await rate(9);
+  assert.notDeepEqual((await t.db.get(me)).tasteVector, once, "from a 2 to a 9 is a new one");
+});

@@ -96,6 +96,30 @@ export function nudgeTaste(t: number[], f: number[], bucket: "loved" | "fine" | 
   return t.map((x, k) => clip(x + step * (f[k] - x), 0, 1));
 }
 
+/** The score that says nothing about taste, and how many points from it make one full step. */
+export const SCORE_NEUTRAL = 5;
+export const SCORE_SPAN = 2.5;
+export const MAX_SCORE_PULL = 1.5;
+export const MAX_SCORE_PUSH = 1.6;
+
+/**
+ * How hard a 1 to 10 score moves taste, in steps: 0 at 5, one step toward the place at 7.5 and one and
+ * a half at 10; one step away at 2.5 and 1.6 at 1. A 6 or a 4 still says something, just less.
+ */
+export const scoreStrength = (score: number) => clip((score - SCORE_NEUTRAL) / SCORE_SPAN, -MAX_SCORE_PUSH, MAX_SCORE_PULL);
+
+/**
+ * The same signal as `nudgeTaste`, sized by the score itself. A high score pulls taste toward
+ * the place's features, so places like it score higher for this person from now on; a low score pushes
+ * taste away from them, so places like it score lower and places unlike it a little higher. Every
+ * ranking is one such step.
+ */
+export function nudgeTasteByScore(t: number[], f: number[], score: number, lovedStep = LOVED_STEP): number[] {
+  const strength = scoreStrength(score);
+  const step = strength >= 0 ? lovedStep * strength : DIDNT_STEP * strength;
+  return t.map((x, k) => clip(x + step * (f[k] - x), 0, 1));
+}
+
 /** 8.2: Elo step on place quality. Returns new [bW, bL]. */
 export function updateElo(bW: number, bL: number, nW: number, nL: number, K0 = ELO_K0): [number, number] {
   const p = sigmoid(bW - bL);

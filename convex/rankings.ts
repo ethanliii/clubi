@@ -7,21 +7,28 @@ import { displayNameOf, friendIdsOf, isUnder21, sameCity } from "./lib/discovery
 import {
   BUCKET_ORDER,
   CATEGORY_NOUN,
+  DIRECT_SCORE_RANKINGS,
+  MAX_DIRECT_SCORE,
+  MIN_DIRECT_SCORE,
+  bucketOfScore,
   cleanCaption,
   comparisonKey,
   rankLabel,
   renumber,
+  shownScore,
   unseenComparisons,
 } from "./lib/social";
 import { forgetAnswers } from "./insights";
 import { notify } from "./notifications";
 import { recordPerformerAffinity } from "./performers";
-import { applyBucket, applyComparison } from "./scoring";
+import { applyComparison, applyScore } from "./scoring";
 import { categoryValidator } from "./tables/catalog";
 import { bucketValidator, visibilityValidator } from "./tables/people";
 
 const DEGREES_PER_HOUR = 15;
 const MAX_COMPARISONS = 20;
+/** A re-rank teaches taste again when its score lands at least this far from the old one. */
+const RESCORE_TEACHES = 1;
 const MAX_TAGS = 12;
 const MAX_TAG_LENGTH = 40;
 const MAX_GROUP_SIZE = 99;
@@ -206,10 +213,14 @@ export async function writePlacement(
   ctx: MutationCtx,
   rows: Doc<"rankings">[],
   placed: ReturnType<typeof renumber<Id<"rankings">>>,
+  /** How many rankings the category holds, when `rows` leaves one out (the one being ranked). */
+  total: number = rows.length,
 ) {
   const current = new Map(rows.map((row) => [row._id, row]));
-  for (const { id, position, score } of placed) {
+  for (const { id, position, score: placedScore } of placed) {
     const row = current.get(id);
+    // A directly given score stays what its owner gave while the category is small.
+    const score = shownScore(placedScore, row?.manualScore, total);
     if (row !== undefined && (row.position !== position || row.score !== score)) {
       await ctx.db.patch("rankings", id, { position, score });
     }
@@ -266,6 +277,8 @@ export const rank = mutation({
     bucket: bucketValidator,
     position: v.number(),
     comparisons: v.array(v.object({ winnerId: vTargetId, loserId: vTargetId })),
+    /** A score given directly, 1.0 to 10.0. Only while the user has fewer than five other rankings in the category; `bucket` and `position` then follow from it. */
+    score: v.optional(v.number()),
     tags: v.array(v.string()),
     caption: v.optional(v.string()),
     photoStorageId: v.optional(v.id("_storage")),
@@ -277,7 +290,7 @@ export const rank = mutation({
     if (userId === null) {
       throw new Error("Not signed in");
     }
-    const { kind, id, bucket, comparisons } = args;
+    const { kind, id, comparisons } = args;
     if (comparisons.length > MAX_COMPARISONS) {
       throw new Error("Too many comparisons");
     }
@@ -324,6 +337,26 @@ export const rank = mutation({
       }
     }
 
+    // A direct score (the first five rankings of a category): it picks the bucket, and the item goes
+    // below everything in that bucket that scores higher.
+    let manualScore: number | undefined;
+    if (args.score !== undefined) {
+      if (others.length >= DIRECT_SCORE_RANKINGS) {
+        throw new Error("You have enough rankings here to compare: pick which was better instead of a score");
+      }
+      if (!Number.isFinite(args.score) || args.score < MIN_DIRECT_SCORE || args.score > MAX_DIRECT_SCORE) {
+        throw new Error(`A score is a number from ${MIN_DIRECT_SCORE} to ${MAX_DIRECT_SCORE}`);
+      }
+      if (comparisons.length > 0) throw new Error("A direct score comes without comparisons");
+      manualScore = Math.round(args.score * 10) / 10;
+    }
+    const bucket = manualScore === undefined ? args.bucket : bucketOfScore(manualScore);
+    const wantedPosition =
+      manualScore === undefined
+        ? args.position
+        : 1 + others.filter((ranking) => ranking.bucket === bucket && ranking.score > manualScore!).length;
+    const total = others.length + 1;
+
     // The same number-and-score code `remove` and the demo seed use. `null` stands for the item being
     // ranked until its row exists.
     const placed = renumber<Id<"rankings"> | null>(
@@ -332,7 +365,7 @@ export const rank = mutation({
         bucket: ranking.bucket,
         position: ranking.position,
       })),
-      { id: null, bucket, position: args.position },
+      { id: null, bucket, position: wantedPosition },
     );
     const own = placed.find((row) => row.id === null);
     if (own === undefined) {
@@ -341,7 +374,9 @@ export const rank = mutation({
     const fields = {
       bucket,
       position: own.position,
-      score: own.score,
+      score: shownScore(own.score, manualScore, total),
+      // A ranking placed by comparisons no longer carries a score its owner typed in.
+      manualScore,
       tags,
       visitedAt: now,
       wasLocal: sameCity(user?.homeCity, target.city),
@@ -372,8 +407,10 @@ export const rank = mutation({
       ctx,
       others,
       placed.flatMap((row) => (row.id === null ? [] : [{ ...row, id: row.id }])),
+      total,
     );
-    const { score, overall: position } = own;
+    const score = shownScore(own.score, manualScore, total);
+    const position = own.overall;
 
     // Live learning. A re-rank walks the same binary search again and sends comparisons the model has
     // already learned from, so only pairs this user has never recorded (same winner, same loser) are
@@ -404,8 +441,11 @@ export const rank = mutation({
     for (const { winnerId, loserId } of fresh) {
       await applyComparison(ctx, userId, winnerId, loserId);
     }
-    if (existing === undefined || existing.bucket !== bucket) {
-      await applyBucket(ctx, userId, id, bucket);
+    // The score itself teaches taste: low pushes it away from what this place is like (so places like
+    // it score lower for this person, and unlike ones a little higher), high pulls it toward. Once for
+    // a new ranking, and again only when a re-rank changes the bucket or moves the score a full point.
+    if (existing === undefined || existing.bucket !== bucket || Math.abs(existing.score - score) >= RESCORE_TEACHES) {
+      await applyScore(ctx, userId, id, score);
     }
     if (kind === "event") {
       await recordPerformerAffinity(ctx, {

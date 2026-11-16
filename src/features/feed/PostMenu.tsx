@@ -136,7 +136,7 @@ export function PostMenu({
             ))}
           </ChipRow>
           <Text variant="caption" muted>
-            Friends: only people you are friends with. Public: anyone on clubi. Only me: nobody else.
+            Friends: only people you are friends with. Public: anyone on Vioma. Only me: nobody else.
           </Text>
           <Button title="Done" accessibilityLabel="Done" variant="ghost" onPress={close} />
         </>

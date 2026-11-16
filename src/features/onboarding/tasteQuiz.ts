@@ -1,5 +1,5 @@
 /**
- * Bryan's taste quiz (see bryan-design/QUIZ_SPEC.md).
+ * Bryan's taste quiz (see bryan-design/QUIZ_SPEC.md), with a birthday step instead of an age question.
  *
  * The backend's `users.saveQuiz` takes the answers to its 6 cards today. Until it accepts the
  * full quiz (ask E1 in the merge doc), `toBackendCards()` maps our answers onto those 6 cards so
@@ -9,6 +9,7 @@
 export type Stars = 1 | 2 | 3 | 4 | 5;
 
 export type QuizAnswers = {
+  birthday: string;                         // as typed (10/23/2004), saved as YYYY-MM-DD via settings.update
   songs: Partial<Record<number, Stars>>;   // index into SONGS
   thisOrThat: (0 | 1)[];                   // per pair: 0 = left, 1 = right
   scenarioKeys: ScenarioKey[];             // the 3 shown to this person
@@ -27,6 +28,7 @@ export type QuizAnswers = {
 };
 
 export const emptyAnswers = (): QuizAnswers => ({
+  birthday: "",
   songs: {},
   thisOrThat: [],
   scenarioKeys: pickScenarios(),

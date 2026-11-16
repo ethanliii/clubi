@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "clubi",
+    "name": "Vioma",
     "slug": "clubi",
     "description": "Rank the spots you go out to, see where your friends went last night, and get picks for tonight that match your taste.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.clubi.app"
@@ -33,18 +33,18 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "clubi uses your location to show what's worth doing near you."
+          "locationWhenInUsePermission": "Vioma uses your location to show what's worth doing near you."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "clubi lets you add a photo from your library to a post."
+          "photosPermission": "Vioma lets you add a photo from your library to a post."
         }
       ]
     ],
     "scheme": "clubi",
-    "backgroundColor": "#141119",
+    "backgroundColor": "#ffffff",
     "experiments": {
       "typedRoutes": true
     }

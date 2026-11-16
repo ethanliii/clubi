@@ -1,40 +1,43 @@
 import * as SecureStore from "expo-secure-store";
-import { DevSettings, Platform } from "react-native";
+import { Alert, DevSettings, Platform } from "react-native";
 
-/**
- * Light / dark mode. Every StyleSheet in the app is built once when the app starts, so the
- * choice is read synchronously at startup (before any colors are used) and switching
- * saves it and reloads the app. Default is dark (Bryan's look).
- */
-export type ThemeMode = "dark" | "light";
+// Light or dark, chosen with the sun/moon icon at the top right of the feed (components/ThemeToggle).
+// The choice is read once, before any stylesheet is built, because every screen builds its styles
+// from the colour tokens when its file loads. Changing it therefore saves the choice and reloads
+// the app, which comes back in the other mode about a second later, still signed in.
+
+export type ThemeMode = "light" | "dark";
 const KEY = "clubi.theme";
 
-function read(): ThemeMode {
+function storedMode(): ThemeMode {
   try {
-    const v = Platform.OS === "web" ? globalThis.localStorage?.getItem(KEY) : SecureStore.getItem(KEY);
-    return v === "light" ? "light" : "dark";
+    const stored =
+      Platform.OS === "web"
+        ? typeof localStorage === "undefined" ? null : localStorage.getItem(KEY)
+        : SecureStore.getItem(KEY);
+    return stored === "dark" ? "dark" : "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 
-export const themeMode: ThemeMode = read();
-export const isLight = themeMode === "light";
+/** The mode this run of the app is drawn in. */
+export const themeMode: ThemeMode = storedMode();
+export const isDark = themeMode === "dark";
 
-export function setThemeMode(next: ThemeMode) {
-  if (next === themeMode) return;
-  try {
-    if (Platform.OS === "web") globalThis.localStorage?.setItem(KEY, next);
-    else SecureStore.setItem(KEY, next);
-  } catch {
-    return;
-  }
-  if (Platform.OS === "web") globalThis.location?.reload();
-  else DevSettings.reload();
-}
-
-/** Names main's screens use for the same thing. */
-export const isDark = !isLight;
+/** Save the other mode and reload the app into it. */
 export function toggleThemeMode() {
-  setThemeMode(isLight ? "dark" : "light");
+  const next: ThemeMode = isDark ? "light" : "dark";
+  try {
+    if (Platform.OS === "web") {
+      localStorage.setItem(KEY, next);
+      window.location.reload();
+      return;
+    }
+    SecureStore.setItem(KEY, next);
+    if (__DEV__) DevSettings.reload();
+    else Alert.alert(next === "dark" ? "Dark mode is on" : "Light mode is on", "Close and reopen the app to see it.");
+  } catch {
+    // Storage refused (a private window, say): the app simply stays as it is.
+  }
 }

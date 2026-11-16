@@ -223,7 +223,7 @@ function GroupMap({ choice, onChangeGroup }: { choice: GroupChoice | null; onCha
           ? "Finding what fits everyone…"
           : items.length === 0
             ? "Nothing yet"
-            : [`${pluralize(items.length, "pick")} · Best first`, waiting > 0 ? `${waiting} invited, not counted yet` : ""]
+            : [`${pluralize(items.length, "pick")} · Best nearby first`, waiting > 0 ? `${waiting} invited, not counted yet` : ""]
                 .filter((part) => part !== "")
                 .join(" · ");
 

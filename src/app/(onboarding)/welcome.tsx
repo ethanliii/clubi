@@ -1,83 +1,92 @@
-import { useConvexAuth } from "convex/react";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useEffect } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, SocialButton, Text, ThemeToggle } from "../../components/bryan";
-import { APP_NAME, TAGLINE } from "../../constants/brand";
+import { Text } from "../../components";
+import { APP_NAME } from "../../constants/brand";
+import { WELCOME_TAGLINE } from "../../features/onboarding/copy";
 import { VideoBackground } from "../../features/onboarding/VideoBackground";
-import { colors, spacing } from "../../theme";
+import { signInPath } from "../../lib/links";
+import { colors, palette } from "../../theme";
 
-// Apple / Google sign-in needs OAuth providers in convex/auth.ts (backend ask E11). Buttons are in place.
-const socialSoon = () =>
-  Alert.alert("Coming soon", "Apple and Google sign-in are on the way. Create an account with a username for now.");
-
+/**
+ * The first screen: the footage, the name, one line about what the app is for, and two ways in,
+ * stacked at the bottom under the thumb so the top of the video stays clear.
+ */
 export default function Welcome() {
-  const { isAuthenticated } = useConvexAuth();
-  // Signed in but the quiz isn't done yet: go straight to it.
-  useEffect(() => {
-    if (isAuthenticated) router.replace("/quiz");
-  }, [isAuthenticated]);
-
   return (
     <View style={styles.root}>
       <VideoBackground />
-      <LinearGradient
-        colors={["rgba(0,0,0,0.25)", "rgba(0,0,0,0)", "rgba(0,0,0,0.25)", "rgba(0,0,0,0.88)"]}
-        locations={[0, 0.35, 0.6, 0.88]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
+      <StatusBar style="light" />
+      <LinearGradient colors={SCRIM} locations={SCRIM_STOPS} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <SafeAreaView style={styles.content}>
-        <View style={{ position: "absolute", top: 54, right: 18, zIndex: 2 }}><ThemeToggle /></View>
-        <View style={styles.middle}>
-          <Text variant="display" center style={styles.logo}>
+        <View style={styles.brand}>
+          <Text accessibilityRole="header" style={styles.wordmark}>
             {APP_NAME}
           </Text>
-          <Text center style={styles.tagline}>
-            {TAGLINE}
-          </Text>
+          <Text style={styles.sub}>{WELCOME_TAGLINE}</Text>
         </View>
-        <View style={styles.bottom}>
-          <Text variant="caption" center style={styles.terms}>
-            By tapping {"'"}Sign in{"'"} / {"'"}Create account{"'"}, you agree to our{" "}
-            <Text variant="caption" style={styles.underline}>
-              Terms of Service
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Create account"
+            onPress={() => router.push(signInPath("signup"))}
+            style={({ pressed }) => [styles.button, styles.primary, pressed && styles.primaryPressed]}
+          >
+            <Text style={styles.buttonText}>Create account</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Log in"
+            onPress={() => router.push(signInPath("signin"))}
+            style={({ pressed }) => [styles.button, pressed && styles.secondaryPressed]}
+          >
+            <Text style={styles.quietText}>
+              Already have an account? <Text style={styles.quietStrong}>Log in</Text>
             </Text>
-            . Learn how we process your data in our{" "}
-            <Text variant="caption" style={styles.underline}>
-              Privacy Policy
-            </Text>
-            .
-          </Text>
-          <Button
-            title="Create account"
-            variant="light"
-            onPress={() => router.push("/create-account")}
-          />
-          <SocialButton provider="google" onPress={socialSoon} />
-          <SocialButton provider="apple" onPress={socialSoon} />
-          <Button
-            title="Sign in"
-            variant="link"
-            onPress={() => router.push({ pathname: "/sign-in", params: { mode: "signin" } })}
-          />
+          </Pressable>
+          <Text style={styles.legal}>By continuing you agree to our Terms and Privacy Policy.</Text>
         </View>
       </SafeAreaView>
     </View>
   );
 }
 
-const shadow = { textShadowColor: "rgba(0,0,0,0.7)", textShadowRadius: 12 };
+/**
+ * The footage is a photo surface, so this screen stays dark under white text whatever the theme:
+ * a little shade behind the name at the top, clear in the middle, near-black under the buttons
+ * (the clips carry burned-in captions along the foot, which must not show through them).
+ */
+const SCRIM = ["rgba(0,0,0,0.3)", "rgba(0,0,0,0)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.88)", "rgba(0,0,0,0.96)"] as const;
+const SCRIM_STOPS = [0, 0.3, 0.6, 0.84, 1] as const;
+
+/** The wordmark is a bold serif, like the one in the home header; each platform ships one. */
+const SERIF = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" });
+
+const shadow = { textShadowColor: "rgba(0,0,0,0.4)", textShadowRadius: 14, textShadowOffset: { width: 0, height: 1 } };
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.black },
-  content: { flex: 1, justifyContent: "space-between" },
-  middle: { marginTop: "22%", alignItems: "center", gap: spacing.sm },
-  logo: { ...shadow },
-  tagline: { fontSize: 16, fontWeight: "600", ...shadow },
-  bottom: { paddingHorizontal: 22, paddingBottom: 22, gap: 14, alignItems: "center" },
-  terms: { color: "#e6e0ee", lineHeight: 17 },
-  underline: { color: "#e6e0ee", textDecorationLine: "underline" },
+  content: { flex: 1, justifyContent: "flex-end", paddingHorizontal: 24 },
+  brand: { paddingBottom: 32 },
+  wordmark: { fontFamily: SERIF, fontSize: 64, lineHeight: 72, fontWeight: "700", letterSpacing: -2, color: palette.onPhoto, ...shadow },
+  sub: {
+    marginTop: 4,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "500",
+    letterSpacing: -0.2,
+    color: palette.onPhoto,
+    ...shadow,
+  },
+  actions: { gap: 6, paddingBottom: 8 },
+  button: { height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center" },
+  primary: { backgroundColor: colors.accent },
+  primaryPressed: { opacity: 0.85 },
+  secondaryPressed: { opacity: 0.6 },
+  buttonText: { fontSize: 17, lineHeight: 22, fontWeight: "700", letterSpacing: -0.2, color: palette.onPhoto },
+  quietText: { fontSize: 15, lineHeight: 20, fontWeight: "500", color: palette.onPhotoMuted },
+  quietStrong: { fontWeight: "700", color: palette.onPhoto },
+  legal: { marginTop: 4, fontSize: 12, lineHeight: 16, textAlign: "center", color: "rgba(255,255,255,0.62)" },
 });

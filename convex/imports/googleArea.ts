@@ -52,7 +52,7 @@ export const TYPE_GROUPS = {
   food: { primary: false, types: ["restaurant", "cafe", "bakery"] },
   sights: {
     primary: true,
-    types: ["concert_hall", "event_venue", "performing_arts_theater", "amphitheatre", "movie_theater", "museum", "art_gallery", "cultural_center", "park", "garden"],
+    types: ["concert_hall", "performing_arts_theater", "amphitheatre", "movie_theater", "museum", "art_gallery", "cultural_center", "park", "garden"],
   },
 } as const;
 export type TypeGroup = keyof typeof TYPE_GROUPS;
@@ -65,11 +65,23 @@ const KINDS: Record<string, { category: Category; subcategory: string }> = {
   karaoke: { category: "nightlife", subcategory: "karaoke bar" },
   dance_hall: { category: "nightlife", subcategory: "dance hall" },
   pub: { category: "nightlife", subcategory: "pub" },
+  cocktail_bar: { category: "nightlife", subcategory: "cocktail bar" },
+  sports_bar: { category: "nightlife", subcategory: "sports bar" },
+  lounge_bar: { category: "nightlife", subcategory: "lounge" },
+  hookah_bar: { category: "nightlife", subcategory: "hookah bar" },
+  irish_pub: { category: "nightlife", subcategory: "pub" },
+  gastropub: { category: "nightlife", subcategory: "pub" },
+  brewpub: { category: "nightlife", subcategory: "brewpub" },
+  brewery: { category: "nightlife", subcategory: "brewery" },
+  beer_garden: { category: "nightlife", subcategory: "beer garden" },
+  bar_and_grill: { category: "nightlife", subcategory: "bar and grill" },
+  live_music_venue: { category: "live", subcategory: "music venue" },
   bar: { category: "nightlife", subcategory: "bar" },
   comedy_club: { category: "live", subcategory: "comedy club" },
   concert_hall: { category: "live", subcategory: "music venue" },
   amphitheatre: { category: "live", subcategory: "amphitheatre" },
-  event_venue: { category: "live", subcategory: "event venue" },
+  // "event_venue" is left out on purpose: on Google it is mostly halls for hire, hotel ballrooms and
+  // conference rooms, which ranked as places to go out to.
   performing_arts_theater: { category: "culture", subcategory: "theatre" },
   movie_theater: { category: "culture", subcategory: "cinema" },
   museum: { category: "culture", subcategory: "museum" },
@@ -144,8 +156,11 @@ export function areaCells(lat: number, lng: number, radiusMeters: number, cellMe
 }
 
 /** The Nearby Search request body for one cell and one group of types. */
-export const nearbyBody = (cell: { lat: number; lng: number }, cellMeters: number, group: TypeGroup) => ({
-  [TYPE_GROUPS[group].primary ? "includedPrimaryTypes" : "includedTypes"]: TYPE_GROUPS[group].types,
+export const nearbyBody = (cell: { lat: number; lng: number }, cellMeters: number, group: TypeGroup, types?: string[]) => ({
+  // `types` asks for exactly these Google primary types instead of the group's own list.
+  ...(types?.length
+    ? { includedPrimaryTypes: types }
+    : { [TYPE_GROUPS[group].primary ? "includedPrimaryTypes" : "includedTypes"]: TYPE_GROUPS[group].types }),
   maxResultCount: RESULTS_PER_SEARCH,
   rankPreference: "POPULARITY",
   locationRestriction: { circle: { center: { latitude: cell.lat, longitude: cell.lng }, radius: cellMeters } },
@@ -265,6 +280,8 @@ export const importArea = internalAction({
   args: {
     lat: v.optional(v.number()), lng: v.optional(v.number()), radiusMeters: v.number(), innerMeters: v.optional(v.number()),
     cellMeters: v.optional(v.number()), groups: v.optional(v.array(groupValidator)), offset: v.optional(v.number()), limit: v.optional(v.number()),
+    /** Ask for exactly these Google primary types (one search per cell), e.g. ["cocktail_bar", "brewery"]. A type Google does not know fails the search. */
+    types: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args): Promise<AreaRun | { skipped: string }> => {
     const key = process.env.GOOGLE_MAPS_KEY;
@@ -274,7 +291,8 @@ export const importArea = internalAction({
     const lng = args.lng ?? DEMO_LNG;
     const radiusMeters = Math.min(MAX_RADIUS_METERS, Math.max(MIN_CELL_METERS, args.radiusMeters));
     const cellMeters = Math.min(MAX_CELL_METERS, Math.max(MIN_CELL_METERS, args.cellMeters ?? DEFAULT_CELL_METERS));
-    const groups = [...new Set(args.groups ?? (Object.keys(TYPE_GROUPS) as TypeGroup[]))];
+    const types = args.types?.map((type) => type.trim()).filter(Boolean);
+    const groups: TypeGroup[] = types?.length ? ["nightlife"] : [...new Set(args.groups ?? (Object.keys(TYPE_GROUPS) as TypeGroup[]))];
     const positions = await ctx.runQuery(internal.imports.googleArea.placePositions, {});
     const cells = areaCells(lat, lng, radiusMeters, cellMeters, args.innerMeters ?? 0).filter((cell) =>
       positions.some(([pLat, pLng]) => haversineMeters(cell, { lat: pLat, lng: pLng }) <= cellMeters + EMPTY_CELL_MARGIN_METERS),
@@ -303,7 +321,7 @@ export const importArea = internalAction({
       const answer = await askGoogle(NEARBY_ENDPOINT, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json", "X-Goog-FieldMask": AREA_FIELD_MASK },
-        body: JSON.stringify(nearbyBody(cell, cellMeters, group)),
+        body: JSON.stringify(nearbyBody(cell, cellMeters, group, types)),
       });
       if (typeof answer === "string") {
         run.error = `${answer} (${group})`;

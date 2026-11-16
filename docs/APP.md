@@ -23,7 +23,7 @@ The backend decides, in `src/state/session.tsx`. The root layout shows a splash 
 | `ready` | signed in and onboarded | the tabs and every other screen |
 
 - **Never navigate after sign-in, sign-up or sign-out.** Call the auth function and stop; the gate moves the user (to the quiz, the tabs, or Welcome).
-- The quiz saves with `api.users.saveQuiz`, then `router.push(paths.tasteCard)`. "Let's go" calls `useSession().finishOnboarding()`, which opens the Map tab.
+- The quiz saves with `api.users.saveQuiz`, then `router.push(paths.tasteCard)`. "Let's go" calls `useSession().finishOnboarding()`, which opens the Feed tab.
 - `useMe()` gives the signed-in user (`userId`, `username`, `displayName`, `avatarUrl`, `tasteSummary`, …), `undefined` while loading. A post is mine when `post.author.userId === me?.userId`.
 
 ## Routes

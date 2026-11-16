@@ -46,7 +46,7 @@ export function HomePost({ post, now, onComments }: { post: FeedItem; now: numbe
   const onLike = () => void react(post.myReaction ? { postId: post.postId, emoji: post.myReaction } : { postId: post.postId });
   const onShare = () =>
     void Share.share({
-      message: `${author.displayName} ranked ${target.name}${post.score > 0 ? ` ${formatScore(post.score)}` : ""} on clubi`,
+      message: `${author.displayName} ranked ${target.name}${post.score > 0 ? ` ${formatScore(post.score)}` : ""} on Vioma`,
     }).catch(() => undefined);
 
   return (

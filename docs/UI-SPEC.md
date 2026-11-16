@@ -174,7 +174,7 @@ Six cards, in this order. The answer for each card is the list of picked option 
 | "Next" | Next card. Disabled until at least one pick. | none | |
 | "Back" | Previous card | none | |
 | "See my taste" (on card 6) | Saves | `api.users.saveQuiz({answers})`, e.g. `answers: [[0,3],[2],[1],[2],[2],[0,3]]` | Returns `{tasteSummary: {label, pct}[]}` (4 meters). Go to the taste card. |
-| "Let's go" | Enters the app | none | Go to the Map tab. |
+| "Let's go" | Enters the app | none | Go to the Feed tab. |
 
 - Show the meters from `tasteSummary`.
 - **States:** "See my taste" shows a spinner while saving. On error, toast and stay on card 6.

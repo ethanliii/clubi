@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import type { Bucket, Category, ProfileResult } from "../../lib/api";
-import { categoryLabel } from "../../lib/format";
+import { CATEGORY_TABS, categoryLabel } from "../../lib/format";
 import { spacing } from "../../theme";
 import { CategoryTabs } from "./CategoryTabs";
 import { RankedRow } from "./RankedRow";
 import { SectionLabel } from "./SectionLabel";
 
-/** "bars" → "Bars". The noun itself comes from the backend. */
-const titleOf = (noun: string) => noun.charAt(0).toUpperCase() + noun.slice(1);
+/** The pill's name for a category: the same short word the rankings screen uses ("Bars", "Food", "Shows"). */
+const tabLabelOf = (category: Category, noun: string) =>
+  CATEGORY_TABS.find((tab) => tab.category === category)?.label ?? noun.charAt(0).toUpperCase() + noun.slice(1);
 
 export const BUCKET_LABELS: Record<Bucket, string> = {
   loved: "Loved it",
@@ -52,7 +53,7 @@ export function RankedLists({
       : null;
   const tabs: { category: Category | "all"; label: string; count?: number }[] = lists.map((each) => ({
     category: each.category,
-    label: titleOf(each.noun),
+    label: tabLabelOf(each.category, each.noun),
     count: each.items.length,
   }));
   if (withAll) tabs.unshift({ category: "all", label: "All", count: items.length === 0 ? undefined : lists.reduce((sum, each) => sum + each.items.length, 0) });
