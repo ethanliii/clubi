@@ -17,6 +17,24 @@ const THUMB = 72;
 
 export default function PerformerScreen() {
   const { performerId } = useLocalSearchParams<{ performerId: string }>();
+  return (
+    // A link with an id the backend does not recognise throws; show it as an artist we could not find.
+    <ErrorBoundary
+      key={performerId}
+      fallback={() => (
+        <Screen>
+          <ScreenTop title="Artist" />
+          <EmptyState title="We couldn't find this artist." icon="music" actionLabel="Back" onAction={goBack} />
+        </Screen>
+      )}
+    >
+      <PerformerLoader />
+    </ErrorBoundary>
+  );
+}
+
+function PerformerLoader() {
+  const { performerId } = useLocalSearchParams<{ performerId: string }>();
   const performer = useQuery(api.performers.get, { performerId: performerId as Id<"performers"> });
   const now = useNow();
 

@@ -34,12 +34,14 @@ function regionAround(center: LatLng) {
   return {
     latitude: center.lat,
     longitude: center.lng,
-    latitudeDelta: START_LAT_DELTA,
+    // A flat strip: the map widens the latitude to fill its height, so the width is always START_LAT_DELTA
+    // of longitude whatever the padding, which is what the first `scale` below assumes.
+    latitudeDelta: START_LAT_DELTA / 10,
     longitudeDelta: START_LAT_DELTA,
   };
 }
 
-export function MapCanvas({ items, center, user, selectedId, onSelect, recenterKey, padding }: MapCanvasProps) {
+export function MapCanvas({ items, center, user, userIsDemo, selectedId, onSelect, recenterKey, padding }: MapCanvasProps) {
   const mapRef = useRef<MapView>(null);
   const { width } = useWindowDimensions();
   // When a pin was last tapped (0 = never). Only read and written in tap handlers.
@@ -61,8 +63,14 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
 
   const placements = useMemo(() => layoutPins(items, scale, selectedId), [items, scale, selectedId]);
 
-  // Demo switch, a new position, or "Recenter": back to the center at the starting zoom.
+  // Demo switch, a real move (about 200 m, not a jittery fix), or "Recenter": back to the center at the
+  // starting zoom. The first run is skipped: `initialRegion` already put the camera there.
+  const centered = useRef({ lat: center.lat, lng: center.lng, key: recenterKey });
   useEffect(() => {
+    const last = centered.current;
+    const moved = Math.abs(center.lat - last.lat) > 0.002 || Math.abs(center.lng - last.lng) > 0.002;
+    if (!moved && last.key === recenterKey) return;
+    centered.current = { lat: center.lat, lng: center.lng, key: recenterKey };
     mapRef.current?.animateToRegion(regionAround({ lat: center.lat, lng: center.lng }), 600);
   }, [center.lat, center.lng, recenterKey]);
 
@@ -111,14 +119,20 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
         onSelect(null);
       }}
     >
-      {user ? <UserMarker user={user} /> : null}
+      {user ? <UserMarker key={userIsDemo === true ? "demo" : "device"} user={user} demo={userIsDemo === true} /> : null}
       {items.map((item) => {
         const placement = placements.get(item.id);
         // A pin with no room at this zoom is left out; it comes back as the map is zoomed in.
         if (!placement || placement.mode === "hidden") return null;
         return (
           <ItemMarker
-            key={item.id}
+            // Apple Maps only ever grows a pin's frame, so a pin whose picture shrinks (unpicked, name dropped,
+            // bubble to dot) would sit off its place. A new key on iOS has it measured afresh.
+            key={
+              Platform.OS === "ios"
+                ? `${item.id}|${placement.mode}|${placement.name ? 1 : 0}|${item.id === selectedId ? 1 : 0}`
+                : item.id
+            }
             item={item}
             mode={placement.mode}
             named={placement.name}
@@ -131,8 +145,8 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
   );
 }
 
-/** The user's own position: a blue dot. It never changes its look, so it is frozen after its first moments. */
-function UserMarker({ user }: { user: LatLng }) {
+/** The user's own position: a blue dot, or a hollow ring for the demo spot. Frozen after its first moments. */
+function UserMarker({ user, demo }: { user: LatLng; demo: boolean }) {
   // Android turns a custom pin into a picture; give it a moment to be laid out before freezing it.
   const [settled, setSettled] = useState(false);
   useEffect(() => {
@@ -146,10 +160,10 @@ function UserMarker({ user }: { user: LatLng }) {
       anchor={CENTERED}
       zIndex={500}
       tracksViewChanges={!settled}
-      accessibilityLabel="You are here"
+      accessibilityLabel={demo ? "Demo location" : "You are here"}
     >
       <View style={styles.userHalo}>
-        <View style={styles.userDot} />
+        <View style={[styles.userDot, demo && styles.userDotDemo]} />
       </View>
     </Marker>
   );
@@ -267,13 +281,13 @@ const Pin = memo(function Pin({
             strokeLinejoin="round"
           />
         </Svg>
-        <Text style={[styles.score, { color: selected ? PIN.selectedInk : color, fontSize: size.font * grown, lineHeight: Math.round(size.font * grown * 1.2) }]}>
+        <Text allowFontScaling={false} style={[styles.score, { color: selected ? PIN.selectedInk : color, fontSize: size.font * grown, lineHeight: Math.round(size.font * grown * 1.2) }]}>
           {formatScore(item.score)}
         </Text>
       </View>
       <View style={[styles.tip, { borderTopWidth: geo.tip, borderTopColor: selected ? PIN.selectedFill : PIN.fill }]} />
       {named ? (
-        <Text numberOfLines={1} style={[styles.name, selected && styles.nameSelected]}>
+        <Text allowFontScaling={false} numberOfLines={1} style={[styles.name, selected && styles.nameSelected]}>
           {item.name}
         </Text>
       ) : null}
@@ -344,4 +358,5 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.white,
   },
+  userDotDemo: { backgroundColor: "transparent", borderColor: PIN.user },
 });

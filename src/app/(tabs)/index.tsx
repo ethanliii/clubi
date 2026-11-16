@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { router, type Href } from "expo-router";
 import { useRef, useState, type ReactNode } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { EmptyState, IconButton, Text } from "../../components";
@@ -12,7 +12,7 @@ import { Pills } from "../../features/home/Pills";
 import { SearchField } from "../../features/home/SearchField";
 import { api } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
-import { paths } from "../../lib/links";
+import { paths, planPath } from "../../lib/links";
 import { useKeptQuery } from "../../lib/useKeptQuery";
 import { useNow } from "../../lib/useNow";
 import { useMe } from "../../state/session";
@@ -23,6 +23,8 @@ const UNREAD_CAP = 99;
 /** The screen's side padding. Carousels run through it to both edges. */
 const GUTTER = 16;
 const GROUP_MAP = "/group-map" as Href;
+/** How many friends' posts Home shows before "See all" opens the Feed tab. */
+const HOME_POSTS = 5;
 /** The wordmark's bold serif: Georgia on iOS and the web, the system serif on Android. */
 const SERIF = Platform.select({ android: "serif", default: "Georgia" });
 
@@ -70,10 +72,44 @@ export default function Home() {
     upcoming !== undefined &&
     tonight.topPicks.length + tonight.friendsGoing.length + tonight.events.length + upcoming.length === 0;
   const openMap = () => router.push(paths.map);
+  // The Map tab's search field takes the keyboard each time this number changes.
+  const openSearch = () => router.push(`/map?search=${Date.now()}` as Href);
   const openFeed = () => router.push(paths.feed);
   const has = (items: unknown[] | undefined) => items === undefined || items.length > 0;
+  // Friends' posts follow the first carousel, like the reference; with none yet, the invitation waits at the bottom.
+  const feedFirst = feed !== undefined && feed.length > 0;
+  const shown = (feed ?? []).slice(0, HOME_POSTS);
+  // "Events tonight" leaves out what "Top picks" already shows, so the two rows are never the same cards.
+  const picked = new Set((tonight?.topPicks ?? []).map((item) => `${item.kind}:${item.id}`));
+  const eventsTonight = (tonight?.events ?? []).filter((item) => !picked.has(`${item.kind}:${item.id}`));
   const commentsPostIsMine =
     me !== undefined && (feed ?? []).some((post) => post.postId === comments.postId && post.author.userId === me.userId);
+
+  const feedSection = (
+    <Section name="feed" onTop={setTop}>
+      <SectionLabel title="Your feed" moreLabel="See the whole feed" onMore={openFeed} />
+      {feed === undefined ? (
+        <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
+          <HomePostSkeleton />
+          <HomePostSkeleton />
+        </View>
+      ) : feed.length === 0 ? (
+        <EmptyState
+          icon="users"
+          title="No posts from friends yet."
+          actionLabel="Find friends"
+          onAction={() => router.push(paths.friends)}
+        />
+      ) : (
+        shown.map((post, index) => (
+          <View key={post.postId}>
+            {index > 0 ? <View style={styles.hairline} /> : null}
+            <HomePost post={post} now={now} onComments={() => setComments({ postId: post.postId, open: true })} />
+          </View>
+        ))
+      )}
+    </Section>
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -92,20 +128,11 @@ export default function Home() {
               badge={badge}
               onPress={() => router.push(paths.notifications)}
             />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Settings"
-              onPress={() => router.push(paths.settings)}
-              style={({ pressed }) => [styles.menu, pressed && styles.pressed]}
-            >
-              <View style={styles.bar} />
-              <View style={styles.bar} />
-              <View style={styles.bar} />
-            </Pressable>
+            <IconButton icon="menu" size={44} plain accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} />
           </View>
         </View>
 
-        <SearchField label="Search places, events, friends" onPress={openMap} />
+        <SearchField label="Search places and events" onPress={openSearch} />
 
         <View style={styles.pills}>
           <Pills
@@ -115,6 +142,7 @@ export default function Home() {
               { key: "upcoming", label: "Coming up", icon: "calendar", onPress: () => jump("upcoming", "tonight", "picks") },
               { key: "friends", label: "Friend picks", icon: "users", onPress: () => jump("friends", "feed") },
               { key: "group", label: "With friends", icon: "map", onPress: () => router.push(GROUP_MAP) },
+              { key: "plan", label: "Plan my night", icon: "spark", onPress: () => router.push(planPath()) },
             ]}
           />
         </View>
@@ -135,6 +163,7 @@ export default function Home() {
                 />
               </Section>
             ) : null}
+            {feedFirst ? feedSection : null}
             {tonight !== undefined && tonight.friendsGoing.length > 0 ? (
               <Section name="friends" onTop={setTop}>
                 <CardRow
@@ -147,11 +176,11 @@ export default function Home() {
                 />
               </Section>
             ) : null}
-            {tonight !== undefined && tonight.events.length > 0 ? (
+            {eventsTonight.length > 0 ? (
               <Section name="tonight" onTop={setTop}>
                 <CardRow
                   title="Events tonight"
-                  items={tonight.events}
+                  items={eventsTonight}
                   gutter={GUTTER}
                   now={now}
                   moreLabel="See tonight's events on the map"
@@ -174,29 +203,7 @@ export default function Home() {
           </>
         )}
 
-        <Section name="feed" onTop={setTop}>
-          <SectionLabel title="Your feed" moreLabel="See the whole feed" onMore={openFeed} />
-          {feed === undefined ? (
-            <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
-              <HomePostSkeleton />
-              <HomePostSkeleton />
-            </View>
-          ) : feed.length === 0 ? (
-            <EmptyState
-              icon="users"
-              title="No posts from friends yet."
-              actionLabel="Find friends"
-              onAction={() => router.push(paths.friends)}
-            />
-          ) : (
-            feed.map((post, index) => (
-              <View key={post.postId}>
-                {index > 0 ? <View style={styles.hairline} /> : null}
-                <HomePost post={post} now={now} onComments={() => setComments({ postId: post.postId, open: true })} />
-              </View>
-            ))
-          )}
-        </Section>
+        {feedFirst && !nothingNearby ? null : feedSection}
       </ScrollView>
       <CommentsSheet
         postId={comments.postId}
@@ -215,9 +222,6 @@ const styles = StyleSheet.create({
   wordmark: { fontFamily: SERIF, fontSize: 32, lineHeight: 40, fontWeight: fontWeight.bold, letterSpacing: -0.8, color: colors.accent },
   // The three icons sit close together and the last one lines up with the page's right edge.
   icons: { flexDirection: "row", alignItems: "center", marginRight: -10 },
-  menu: { width: 44, height: 44, alignItems: "center", justifyContent: "center", gap: 5 },
-  bar: { width: 22, height: 2, borderRadius: 1, backgroundColor: colors.fg },
-  pressed: { opacity: 0.6 },
   pills: { marginTop: 6 },
   section: { marginTop: 8 },
   loading: { gap: 28, paddingTop: 4 },

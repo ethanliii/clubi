@@ -196,7 +196,7 @@ export function CommentsSheet({
   return (
     <Sheet visible={visible} onClose={onClose} title="Comments" scroll={false}>
       {comments === undefined ? (
-        <View style={styles.sheetList}>
+        <View style={[styles.sheetList, styles.sheetWait]}>
           <SkeletonRows count={3} />
         </View>
       ) : (
@@ -261,9 +261,11 @@ const styles = StyleSheet.create({
   none: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.xxl + spacing.sm },
   noneTitle: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, marginTop: spacing.sm },
   noneBody: { fontSize: 14, lineHeight: 20 },
-  // Tall enough to read a thread; the sheet itself stops short of the top of the screen.
-  sheetList: { flexGrow: 0, flexShrink: 1, minHeight: 280 },
-  sheetListContent: { gap: spacing.lg + 2, paddingTop: spacing.sm, paddingBottom: spacing.lg },
+  // Tall enough to read a thread (the content keeps 280), but free to shrink on a short phone so the
+  // comment box stays above the keyboard. The sheet itself stops short of the top of the screen.
+  sheetList: { flexGrow: 0, flexShrink: 1, minHeight: 120 },
+  sheetWait: { height: 280 },
+  sheetListContent: { gap: spacing.lg + 2, paddingTop: spacing.sm, paddingBottom: spacing.lg, minHeight: 280 },
   sheetComposer: {
     marginHorizontal: -spacing.lg,
     paddingHorizontal: spacing.lg,

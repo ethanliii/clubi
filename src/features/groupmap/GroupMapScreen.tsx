@@ -42,9 +42,10 @@ const CARD_MARGIN = spacing.md;
 /** The members' scores, shown on their own small card above the picked pin's card. */
 const STRIP = 78;
 
-function sheetHeights(screen: number, barBottom: number): SheetHeights {
+function sheetHeights(screen: number, barBottom: number, bottomInset: number): SheetHeights {
   const full = Math.max(280, screen - barBottom - spacing.sm);
-  const peek = Math.min(full, SHEET_HEADER + GROUP_ROW_HEIGHT + spacing.xs);
+  // No tab bar under this screen: the one row at peek stays above the home indicator.
+  const peek = Math.min(full, SHEET_HEADER + GROUP_ROW_HEIGHT + spacing.xs + bottomInset);
   const mid = Math.min(full, Math.max(peek, Math.round(screen * 0.5)));
   return { peek, mid, full };
 }
@@ -167,8 +168,8 @@ function GroupMap({ choice, onChangeGroup }: { choice: GroupChoice | null; onCha
   const barBottom = barTop + BAR_HEIGHT;
   const chipsBottom = barBottom + BAR_GAP + CHIP_HEIGHT;
   const height = measured ?? window.height;
-  const heights = sheetHeights(height, barBottom);
-  const covered = selected ? PEEK_CARD_HEIGHT + CARD_MARGIN + STRIP + spacing.sm : heights[snap === "full" ? "mid" : snap];
+  const heights = sheetHeights(height, barBottom, insets.bottom);
+  const covered = selected ? PEEK_CARD_HEIGHT + CARD_MARGIN + STRIP + spacing.sm + insets.bottom : heights[snap === "full" ? "mid" : snap];
   const padding = { top: chipsBottom + spacing.sm, bottom: covered + FLOAT };
 
   const attribution = [DATA_ATTRIBUTION, TILE_ATTRIBUTION].filter(Boolean).join(" · ");
@@ -345,7 +346,7 @@ function GroupMap({ choice, onChangeGroup }: { choice: GroupChoice | null; onCha
           <View style={{ height: FLOAT }} pointerEvents="box-none">
             {float}
           </View>
-          <View style={styles.cardWrap} pointerEvents="box-none">
+          <View style={[styles.cardWrap, { paddingBottom: CARD_MARGIN + insets.bottom }]} pointerEvents="box-none">
             <View style={styles.strip}>
               <View style={styles.stripTop}>
                 <Text numberOfLines={1} style={styles.stripTitle}>

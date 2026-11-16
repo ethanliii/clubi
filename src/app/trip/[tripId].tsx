@@ -2,7 +2,7 @@ import { useMutation, useQuery } from "convex/react";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, EmptyState, goBack, IconButton, Screen, Sheet, Skeleton, Text } from "../../components";
+import { Button, EmptyState, ErrorBoundary, goBack, IconButton, Screen, Sheet, Skeleton, Text } from "../../components";
 import { citySpot } from "../../features/trips/city";
 import { InviteSheet } from "../../features/trips/InviteSheet";
 import { Page } from "../../features/trips/Page";
@@ -27,6 +27,24 @@ const AREA_DEGREES = 0.02;
 const requestedAreas = new Set<string>();
 
 export default function TripScreen() {
+  const { tripId } = useLocalSearchParams<{ tripId: string }>();
+  return (
+    // A link with an id the backend does not recognise throws; show it as a plan that is gone.
+    <ErrorBoundary
+      key={tripId}
+      fallback={() => (
+        <Screen>
+          <ScreenTop title="Plan" />
+          <EmptyState title="This plan was deleted" icon="users" actionLabel="Back" onAction={goBack} />
+        </Screen>
+      )}
+    >
+      <TripLoader />
+    </ErrorBoundary>
+  );
+}
+
+function TripLoader() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const trip = useQuery(api.trips.get, { tripId: tripId as Id<"trips"> });
   // Set once I leave, decline or delete: the trip is about to vanish from under this screen,

@@ -14,8 +14,8 @@ export const CARD_WIDTH = 158;
 export const CARD_HEIGHT = 180;
 export const CARD_ROUND = 10;
 
-const FADE = ["rgba(0,0,0,0)", "rgba(0,0,0,0.25)", "rgba(0,0,0,0.82)"] as const;
-const FADE_STOPS = [0, 0.4, 1] as const;
+const FADE = ["rgba(0,0,0,0)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.9)"] as const;
+const FADE_STOPS = [0, 0.45, 1] as const;
 
 /**
  * One place or event in a carousel: the photo fills the card, a dark fade at the bottom, the name
@@ -32,7 +32,7 @@ export function PhotoCard({ item, now }: { item: NearbyItem; now: number }) {
       onPress={() => router.push(venuePath(item.kind, item.id))}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <Photo item={item} width={CARD_WIDTH} height={CARD_HEIGHT} round={CARD_ROUND}>
+      <Photo item={item} width={CARD_WIDTH} height={CARD_HEIGHT} round={CARD_ROUND} dark>
         <LinearGradient colors={FADE} locations={FADE_STOPS} style={styles.fade} pointerEvents="none" />
         <View style={styles.copy} pointerEvents="none">
           <Text numberOfLines={2} style={styles.name}>

@@ -28,7 +28,7 @@ export function Sheet({ visible, onClose, title, children, scroll = true }: Shee
     <Modal
       visible={visible}
       transparent
-      animationType={Platform.OS === "web" ? "fade" : "slide"}
+      animationType="fade"
       statusBarTranslucent
       onRequestClose={onClose}
     >

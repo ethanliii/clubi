@@ -1,4 +1,4 @@
-import { router, type Href } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { FlatList, Keyboard, Platform, Pressable, StyleSheet, Switch, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -57,6 +57,8 @@ function sheetHeights(screen: number, searchBottom: number): SheetHeights {
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
+  // Home's search field opens this tab with a new `search` value: the field here takes the keyboard.
+  const { search: focusSearch } = useLocalSearchParams<{ search?: string }>();
   const { lat, lng, ready, isDemo, setDemo } = useDemoLocation();
   const [filter, setFilter] = useState<Filter>(DEFAULT_FILTER);
   const nearby = useNearby(filter);
@@ -148,6 +150,7 @@ export default function MapScreen() {
         items={items}
         center={center}
         user={ready ? { lat, lng } : null}
+        userIsDemo={isDemo}
         selectedId={selected === null ? null : selectedId}
         onSelect={pick}
         recenterKey={recenterKey}
@@ -274,7 +277,7 @@ export default function MapScreen() {
       ) : null}
 
       <View style={[styles.search, { top: searchTop }]} pointerEvents="box-none">
-        <SearchBox value={search} onChangeText={setSearch} />
+        <SearchBox value={search} onChangeText={setSearch} focusKey={focusSearch} />
         {searching ? (
           <SearchResults
             text={search}

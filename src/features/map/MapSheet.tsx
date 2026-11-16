@@ -73,8 +73,9 @@ export function MapSheet({
 
   const responders = useMemo(() => {
     const snaps: SheetHeights = { peek, mid, full };
-    // Where the panel stood when the finger came down.
-    let from = full - mid;
+    // Where the panel stood when the finger came down. It starts as where the panel rests: on a phone the
+    // real position arrives a moment after the touch, and the first moves must not start from half height.
+    let from = full - snaps[snap];
     const settle = (landed: number) => {
       const next = nearestSnap(full - landed, snaps);
       Animated.spring(offset, { toValue: full - snaps[next], ...SPRING }).start();

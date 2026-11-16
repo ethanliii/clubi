@@ -19,6 +19,12 @@ const BUCKET_LABELS: Record<Bucket, string> = {
 };
 
 /** My ranked list for one category, from `api.rankings.mine`, best first as the backend sorted it. */
+/** To the Rank tab of the tabs already underneath, not a second copy of them on top of this screen. */
+function openRate() {
+  if (router.canDismiss()) router.dismissAll();
+  router.replace(paths.rate);
+}
+
 export default function RankingsScreen() {
   const params = useLocalSearchParams<{ category?: string }>();
   const [picked, setPicked] = useState<Category | null>(null);
@@ -85,14 +91,14 @@ export default function RankingsScreen() {
             title="Nothing ranked yet"
             body="Rank a place you've been and your lists start here."
             actionLabel="Rank your first place"
-            onAction={() => router.push(paths.rate)}
+            onAction={openRate}
           />
         ) : (
           <EmptyState
             icon="star"
             title={`Nothing ranked in ${tabLabel} yet`}
             actionLabel="Rank a place"
-            onAction={() => router.push(paths.rate)}
+            onAction={openRate}
           />
         )
       ) : (

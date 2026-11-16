@@ -24,6 +24,7 @@ export const paths = {
   following: "/following" as Href,
   plan: "/plan" as Href,
   rankings: "/rankings" as Href,
+  groupMap: "/group-map" as Href,
   welcome: "/welcome" as Href,
   quiz: "/quiz" as Href,
   tasteCard: "/taste-card" as Href,
@@ -60,6 +61,7 @@ const STATIC_ROUTES = new Set([
   "/following",
   "/plan",
   "/rankings",
+  "/group-map",
 ]);
 
 /** `/venue/<kind>/<id>` and `/rate/<kind>/<id>`: two parameters, the first is place or event. */

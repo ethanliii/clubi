@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-import { EmptyState, goBack, Screen, Skeleton, Text } from "../components";
+import { EmptyState, ErrorBoundary, goBack, Screen, Skeleton, Text } from "../components";
 import { citySpot } from "../features/trips/city";
 import { Face, FaceRow } from "../features/trips/Faces";
 import { FriendChips, toggleId } from "../features/trips/FriendChips";
@@ -46,6 +46,24 @@ function StopsSkeleton() {
 }
 
 export default function PlanScreen() {
+  const { tripId } = useLocalSearchParams<{ tripId?: string }>();
+  return (
+    // A link with a plan id the backend does not recognise throws; show it as a plan that is gone.
+    <ErrorBoundary
+      key={tripId ?? ""}
+      fallback={() => (
+        <Screen>
+          <ScreenTop title="Plan my night" />
+          <EmptyState title="This plan was deleted" icon="users" actionLabel="Back" onAction={goBack} />
+        </Screen>
+      )}
+    >
+      <PlanLoader />
+    </ErrorBoundary>
+  );
+}
+
+function PlanLoader() {
   const params = useLocalSearchParams<{ tripId?: string }>();
   const tripId = params.tripId ? (params.tripId as Id<"trips">) : undefined;
   const me = useMe();

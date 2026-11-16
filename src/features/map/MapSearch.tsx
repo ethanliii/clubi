@@ -3,7 +3,7 @@
  * in the backend's order; tapping one opens its page.
  */
 import { router } from "expo-router";
-import { useRef, useState, type ComponentRef } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Icon, SkeletonRows, Text } from "../../components";
 import { api } from "../../lib/api";
@@ -17,9 +17,21 @@ export const SEARCH_PLACEHOLDER = "Search places and events";
 export const SEARCH_HEIGHT = 48;
 const MIN_LETTERS = 2;
 
-export function SearchBox({ value, onChangeText }: { value: string; onChangeText: (text: string) => void }) {
+export function SearchBox({
+  value,
+  onChangeText,
+  focusKey,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  /** Each new value puts the cursor in the field and brings up the keyboard (Home's search field sends one). */
+  focusKey?: string;
+}) {
   const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (focusKey) inputRef.current?.focus();
+  }, [focusKey]);
   const open = focused || value !== "";
   const cancel = () => {
     onChangeText("");
@@ -114,7 +126,7 @@ export function SearchResults({
           <Text style={styles.noneBody}>Try a different name or a shorter word.</Text>
         </View>
       ) : (
-        <ScrollView keyboardShouldPersistTaps="handled">
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
           {results.map((item, index) => (
             <MapRow
               key={item.id}

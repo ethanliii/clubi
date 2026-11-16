@@ -6,6 +6,7 @@ import {
   BackButton,
   Button,
   EmptyState,
+  ErrorBoundary,
   ScoreBadge,
   Screen,
   Skeleton,
@@ -103,6 +104,24 @@ function NoCompare({ userId }: { userId: Id<"users"> }) {
 
 /** How my taste lines up with a friend's, from `api.profile.compare`. Every number here is the backend's. */
 export default function CompareScreen() {
+  const { userId } = useLocalSearchParams<{ userId: string }>();
+  return (
+    // A link with an id the backend does not recognise throws; show it as a person who is gone.
+    <ErrorBoundary
+      key={userId}
+      fallback={() => (
+        <Screen>
+          <BackButton />
+          <EmptyState icon="user" title="This person isn't on clubi anymore" actionLabel="Back" onAction={goBack} />
+        </Screen>
+      )}
+    >
+      <CompareLoader />
+    </ErrorBoundary>
+  );
+}
+
+function CompareLoader() {
   const params = useLocalSearchParams<{ userId: string }>();
   const userId = params.userId as Id<"users">;
   const result = useQuery(api.profile.compare, { userId });
