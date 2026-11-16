@@ -1,3 +1,4 @@
+import type { Id } from "../../../convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { router, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
@@ -213,6 +214,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
         ...(caption === "" ? {} : { caption }),
         ...(photo?.storageId ? { photoStorageId: photo.storageId } : {}),
         ...(shownVisibility === null ? {} : { visibility: shownVisibility }),
+        ...(draft.withIds.length > 0 ? { withUserIds: draft.withIds as Id<"users">[] } : {}),
       });
       setResult(ranking);
       setStep("result");

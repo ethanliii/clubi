@@ -1,6 +1,8 @@
+import { useQuery } from "convex/react";
 import { useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
-import { Icon, Text, type IconName } from "../../components";
+import { Avatar, Icon, Text, type IconName } from "../../components";
+import { api } from "../../lib/api";
 import { categoryLabel, displayName } from "../../lib/format";
 import type { Bucket, VenueDetail, Visibility } from "../../lib/api";
 import { colors, fontWeight, palette, radius, spacing } from "../../theme";
@@ -40,11 +42,13 @@ export type Draft = {
   caption: string;
   /** null until the user taps one of the "Who sees it" choices. */
   visibility: Visibility | null;
+  /** Friends you went with (user ids). */
+  withIds: string[];
 };
 
-export const EMPTY_DRAFT: Draft = { tags: [], caption: "", visibility: null };
+export const EMPTY_DRAFT: Draft = { tags: [], caption: "", visibility: null, withIds: [] };
 
-type Open = "notes" | "labels" | "who" | null;
+type Open = "notes" | "labels" | "with" | "who" | null;
 
 /** One line of the sheet: an icon, a label, an optional value, and a chevron. */
 function Row({
@@ -123,6 +127,11 @@ export function DetailsStep({
     onChange({ ...draft, tags: draft.tags.includes(tag) ? draft.tags.filter((other) => other !== tag) : [...draft.tags, tag] });
   const note = draft.caption.trim();
   const who = VISIBILITIES.find(({ value }) => value === shownVisibility);
+  // "Who were you with?": your friends, tap to tag. Saved on the post (rankings.rank withUserIds).
+  const friends = useQuery(api.friends.list, {})?.friends;
+  const withNames = (friends ?? []).filter((f) => draft.withIds.includes(String(f.userId))).map((f) => f.displayName.split(" ")[0]);
+  const toggleWith = (id: string) =>
+    onChange({ ...draft, withIds: draft.withIds.includes(id) ? draft.withIds.filter((x) => x !== id) : [...draft.withIds, id].slice(0, 8) });
 
   return (
     <FlowScreen
@@ -258,6 +267,44 @@ export function DetailsStep({
         ) : null}
 
         <Row
+          icon="users"
+          label="Who were you with?"
+          value={withNames.length ? withNames.join(", ") : undefined}
+          open={open === "with"}
+          disabled={posting}
+          onPress={() => toggle("with")}
+        />
+        {open === "with" ? (
+          <View style={styles.withPanel}>
+            {friends === undefined ? (
+              <ActivityIndicator color={colors.muted} />
+            ) : friends.length === 0 ? (
+              <Text variant="caption" muted>Add friends to tag who you went with.</Text>
+            ) : (
+              friends.map((f) => {
+                const on = draft.withIds.includes(String(f.userId));
+                return (
+                  <Pressable
+                    key={String(f.userId)}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel={f.displayName}
+                    accessibilityState={{ checked: on, disabled: posting }}
+                    aria-checked={on}
+                    disabled={posting}
+                    onPress={() => toggleWith(String(f.userId))}
+                    style={({ pressed }) => [styles.friendChip, on && styles.friendChipOn, pressed && styles.dimmed]}
+                  >
+                    <Avatar name={f.displayName} uri={f.avatarUrl} size={24} />
+                    <Text style={[styles.friendText, on && styles.friendTextOn]} numberOfLines={1}>{f.displayName.split(" ")[0]}</Text>
+                    {on ? <Icon name="check" size={14} color={colors.bg} /> : null}
+                  </Pressable>
+                );
+              })
+            )}
+          </View>
+        ) : null}
+
+        <Row
           icon={who?.icon ?? "users"}
           label="Who can see this"
           value={who?.label}
@@ -384,6 +431,11 @@ const styles = StyleSheet.create({
   tagTextOn: { color: colors.bg, fontWeight: fontWeight.semibold },
 
   whoPanel: { paddingLeft: INDENT, paddingBottom: spacing.sm },
+  withPanel: { paddingLeft: INDENT, paddingBottom: spacing.md, flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  friendChip: { flexDirection: "row", alignItems: "center", gap: 6, height: 36, paddingLeft: 6, paddingRight: 12, borderRadius: radius.pill, backgroundColor: palette.field },
+  friendChipOn: { backgroundColor: colors.fg },
+  friendText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg, maxWidth: 120 },
+  friendTextOn: { color: colors.bg },
   choice: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 48 },
   choiceText: { flex: 1, fontSize: 16, lineHeight: 21, color: colors.fg },
   choiceTextOn: { fontWeight: fontWeight.bold },

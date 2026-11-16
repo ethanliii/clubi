@@ -16,6 +16,8 @@ export const socialTables = {
     photos: v.optional(v.array(v.id("_storage"))),
     caption: v.optional(v.string()),
     visibility: v.optional(v.union(v.literal("friends"), v.literal("public"), v.literal("private"))),
+    /** Friends the author went with ("with Maya, Alex"). Only accepted friends, at most 8. */
+    withUserIds: v.optional(v.array(v.id("users"))),
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_target", ["targetId"])

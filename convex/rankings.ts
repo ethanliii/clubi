@@ -270,6 +270,9 @@ export const mine = query({
   },
 });
 
+/** The most friends one post can say you went with. */
+const MAX_WENT_WITH = 8;
+
 export const rank = mutation({
   args: {
     kind: vKind,
@@ -284,6 +287,8 @@ export const rank = mutation({
     photoStorageId: v.optional(v.id("_storage")),
     visibility: v.optional(visibilityValidator),
     groupSize: v.optional(v.number()),
+    /** Friends you went with. Must be accepted friends; at most 8; duplicates dropped. */
+    withUserIds: v.optional(v.array(v.id("users"))),
   },
   handler: async (ctx, args): Promise<RankResult> => {
     const userId = await getAuthUserId(ctx);
@@ -469,8 +474,18 @@ export const rank = mutation({
       previousPost?.visibility ??
       user?.defaultVisibility ??
       "friends";
+    // "Went with": only people who are actually friends, so nobody can be tagged by a stranger.
+    let withUserIds: Id<"users">[] | undefined;
+    if (args.withUserIds !== undefined) {
+      const friends = await friendIdsOf(ctx, userId);
+      const unique = [...new Set(args.withUserIds)].filter((id) => id !== userId);
+      if (unique.length > MAX_WENT_WITH) throw new Error(`Tag at most ${MAX_WENT_WITH} friends`);
+      if (unique.some((id) => !friends.has(id))) throw new Error("You can only tag your friends");
+      withUserIds = unique;
+    }
     if (previousPost === null) {
       await ctx.db.insert("posts", {
+        ...(withUserIds === undefined || withUserIds.length === 0 ? {} : { withUserIds }),
         userId,
         rankingId,
         targetKind: kind,
@@ -484,6 +499,7 @@ export const rank = mutation({
       const photos = previousPost.photos ?? [];
       await ctx.db.patch("posts", previousPost._id, {
         visibility,
+        ...(withUserIds === undefined ? {} : { withUserIds }),
         ...(caption === undefined ? {} : { caption }),
         ...(args.photoStorageId === undefined ||
         photos.includes(args.photoStorageId)

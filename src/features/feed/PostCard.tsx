@@ -6,7 +6,7 @@ import { categoryLabel, displayName, formatRelativeTime, formatScore } from "../
 import { ratePath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { colors, fontWeight, ratingColor, spacing } from "../../theme";
-import { POST_MEDIA_HEIGHT, POST_MEDIA_RADIUS, PostMedia } from "./PostMedia";
+import { POST_MEDIA_HEIGHT, POST_MEDIA_RADIUS, PostMedia, wentWithLine } from "./PostMedia";
 import { ScoreRing } from "./ScoreRing";
 
 /** The three choices behind "Who sees it", in the order they are offered. */
@@ -101,6 +101,12 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost, hide
             <Text accessibilityLabel={`Open ${target.name}`} onPress={openVenue} style={styles.strong}>
               {displayName(target.name)}
             </Text>
+            {wentWithLine(post.with) ? (
+              <>
+                <Text style={styles.verb}> with </Text>
+                <Text style={styles.strong}>{wentWithLine(post.with)}</Text>
+              </>
+            ) : null}
           </Text>
           <Text numberOfLines={1} style={styles.place}>
             {detail}

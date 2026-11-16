@@ -150,6 +150,13 @@ export function feedItemBuilder(ctx: QueryCtx, viewer: PostViewer) {
     const shown = <T extends { userId: Id<"users"> }>(rows: T[]) =>
       rows.filter((row) => !viewer.blockedIds.has(row.userId));
     const mine = reactions.find((reaction) => reaction.userId === viewer.userId);
+    // "Went with": names and faces of the tagged friends, leaving out anyone blocked either way.
+    const wentWith: NonNullable<FeedItem["with"]> = [];
+    for (const id of post.withUserIds ?? []) {
+      if (viewer.blockedIds.has(id)) continue;
+      const friend = await getUser(id);
+      if (friend !== null) wentWith.push({ userId: friend._id, displayName: displayNameOf(friend), avatarUrl: avatarUrlOf(friend) });
+    }
     return {
       postId: post._id,
       author: {
@@ -181,6 +188,7 @@ export function feedItemBuilder(ctx: QueryCtx, viewer: PostViewer) {
       myReaction: mine === undefined ? undefined : (mine.emoji ?? DEFAULT_EMOJI),
       commentCount: shown(comments).length,
       insightChips: await insightChipsFor(ctx, ranking?._id),
+      ...(wentWith.length > 0 ? { with: wentWith } : {}),
     };
   };
 }

@@ -68,6 +68,8 @@ export type FeedItem = {
   visibility?: Visibility;
   reactionCount?: number; myReaction?: string; commentCount?: number;
   insightChips?: string[];   // short answers from the post-rating questions, e.g. "Packed", "Mostly 20s"
+  // v3, optional: friends the author tagged as "went with" (only ones the viewer can see by name).
+  with?: { userId: Id<"users">; displayName: string; avatarUrl?: string }[];
 };
 
 export type NotificationItem = {

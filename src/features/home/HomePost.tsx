@@ -6,7 +6,7 @@ import { categoryLabel, formatRelativeTime, formatScore, pluralize } from "../..
 import { postPath, ratePath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { colors, fontWeight, palette, ratingColor } from "../../theme";
-import { PostMedia } from "../feed/PostMedia";
+import { PostMedia, wentWithLine } from "../feed/PostMedia";
 
 const AVATAR = 56;
 const RING = 44;
@@ -69,6 +69,12 @@ export function HomePost({ post, now, onComments }: { post: FeedItem; now: numbe
             <Text accessibilityLabel={`Open ${target.name}`} onPress={openVenue} style={styles.strong}>
               {target.name}
             </Text>
+            {wentWithLine(post.with) ? (
+              <>
+                <Text style={styles.verb}> with </Text>
+                <Text style={styles.strong}>{wentWithLine(post.with)}</Text>
+              </>
+            ) : null}
           </Text>
           <Text numberOfLines={1} style={styles.detail}>
             {detail}

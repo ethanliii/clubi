@@ -126,3 +126,13 @@ const styles = StyleSheet.create({
   dotOn: { backgroundColor: palette.onPhoto },
   counterText: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.semibold, color: palette.onPhoto, fontVariant: ["tabular-nums"] },
 });
+
+/** "Maya", "Maya and Alex", "Maya, Alex and 2 others": the friends a post says they went with. */
+export function wentWithLine(people: { displayName: string }[] | undefined): string | null {
+  if (!people || people.length === 0) return null;
+  const first = people.map((p) => p.displayName.trim().split(/\s+/)[0] || p.displayName);
+  if (first.length === 1) return first[0]!;
+  if (first.length === 2) return `${first[0]} and ${first[1]}`;
+  const rest = first.length - 2;
+  return `${first[0]}, ${first[1]} and ${rest} ${rest === 1 ? "other" : "others"}`;
+}
