@@ -2,31 +2,33 @@ import { useQuery } from "convex/react";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, EmptyState, Header, Icon, ScoreBadge, Screen, Skeleton, Text, goBack, type IconName } from "../../components";
 import { api, type Id, type Kind, type Source, type VenueDetail } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { useKeptQuery } from "../../lib/useKeptQuery";
-import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore, pluralize } from "../../lib/format";
+import { categoryLabel, formatClock, formatDistance, formatPrice, formatScore, pluralize } from "../../lib/format";
 import { directionsUrl, openUrl, ratePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { useNow } from "../../lib/useNow";
 import { colors, fontWeight, palette, spacing } from "../../theme";
-import { DetailRow, GUTTER, Photo, SectionTitle } from "./parts";
+import { DetailRow, GUTTER, Photo, SectionTitle, displayName, eventDateLine, hoursLines, streetAddress } from "./parts";
 import { BreakdownSection, FriendsSection, InsightsSection, PerformersSection, PhotosSection, SimilarSection } from "./sections";
 
 /** "View on …" for the event sources that have a page worth opening (docs/UI-SPEC.md section 5). */
-const SOURCE_LABELS: Partial<Record<Source, string>> = {
-  luma: "View on Luma",
-  partiful: "View on Partiful",
-  ticketmaster: "View on Ticketmaster",
-  eventbrite: "View on Eventbrite",
+const SOURCE_NAMES: Partial<Record<Source, string>> = {
+  luma: "Luma",
+  partiful: "Partiful",
+  ticketmaster: "Ticketmaster",
+  eventbrite: "Eventbrite",
 };
 
 /** The photo header: tall when there is a real photo to show, shorter for the category look. */
 const HERO_WITH_PHOTO = 280;
 const HERO_PLAIN = 220;
+/** With no picture there is no hero: just the row the back and save buttons sit in. */
+const BAR_ROW = 56;
 /** The pinned action bar's buttons. */
 const ACTION_HEIGHT = 52;
 
@@ -155,15 +157,18 @@ function Loaded({
 }) {
   const now = useNow();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [scrollY] = useState(() => new Animated.Value(0));
   const { run: toggleSave, pending: saving } = useMutationToast(api.saves.toggle);
   const { run: toggleGoing, pending: goingPending } = useMutationToast(api.saves.toggle);
   const isEvent = venue.kind === "event";
 
-  const heroHeight = venue.imageUrl ? HERO_WITH_PHOTO : HERO_PLAIN;
+  const hasPhoto = !!venue.imageUrl;
+  // An event's picture is a 2:1 flyer: the hero takes that shape so its lettering is not cropped.
+  const heroHeight = !hasPhoto ? insets.top + BAR_ROW : isEvent ? Math.round(Math.min(width, 520) / 2) + insets.top : HERO_WITH_PHOTO;
   // The bar under the back button fades in once the name has scrolled away beneath it.
   const barOpacity = scrollY.interpolate({
-    inputRange: [heroHeight - insets.top - 90, heroHeight - insets.top - 40],
+    inputRange: hasPhoto ? [heroHeight - insets.top - 90, heroHeight - insets.top - 40] : [8, 48],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
@@ -173,18 +178,30 @@ function Loaded({
     .join(" · ");
   const distance = hasDistance ? formatDistance(venue.distanceMeters) : "";
   const openLabel = isEvent ? "" : venue.openNow === true ? "Open now" : venue.openNow === false ? "Closed now" : "";
-  const when = isEvent && venue.startsAt !== undefined ? formatEventTime(venue.startsAt, now) : "";
-  const nameSize = venue.name.length > 44 ? styles.nameSmall : venue.name.length > 22 ? styles.nameMedium : null;
+  const when = isEvent && venue.startsAt !== undefined ? `${eventDateLine(venue.startsAt, now)} · ${formatClock(venue.startsAt)}` : "";
+  const started = isEvent && venue.startsAt !== undefined && venue.startsAt <= now;
+  // "On now" is the backend's word: it is lifted from the reason line up to the date so it is said once.
+  const onNow = isEvent && /·\s*On now\s*$/i.test(venue.why);
+  const name = displayName(venue.name);
+  const nameSize = name.length > 34 ? styles.nameSmall : name.length > 20 ? styles.nameMedium : null;
 
   const rankLabel = venue.myRanking ? "Rank again" : isEvent ? "Rank this event" : "Rank this place";
+  // Before an event starts, going is the thing to do; once it has started, ranking is.
+  const goingFirst = isEvent && !started;
   const saveLabel = venue.saved ? "Saved" : "Save";
   const goingLabel = venue.going ? "Going" : "I'm going";
-  const sourceLabel = venue.source ? SOURCE_LABELS[venue.source] : undefined;
+  const sourceName = venue.source ? SOURCE_NAMES[venue.source] : undefined;
+  const ticketLabel = sourceName ? `Tickets on ${sourceName}` : "Get tickets";
+  const sourceLabel = sourceName ? `View on ${sourceName}` : undefined;
+  const hours = venue.hours ? hoursLines(venue.hours) : [];
   const { ticketUrl, sourceUrl, website } = venue;
   // The heading already says whether it is open, so the reason line does not repeat it.
-  const why = openLabel === "Open now" ? venue.why.replace(/\s*·\s*Open now\s*$/i, "") || venue.why : venue.why;
+  const why =
+    openLabel === "Open now" || onNow ? venue.why.replace(/\s*·\s*(Open|On) now\s*$/i, "") || venue.why : venue.why;
   // The tags the heading and the blurb have not already said ("Bakery" under a bakery's name adds nothing).
-  const blurbText = (venue.blurb ?? "").toLowerCase();
+  // An imported blurb that is only the date ("Sunday, November 15") repeats the line under the name.
+  const blurb = venue.blurb && !/^\s*(mon|tues|wednes|thurs|fri|satur|sun)day,?\s+[a-z]+\.?\s+\d{1,2}(,?\s+\d{4})?\s*$/i.test(venue.blurb) ? venue.blurb : undefined;
+  const blurbText = (blurb ?? "").toLowerCase();
   const kindWords = [venue.category, venue.subcategory ?? ""].map((word) => word.replace(/_/g, " ").toLowerCase());
   const tags = venue.tags
     .map((tag) => tag.replace(/_/g, " "))
@@ -197,20 +214,20 @@ function Loaded({
 
   // The details list, top to bottom. Built first so the last line can drop its divider.
   const details: React.ComponentProps<typeof DetailRow>[] = [
-    ...(when ? [{ icon: "calendar" as const, title: when }] : []),
     {
       icon: "navigate" as const,
-      title: venue.address ?? "Directions",
+      title: venue.address ? streetAddress(venue.address) : "Directions",
       subtitle: distance ? `${distance} away` : undefined,
-      action: venue.address ? "Directions" : undefined,
       accessibilityLabel: "Directions",
       onPress: () => void openUrl(directionsUrl(venue.lat, venue.lng, venue.name)),
     },
-    ...(venue.hours ? [{ icon: "clock" as const, title: venue.hours, subtitle: openLabel || undefined }] : []),
-    ...(ticketUrl
-      ? [{ icon: "ticket" as const, title: "Get tickets", accessibilityLabel: "Get tickets", onPress: () => void openUrl(ticketUrl) }]
+    ...(venue.hours
+      ? [{ icon: "clock" as const, title: hours[0] ?? venue.hours, subtitle: hours.slice(1).join("\n") || undefined }]
       : []),
-    ...(sourceUrl && sourceLabel
+    ...(ticketUrl
+      ? [{ icon: "ticket" as const, title: ticketLabel, accessibilityLabel: ticketLabel, onPress: () => void openUrl(ticketUrl) }]
+      : []),
+    ...(!ticketUrl && sourceUrl && sourceLabel
       ? [{ icon: "external" as const, title: sourceLabel, accessibilityLabel: sourceLabel, onPress: () => void openUrl(sourceUrl) }]
       : []),
     ...(website
@@ -248,28 +265,25 @@ function Loaded({
         })}
         contentContainerStyle={{ paddingBottom: ACTION_HEIGHT + Math.max(insets.bottom, 14) + 40 }}
       >
-        <View style={{ height: heroHeight }}>
-          <Photo uri={venue.imageUrl} category={venue.category} height={heroHeight} label={`Photo of ${venue.name}`} />
-          <LinearGradient
-            pointerEvents="none"
-            colors={["rgba(0, 0, 0, 0.32)", "rgba(0, 0, 0, 0)"]}
-            style={[styles.topShade, { height: insets.top + 80 }]}
-          />
-          {venue.imageUrl && venue.imageAttribution ? (
-            <View style={styles.credit}>
-              <Text numberOfLines={1} style={styles.creditText}>
-                {venue.imageAttribution}
-              </Text>
-            </View>
-          ) : null}
-        </View>
+        {hasPhoto ? (
+          <View style={{ height: heroHeight }}>
+            <Photo uri={venue.imageUrl} category={venue.category} height={heroHeight} label={`Photo of ${name}`} />
+            <LinearGradient
+              pointerEvents="none"
+              colors={["rgba(0, 0, 0, 0.45)", "rgba(0, 0, 0, 0)"]}
+              style={[styles.topShade, { height: insets.top + 72 }]}
+            />
+          </View>
+        ) : (
+          <View style={{ height: heroHeight }} />
+        )}
 
-        <View style={styles.body}>
+        <View style={[styles.body, !hasPhoto && styles.bodyPlain]}>
           <View style={styles.top}>
             <View style={styles.titleRow}>
               <View style={styles.heading}>
-                <Text accessibilityRole="header" numberOfLines={4} style={[styles.name, nameSize]}>
-                  {venue.name}
+                <Text accessibilityRole="header" numberOfLines={2} style={[styles.name, nameSize]}>
+                  {name}
                 </Text>
                 {metaParts.length > 0 || openLabel ? (
                   <Text style={styles.meta}>
@@ -281,7 +295,12 @@ function Loaded({
                     ) : null}
                   </Text>
                 ) : null}
-                {when ? <Text style={styles.when}>{when}</Text> : null}
+                {when ? (
+                  <Text style={styles.when}>
+                    {when}
+                    {onNow ? <Text style={[styles.when, styles.metaOpen]}> · On now</Text> : null}
+                  </Text>
+                ) : null}
               </View>
               <View style={styles.scoreCol}>
                 <ScoreBadge score={venue.score} size="lg" />
@@ -311,9 +330,9 @@ function Loaded({
             </View>
           ) : null}
 
-          {venue.blurb || tags.length > 0 ? (
+          {blurb || tags.length > 0 ? (
             <View style={styles.about}>
-              {venue.blurb ? <Text style={styles.blurb}>{venue.blurb}</Text> : null}
+              {blurb ? <Text style={styles.blurb}>{blurb}</Text> : null}
               {tags.length > 0 ? (
                 <View style={styles.pills}>
                   {tags.slice(0, 8).map((tag) => (
@@ -345,7 +364,13 @@ function Loaded({
             </View>
           </View>
 
-          <SimilarSection items={similar} now={now} />
+          <SimilarSection items={similar} now={now} eventsFirst={isEvent} />
+
+          {hasPhoto && venue.imageAttribution ? (
+            <Text numberOfLines={1} style={styles.creditText}>
+              {venue.imageAttribution}
+            </Text>
+          ) : null}
         </View>
       </Animated.ScrollView>
 
@@ -353,7 +378,7 @@ function Loaded({
         <Animated.View pointerEvents="none" style={[styles.topBarFill, { opacity: barOpacity }]} />
         <FloatingBack />
         <Animated.Text numberOfLines={1} style={[styles.topTitle, { opacity: barOpacity }]}>
-          {venue.name}
+          {name}
         </Animated.Text>
         {save}
       </View>
@@ -364,18 +389,19 @@ function Loaded({
             title={goingLabel}
             accessibilityLabel={goingLabel}
             accessibilityState={{ selected: !!venue.going, disabled: goingPending }}
-            variant="secondary"
+            variant={goingFirst ? "primary" : "secondary"}
             icon={venue.going ? "check" : undefined}
             disabled={goingPending}
             onPress={() => void toggleGoing({ kind: venue.kind, id: venue.id, type: "going" })}
-            style={styles.going}
+            style={goingFirst ? styles.rank : styles.going}
           />
         ) : null}
         <Button
-          title={rankLabel}
+          title={goingFirst ? "Rank" : rankLabel}
           accessibilityLabel={rankLabel}
+          variant={goingFirst ? "secondary" : "primary"}
           onPress={() => router.push(ratePath(venue.kind, venue.id))}
-          style={styles.rank}
+          style={goingFirst ? styles.side : styles.rank}
         />
       </View>
     </View>
@@ -387,30 +413,21 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.6 },
 
   topShade: { position: "absolute", top: 0, left: 0, right: 0 },
-  // The photographer's credit, in the photo's bottom corner.
-  credit: {
-    position: "absolute",
-    right: 10,
-    bottom: 10,
-    maxWidth: "70%",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-  },
-  creditText: { color: palette.onPhoto, fontSize: 11, lineHeight: 15 },
+  // The photographer's credit, a quiet last line of the page.
+  creditText: { color: colors.low, fontSize: 11, lineHeight: 15, marginTop: -8 },
 
   body: { paddingHorizontal: GUTTER, paddingTop: 18, gap: 28 },
+  bodyPlain: { paddingTop: 8 },
   top: { gap: 14 },
   titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
   heading: { flex: 1, gap: 5 },
   reason: { gap: 2, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.hairline },
   name: { color: colors.fg, fontSize: 28, lineHeight: 33, fontWeight: "800", letterSpacing: -0.6 },
   nameMedium: { fontSize: 24, lineHeight: 29, letterSpacing: -0.4 },
-  nameSmall: { fontSize: 22, lineHeight: 27, letterSpacing: -0.3 },
+  nameSmall: { fontSize: 22, lineHeight: 26, letterSpacing: -0.3 },
   meta: { color: colors.muted, fontSize: 15, lineHeight: 21 },
   metaOpen: { color: colors.ok, fontWeight: fontWeight.semibold },
-  when: { color: colors.fg, fontSize: 15, lineHeight: 21, fontWeight: fontWeight.semibold },
+  when: { color: colors.fg, fontSize: 16, lineHeight: 22, fontWeight: fontWeight.bold },
 
   scoreCol: { alignItems: "center", gap: 4, width: 58, paddingTop: 2 },
   scoreCaption: { color: colors.muted, fontSize: 11, lineHeight: 14, fontWeight: fontWeight.semibold },
@@ -486,6 +503,7 @@ const styles = StyleSheet.create({
   },
   going: { width: "auto", minHeight: ACTION_HEIGHT, paddingHorizontal: spacing.lg },
   rank: { flex: 1, width: "auto", minHeight: ACTION_HEIGHT },
+  side: { width: 110, minHeight: ACTION_HEIGHT },
 
   loadingBody: { paddingHorizontal: GUTTER, paddingTop: spacing.xl, gap: spacing.lg },
   loadingFact: { flexDirection: "row", alignItems: "center", gap: 14 },

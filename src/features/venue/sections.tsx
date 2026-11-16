@@ -6,7 +6,8 @@ import { categoryLabel, formatDistance, formatEventTime, formatRelativeTime, for
 import { performerPath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { colors, fontWeight, palette, spacing } from "../../theme";
-import { GUTTER, Photo, Scrim, SectionTitle } from "./parts";
+import { LinearGradient } from "expo-linear-gradient";
+import { GUTTER, Photo, SectionTitle, cardName } from "./parts";
 
 type FriendRanking = VenueDetail["friendRankings"][number];
 
@@ -62,7 +63,7 @@ export function PhotosSection({ venue }: { venue: VenueDetail }) {
             style={({ pressed }) => [styles.shot, shots.length === 1 && styles.shotWide, pressed && styles.cardPressed]}
           >
             <Image source={{ uri: friend.photoUrl }} resizeMode="cover" style={StyleSheet.absoluteFill} />
-            <Scrim from="rgba(0, 0, 0, 0)" to="rgba(0, 0, 0, 0.62)" height="45%" />
+            <LinearGradient pointerEvents="none" colors={["rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0.62)"]} style={styles.shotFade} />
             <View style={styles.shotBy}>
               <Avatar name={friend.displayName} uri={friend.avatarUrl} size={22} />
               <Text numberOfLines={1} style={styles.shotName}>
@@ -79,19 +80,8 @@ export function PhotosSection({ venue }: { venue: VenueDetail }) {
 /** Friends who ranked it: who, their score, what they wrote, when, and their photo. */
 export function FriendsSection({ venue, now }: { venue: VenueDetail; now: number }) {
   const friends = venue.friendRankings;
-  if (friends.length === 0) {
-    return (
-      <View style={styles.section}>
-        <SectionTitle>Friends who went</SectionTitle>
-        <View style={styles.quiet}>
-          <Icon name="users" size={18} color={colors.low} />
-          <Text muted style={styles.quietText}>
-            No friends have ranked this yet. Be the first.
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  // Nothing to show is nothing drawn: no heading over an apology.
+  if (friends.length === 0) return null;
   return (
     <View style={styles.section}>
       <SectionTitle note={friends.length > 1 ? `${friends.length} friends` : undefined}>Friends who went</SectionTitle>
@@ -109,27 +99,27 @@ export function FriendsSection({ venue, now }: { venue: VenueDetail; now: number
  * about the place (not a dancing spot), not a bad score, so it does not get the rating colours.
  */
 export function BreakdownSection({ breakdown }: { breakdown: VenueDetail["breakdown"] }) {
-  if (!breakdown || breakdown.length === 0) return null;
+  // Only what the place is actually strong at: a list of low numbers argues the opposite of the heading.
+  const strong = (breakdown ?? []).filter((row) => row.value >= 6).slice(0, 3);
+  if (strong.length < 2) return null;
   return (
     <View style={styles.section}>
       <SectionTitle>Why it fits you</SectionTitle>
-      <View style={styles.bars}>
-        {breakdown.map((row) => (
-          <View key={row.label} accessibilityLabel={`${row.label} ${row.value.toFixed(1)}`} style={styles.barRow}>
-            <Text numberOfLines={1} style={styles.barLabel}>
-              {row.label}
-            </Text>
-            <View style={styles.track}>
-              <View
-                style={[
-                  styles.fill,
-                  { width: `${Math.min(1, Math.max(0, row.value / 10)) * 100}%` },
-                ]}
-              />
+      <View style={styles.highlights}>
+        {strong.map((row) => {
+          const word = row.value >= 8 ? "Strong match" : "Good match";
+          return (
+            <View key={row.label} accessibilityLabel={`${row.label}, ${word}`} style={styles.highlight}>
+              <Icon name="check" size={16} color={colors.ok} />
+              <Text numberOfLines={1} style={styles.highlightText}>
+                {row.label}
+              </Text>
+              <Text muted style={styles.rowSub}>
+                {word}
+              </Text>
             </View>
-            <Text style={styles.barValue}>{row.value.toFixed(1)}</Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
@@ -141,8 +131,8 @@ export function InsightsSection({ insights }: { insights: VenueInsights | null |
   const asked = insights.distributions.filter((distribution) => distribution.total > 0);
   // With only a couple of answers the backend withholds the split (every share is 0): rows of "0%" would read as a result.
   const answered = asked.filter((distribution) => distribution.options.some((option) => option.pct > 0));
-  const withheld = asked.length > 0 && answered.length === 0;
-  if (insights.highlights.length === 0 && insights.bestFor.length === 0 && asked.length === 0) return null;
+  // Too few answers to draw a breakdown: say nothing rather than a heading over "more soon".
+  if (insights.highlights.length === 0 && insights.bestFor.length === 0 && answered.length === 0) return null;
   return (
     <View style={styles.section}>
       <SectionTitle note={insights.confidence === "low" ? "Based on a few visits" : undefined}>What people say</SectionTitle>
@@ -167,11 +157,6 @@ export function InsightsSection({ insights }: { insights: VenueInsights | null |
             </View>
           ))}
         </View>
-      ) : null}
-      {withheld ? (
-        <Text muted style={styles.questionText}>
-          A few people have answered. The breakdown shows once more have.
-        </Text>
       ) : null}
       {answered.map((distribution) => (
         <View key={distribution.questionId} style={styles.question}>
@@ -293,27 +278,31 @@ export function PerformersSection({
   );
 }
 
-const CARD_WIDTH = 168;
-const CARD_HEIGHT = 210;
+const CARD_WIDTH = 158;
+const CARD_HEIGHT = 180;
+/** The fade under a card's text: dark early, so white letters hold over a flyer's own lettering. */
+const CARD_FADE = ["rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0.72)", "rgba(0, 0, 0, 0.94)"] as const;
+const CARD_FADE_STOPS = [0, 0.35, 1] as const;
 
 function SimilarCard({ item, now }: { item: NearbyItem; now: number }) {
+  const name = cardName(item.name);
   const facts =
     item.kind === "event" && item.startsAt !== undefined
       ? formatEventTime(item.startsAt, now)
-      : [categoryLabel(item.category, item.subcategory), formatDistance(item.distanceMeters)].filter((part) => part !== "").join(" · ");
+      : [formatDistance(item.distanceMeters), categoryLabel(item.category, item.subcategory)].filter((part) => part !== "").join(" · ");
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${formatScore(item.score)} for you. ${item.why}`}
+      accessibilityLabel={`${name}, ${formatScore(item.score)} for you. ${item.why}`}
       onPress={() => router.push(venuePath(item.kind, item.id))}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
-      <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${item.name}`} deep />
-      <Scrim from="rgba(0, 0, 0, 0)" to="rgba(0, 0, 0, 0.82)" height="70%" />
+      <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${name}`} deep />
+      <LinearGradient pointerEvents="none" colors={CARD_FADE} locations={CARD_FADE_STOPS} style={styles.cardFade} />
       <ScoreBadge score={item.score} size="sm" style={styles.cardScore} />
       <View style={styles.cardText}>
         <Text numberOfLines={2} style={styles.cardName}>
-          {item.name}
+          {name}
         </Text>
         <Text numberOfLines={1} style={styles.cardFacts}>
           {facts}
@@ -324,15 +313,29 @@ function SimilarCard({ item, now }: { item: NearbyItem; now: number }) {
 }
 
 /** "More like this": a sideways row of photo cards, hidden when the backend has none. */
-export function SimilarSection({ items, now }: { items: NearbyItem[] | undefined; now: number }) {
+export function SimilarSection({
+  items: all,
+  now,
+  eventsFirst,
+}: {
+  items: NearbyItem[] | undefined;
+  now: number;
+  /** On an event's page the events lead the row; on a place's page the places do. */
+  eventsFirst?: boolean;
+}) {
+  // A card without a picture is a blank tile in a row of photos: leave it out. Same kind first, order otherwise kept.
+  const pictured = all?.filter((item) => !!item.imageUrl);
+  const items = pictured
+    ? [...pictured.filter((item) => (item.kind === "event") === !!eventsFirst), ...pictured.filter((item) => (item.kind === "event") !== !!eventsFirst)].slice(0, 8)
+    : undefined;
   if (items !== undefined && items.length === 0) return null;
   return (
     <View style={styles.section}>
       <SectionTitle>More like this</SectionTitle>
       {items === undefined ? (
         <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loadingCards}>
-          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={10} />
-          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={10} />
+          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={12} />
+          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={12} />
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={styles.cards}>
@@ -355,8 +358,6 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold },
   rowSub: { fontSize: 13, lineHeight: 18 },
 
-  quiet: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  quietText: { flex: 1, fontSize: 14, lineHeight: 20 },
 
   friend: { gap: spacing.md, paddingVertical: 14 },
   friendTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
@@ -367,14 +368,8 @@ const styles = StyleSheet.create({
   shotBy: { position: "absolute", left: 10, right: 10, bottom: 10, flexDirection: "row", alignItems: "center", gap: 6 },
   shotName: { flex: 1, color: palette.onPhoto, fontSize: 13, lineHeight: 17, fontWeight: fontWeight.semibold },
 
-  bars: { gap: 14 },
-  barRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  // Wide enough for the longest backend label ("Electronic music") at this size.
-  barLabel: { width: 124, fontSize: 15, lineHeight: 20 },
-  track: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.raised, overflow: "hidden" },
   thinTrack: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
   fill: { height: "100%", borderRadius: 3, backgroundColor: colors.fg },
-  barValue: { width: 30, textAlign: "right", fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, fontVariant: ["tabular-nums"] },
 
   highlights: { gap: spacing.md - 2 },
   highlight: { flexDirection: "row", alignItems: "center", gap: spacing.md },
@@ -397,11 +392,13 @@ const styles = StyleSheet.create({
   bleed: { marginHorizontal: -GUTTER, flexGrow: 0 },
   cards: { gap: spacing.md, paddingHorizontal: GUTTER },
   loadingCards: { flexDirection: "row", gap: spacing.md },
-  card: { width: CARD_WIDTH, height: CARD_HEIGHT, borderRadius: 10, overflow: "hidden", backgroundColor: colors.surface },
+  card: { width: CARD_WIDTH, height: CARD_HEIGHT, borderRadius: 12, overflow: "hidden", backgroundColor: colors.surface },
+  cardFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "80%" },
+  shotFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "45%" },
   cardPressed: { opacity: 0.8 },
   cardScore: { position: "absolute", top: 8, right: 8 },
   cardText: { position: "absolute", left: 12, right: 12, bottom: 12, gap: 2 },
-  cardName: { color: palette.onPhoto, fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  cardName: { color: palette.onPhoto, fontSize: 16, lineHeight: 19, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
   cardFacts: { color: palette.onPhoto, fontSize: 12.5, lineHeight: 17, opacity: 0.9 },
 
   rowVerb: { color: colors.muted, fontWeight: fontWeight.regular },
