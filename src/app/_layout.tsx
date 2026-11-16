@@ -63,8 +63,11 @@ function RootNavigator() {
   const me = useQuery(api.users.me);
   const pathname = usePathname();
   useEffect(() => {
-    if (me?.username !== undefined && OVERLORD_USERNAMES.has(me.username)) setOverlord(true);
-  }, [me?.username]);
+    // On for the test account, and always off again once nobody is signed in, so a sign-out
+    // during a demo puts every guard back.
+    if (me === null) setOverlord(false);
+    else if (me?.username !== undefined && OVERLORD_USERNAMES.has(me.username)) setOverlord(true);
+  }, [me]);
   if (gate === null) return <Splash />;
 
   const inApp = overlord || gate === "ready" || gate === "tasteCard";
@@ -118,8 +121,8 @@ const styles = StyleSheet.create({
   page: { flex: 1, alignItems: "center", backgroundColor: colors.page },
   app: { flex: 1, width: "100%", maxWidth: 520, backgroundColor: colors.bg },
   overlordButton: {
-    position: "absolute", left: 12, bottom: 96, width: 40, height: 40, borderRadius: 20,
-    alignItems: "center", justifyContent: "center", backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.accent, opacity: 0.9,
+    position: "absolute", right: 6, top: "46%", width: 32, height: 32, borderRadius: 16,
+    alignItems: "center", justifyContent: "center", backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, opacity: 0.75,
   },
-  overlordIcon: { fontSize: 18 },
+  overlordIcon: { fontSize: 14 },
 });
