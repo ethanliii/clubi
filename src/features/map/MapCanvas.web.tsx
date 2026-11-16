@@ -185,6 +185,43 @@ function anchorFor(pin: HTMLElement, order: number): HTMLDivElement {
   return anchor;
 }
 
+/**
+ * Positron is all greys. These few colours make it read like a clean light street map: white streets
+ * on a pale ground, soft blue water, soft green parks, and street names light enough that the pin
+ * names stay the darkest text on the map. Same palette as LIGHT_MAP_STYLE on Android.
+ */
+const TINT: Record<string, [string, string]> = {
+  background: ["background-color", "#f5f5f3"],
+  water: ["fill-color", "#cfe3f2"],
+  waterway: ["line-color", "#cfe3f2"],
+  park: ["fill-color", "#dcefd9"],
+  landcover_wood: ["fill-color", "#d6ebd2"],
+  landuse_residential: ["fill-color", "#f5f5f3"],
+  building: ["fill-color", "#ecece8"],
+  road_area_pier: ["fill-color", "#f5f5f3"],
+  road_pier: ["line-color", "#f5f5f3"],
+  highway_path: ["line-color", "#ffffff"],
+  highway_minor: ["line-color", "#ffffff"],
+  highway_major_casing: ["line-color", "#e2e2e6"],
+  highway_motorway_casing: ["line-color", "#e2e2e6"],
+  "highway-name-path": ["text-color", "#a3a3ad"],
+  "highway-name-minor": ["text-color", "#a3a3ad"],
+  "highway-name-major": ["text-color", "#8f8f9a"],
+  water_name_point_label: ["text-color", "#6f8ea8"],
+  water_name_line_label: ["text-color", "#6f8ea8"],
+  label_other: ["text-color", "#6d6d78"],
+};
+
+function tintStyle(map: GLMap) {
+  for (const [layer, [property, value]] of Object.entries(TINT)) {
+    try {
+      if (map.getLayer(layer)) map.setPaintProperty(layer, property, value);
+    } catch {
+      // A layer this style no longer has, or a property it does not take: the map keeps its own colour.
+    }
+  }
+}
+
 const lngLat = (at: LatLng): [number, number] => [at.lng, at.lat];
 const HIDDEN: PinPlacement = { mode: "hidden", name: false };
 
@@ -284,6 +321,8 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
         arrange();
       });
     });
+    map.once("styledata", () => tintStyle(map));
+    map.once("load", () => tintStyle(map));
     mapRef.current = map;
 
     return () => {
