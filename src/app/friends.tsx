@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { useState, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { EmptyState, Header, Screen, SkeletonRows, Text } from "../components";
 import { FriendButton, PersonRow, personFacts, RowButton, SearchBar } from "../features/friends";
 import { api, type FriendSuggestion, type FriendsOverview } from "../lib/api";
@@ -8,6 +8,9 @@ import { pluralize } from "../lib/format";
 import { useDebounced } from "../lib/useDebounced";
 import { useMutationToast } from "../lib/useMutationToast";
 import { colors, fontWeight, spacing } from "../theme";
+
+/** How many suggestions show before "See all", so the friends list is not pushed off the screen. */
+const SUGGESTION_PREVIEW = 3;
 
 const mutualLine = (count: number | undefined) => (count ? pluralize(count, "mutual friend") : null);
 
@@ -21,7 +24,18 @@ const reasonLines = (reason: string) => {
 };
 
 /** A titled run of people. The count sits beside the title, quieter than it. */
-function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+function Section({
+  title,
+  count,
+  action,
+  children,
+}: {
+  title: string;
+  count?: number;
+  /** A quiet text button at the right end of the heading ("See all"). */
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <View>
       <View style={styles.sectionHead}>
@@ -29,6 +43,8 @@ function Section({ title, count, children }: { title: string; count?: number; ch
           {title}
         </Text>
         {count !== undefined ? <Text style={styles.count}>{count}</Text> : null}
+        <View style={styles.grow} />
+        {action}
       </View>
       {children}
     </View>
@@ -75,9 +91,11 @@ function Overview({
   suggestions: FriendSuggestion[] | undefined;
 }) {
   const cancel = useMutationToast(api.friends.cancel);
+  const [showAll, setShowAll] = useState(false);
 
   if (overview === undefined || suggestions === undefined) return <SkeletonRows count={6} />;
   const { friends, incoming, outgoing } = overview;
+  const shown = showAll ? suggestions : suggestions.slice(0, SUGGESTION_PREVIEW);
 
   return (
     <>
@@ -103,6 +121,43 @@ function Overview({
         </Section>
       ) : null}
 
+      {suggestions.length > 0 ? (
+        <Section
+          title="People you may know"
+          action={
+            suggestions.length > SUGGESTION_PREVIEW ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={showAll ? "Show fewer suggestions" : "See all suggestions"}
+                hitSlop={12}
+                onPress={() => setShowAll((open) => !open)}
+                style={({ pressed }) => [styles.seeAll, pressed && styles.pressed]}
+              >
+                <Text style={styles.seeAllLabel}>{showAll ? "Show less" : "See all"}</Text>
+              </Pressable>
+            ) : undefined
+          }
+        >
+          {shown.map((person, index) => (
+            <PersonRow
+              key={person.userId}
+              user={person}
+              last={index === shown.length - 1}
+              subtitle={reasonLines(person.reason)}
+              right={
+                <FriendButton
+                  compact
+                  addLabel="Add"
+                  userId={person.userId}
+                  displayName={person.displayName}
+                  status="none"
+                />
+              }
+            />
+          ))}
+        </Section>
+      ) : null}
+
       {friends.length > 0 ? (
         <Section title="Your friends" count={friends.length}>
           {friends.map((friend, index) => (
@@ -120,28 +175,6 @@ function Overview({
                     {`${friend.tasteMatchPct}% match`}
                   </Text>
                 ) : undefined
-              }
-            />
-          ))}
-        </Section>
-      ) : null}
-
-      {suggestions.length > 0 ? (
-        <Section title="People you may know">
-          {suggestions.map((person, index) => (
-            <PersonRow
-              key={person.userId}
-              user={person}
-              last={index === suggestions.length - 1}
-              subtitle={reasonLines(person.reason)}
-              right={
-                <FriendButton
-                  compact
-                  addLabel="Add"
-                  userId={person.userId}
-                  displayName={person.displayName}
-                  status="none"
-                />
               }
             />
           ))}
@@ -205,9 +238,13 @@ export default function FriendsScreen() {
 
 const styles = StyleSheet.create({
   scroller: { flex: 1 },
-  content: { gap: spacing.xl, paddingTop: spacing.xs, paddingBottom: spacing.xxl * 2 },
-  sectionHead: { flexDirection: "row", alignItems: "baseline", gap: 6, marginBottom: 2 },
-  sectionTitle: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
-  count: { fontSize: 15, lineHeight: 24, fontWeight: fontWeight.medium, color: colors.muted },
+  content: { gap: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxl * 2 },
+  sectionHead: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 32, marginBottom: 2 },
+  sectionTitle: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
+  count: { fontSize: 15, lineHeight: 22, fontWeight: fontWeight.medium, color: colors.muted },
+  grow: { flex: 1 },
+  seeAll: { minHeight: 32, justifyContent: "center" },
+  seeAllLabel: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.accent },
+  pressed: { opacity: 0.55 },
   match: { fontSize: 13, lineHeight: 18, color: colors.muted },
 });

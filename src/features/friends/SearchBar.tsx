@@ -51,9 +51,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     height: 44,
-    paddingLeft: 16,
+    paddingLeft: 14,
     paddingRight: spacing.sm,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     backgroundColor: palette.field,
   },
   // 16 keeps iOS Safari from zooming the page when the box is focused.

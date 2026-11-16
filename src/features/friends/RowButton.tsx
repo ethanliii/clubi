@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet } from "react-native";
 import { Text } from "../../components";
-import { colors, fontWeight, palette, radius } from "../../theme";
+import { colors, fontWeight, palette } from "../../theme";
 
 export type RowButtonKind = "solid" | "outline" | "soft" | "quiet";
 
@@ -10,7 +10,8 @@ export type RowButtonKind = "solid" | "outline" | "soft" | "quiet";
  *   outline an offer that is not urgent ("Add", "Friends")
  *   soft    something already done that can be undone ("Requested", "Cancel")
  *   quiet   just the word, for saying no ("Decline")
- * It is 34 tall and hugs its label; `hitSlop` makes what the thumb can hit 46.
+ * It is 32 tall with squared-off corners, like the buttons in Instagram's people lists; `hitSlop`
+ * makes what the thumb can hit 46.
  */
 export function RowButton({
   title,
@@ -41,7 +42,7 @@ export function RowButton({
   );
 }
 
-const SLOP = { top: 6, bottom: 6, left: 2, right: 2 };
+const SLOP = { top: 7, bottom: 7, left: 2, right: 2 };
 
 /** Darker than a divider, so the outline reads as a button and not as a box. */
 const OUTLINE = "#cfcfd6";
@@ -55,10 +56,10 @@ const INK: Record<RowButtonKind, string> = {
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 34,
-    minWidth: 64,
+    minHeight: 32,
+    minWidth: 68,
     paddingHorizontal: 14,
-    borderRadius: radius.pill,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "transparent",
     alignItems: "center",
