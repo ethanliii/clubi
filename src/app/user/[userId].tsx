@@ -95,7 +95,7 @@ export default function UserScreen() {
       fallback={() => (
         <Screen>
           <BackButton />
-          <EmptyState icon="user" title="This person isn't on clubi anymore" actionLabel="Back" onAction={goBack} />
+          <EmptyState icon="user" title="This person isn't on Vioma anymore" actionLabel="Back" onAction={goBack} />
         </Screen>
       )}
     >
@@ -123,7 +123,7 @@ function UserLoader() {
     return (
       <Screen>
         <BackButton />
-        <EmptyState icon="user" title="This person isn't on clubi anymore" actionLabel="Back" onAction={goBack} />
+        <EmptyState icon="user" title="This person isn't on Vioma anymore" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
   }

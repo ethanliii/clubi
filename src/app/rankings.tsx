@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { BackButton, EmptyState, IconButton, Screen, Skeleton, Text } from "../components";
+import { EmptyState, Header, IconButton, Screen, Skeleton } from "../components";
 import { CategoryTabs, RankedRow } from "../features/profile";
 import { api, type Bucket, type Category, type RankedListItem } from "../lib/api";
 import { confirm } from "../lib/confirm";
@@ -10,7 +10,7 @@ import { CATEGORY_TABS, formatRelativeTime } from "../lib/format";
 import { paths } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
-import { colors, fontWeight, spacing } from "../theme";
+import { colors, spacing } from "../theme";
 
 const BUCKET_LABELS: Record<Bucket, string> = {
   loved: "Loved it",
@@ -60,15 +60,10 @@ export default function RankingsScreen() {
 
   return (
     <Screen>
-      <BackButton />
-      <View style={styles.heading}>
-        <Text accessibilityRole="header" style={styles.title}>
-          My rankings
-        </Text>
-        {everything !== undefined && everything.length > 0 ? (
-          <Text muted>{`${everything.length} ranked · best first`}</Text>
-        ) : null}
-      </View>
+      <Header
+        title="My rankings"
+        subtitle={everything !== undefined && everything.length > 0 ? `${everything.length} ranked · Best first` : undefined}
+      />
       {nothingAtAll ? null : <CategoryTabs tabs={tabs} selected={category} onSelect={setPicked} />}
 
       {items === undefined ? (
@@ -132,8 +127,6 @@ export default function RankingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  heading: { gap: spacing.xxs },
-  title: { fontSize: 24, lineHeight: 30, fontWeight: fontWeight.bold, letterSpacing: -0.6 },
   list: { gap: spacing.sm },
   // Pull the icon to the screen edge so its glyph lines up with the score column's right side.
   remove: { marginRight: -spacing.md },

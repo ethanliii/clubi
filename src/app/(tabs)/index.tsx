@@ -89,7 +89,7 @@ export default function FeedTab() {
     <View>
       <View style={styles.header}>
         <Text accessibilityRole="header" style={styles.wordmark}>
-          clubi
+          Vioma
         </Text>
         <View style={styles.icons}>
           <ThemeToggle />

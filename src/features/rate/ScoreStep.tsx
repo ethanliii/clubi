@@ -46,7 +46,7 @@ export function ScoreStep({
     <FlowScreen
       title="Rank it"
       heading="How was it?"
-      sub={`${venue.name} · score it from 1 to 10`}
+      sub={venue.name}
       center
       onBack={onBack}
       footer={<BusyButton busy={false} title="Continue" accessibilityLabel="Continue" onPress={() => onDone(score)} />}

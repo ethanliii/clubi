@@ -1,2 +1,2 @@
-export const APP_NAME = "Clubi";
+export const APP_NAME = "Vioma";
 export const TAGLINE = "[Tagline goes here]";

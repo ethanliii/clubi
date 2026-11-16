@@ -23,7 +23,7 @@ export default function Welcome() {
       <SafeAreaView style={styles.content}>
         <View style={styles.brand}>
           <Text accessibilityRole="header" style={styles.wordmark}>
-            {APP_NAME.toLowerCase()}
+            {APP_NAME}
           </Text>
           <Text style={styles.sub}>{WELCOME_TAGLINE}</Text>
         </View>

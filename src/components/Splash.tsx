@@ -16,7 +16,7 @@ export function Splash() {
 
   return (
     <View accessibilityRole="progressbar" accessibilityLabel={`${APP_NAME} is loading`} style={styles.wrap}>
-      <Text style={styles.mark}>{APP_NAME.toLowerCase()}</Text>
+      <Text style={styles.mark}>{APP_NAME}</Text>
       <ActivityIndicator color={colors.muted} />
       {slow ? (
         <Text muted center>

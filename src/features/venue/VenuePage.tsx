@@ -209,7 +209,7 @@ function Loaded({
     .map((tag) => tag.charAt(0).toUpperCase() + tag.slice(1));
   const socialProof = [
     `${venue.matchPct}% match for you`,
-    venue.ratingCount !== undefined && venue.ratingCount > 0 ? `${pluralize(venue.ratingCount, "ranking")} on clubi` : "",
+    venue.ratingCount !== undefined && venue.ratingCount > 0 ? `${pluralize(venue.ratingCount, "ranking")} on Vioma` : "",
   ].filter((part) => part !== "");
 
   // The details list, top to bottom. Built first so the last line can drop its divider.

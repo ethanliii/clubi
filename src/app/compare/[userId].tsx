@@ -76,7 +76,7 @@ function NoCompare({ userId }: { userId: Id<"users"> }) {
   const profile = useQuery(api.profile.get, { userId });
   if (profile === undefined) return <SkeletonRows count={4} avatar={false} />;
   if (profile === null) {
-    return <EmptyState icon="user" title="This person isn't on clubi anymore" actionLabel="Back" onAction={goBack} />;
+    return <EmptyState icon="user" title="This person isn't on Vioma anymore" actionLabel="Back" onAction={goBack} />;
   }
   if (profile.user.isMe) {
     return <EmptyState icon="user" title="That's you" body="Open a friend's profile to compare tastes." actionLabel="Back" onAction={goBack} />;
@@ -112,7 +112,7 @@ export default function CompareScreen() {
       fallback={() => (
         <Screen>
           <BackButton />
-          <EmptyState icon="user" title="This person isn't on clubi anymore" actionLabel="Back" onAction={goBack} />
+          <EmptyState icon="user" title="This person isn't on Vioma anymore" actionLabel="Back" onAction={goBack} />
         </Screen>
       )}
     >

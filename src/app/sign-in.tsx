@@ -174,7 +174,7 @@ export default function SignIn() {
           <Icon name="back" size={22} color={colors.fg} />
         </Pressable>
         <Text accessibilityLabel={APP_NAME} style={styles.wordmark}>
-          {APP_NAME.toLowerCase()}
+          {APP_NAME}
         </Text>
         <View style={styles.barEnd}>
           {isSignUp ? (

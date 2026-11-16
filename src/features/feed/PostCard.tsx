@@ -68,7 +68,7 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost, hide
   const topSpot = place ? `No. ${place[1]} on ${mine ? "your" : `${firstName}'s`} ${place[2]} list` : null;
   const share = () =>
     void Share.share({
-      message: `${author.displayName} ranked ${target.name}${hasScore ? ` ${formatScore(post.score)}` : ""} on clubi`,
+      message: `${author.displayName} ranked ${target.name}${hasScore ? ` ${formatScore(post.score)}` : ""} on Vioma`,
     }).catch(() => undefined);
 
   const openVenue = () => router.push(venuePath(target.kind, target.id));

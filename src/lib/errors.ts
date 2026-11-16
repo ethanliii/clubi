@@ -72,7 +72,7 @@ export function authErrorMessage(userError: AuthUserError): string {
     case "RATE_LIMITED":
       return "Too many tries. Wait a minute and try again.";
     case "OTHER_ERROR":
-      return errorMessage(userError.cause, "Could not reach clubi. Check your connection and try again.");
+      return errorMessage(userError.cause, "Could not reach Vioma. Check your connection and try again.");
     default:
       return FALLBACK;
   }
