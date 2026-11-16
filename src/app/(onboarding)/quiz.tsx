@@ -26,11 +26,10 @@ const VIBE_VIDEO: VideoSource = require("../../../assets/onboarding/vibe.mp4");
 const LAST_VIDEO: VideoSource = require("../../../assets/onboarding/been-here.mp4");
 
 type Stop = { card: number } | { video: VideoSource; title: string; sub: string };
-/** The quiz in order: the six cards, with a video break after the first question and before the last. */
+/** The quiz in order: a video break to open it, the six cards, and a second break before the last one. */
 const STOPS: Stop[] = [
-  { card: 0 },
   { video: VIBE_VIDEO, title: "Now let's figure out your vibe", sub: "A few quick ones. No wrong answers." },
-  ...QUIZ_CARDS.slice(1, -1).map((_, index) => ({ card: index + 1 })),
+  ...QUIZ_CARDS.slice(0, -1).map((_, index) => ({ card: index })),
   { video: LAST_VIDEO, title: "Last one. What else are you into?", sub: "Then your picks are ready." },
   { card: QUIZ_CARDS.length - 1 },
 ];
@@ -109,9 +108,14 @@ export default function Quiz() {
         <StatusBar style="light" />
         <LinearGradient colors={BREAK_SCRIM} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <SafeAreaView style={styles.breakContent} edges={["top", "bottom"]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} onPress={() => go(at - 1)} style={styles.breakBack}>
-            <Icon name="back" size={24} color={palette.onPhoto} />
-          </Pressable>
+          {/* The opening break has nothing before it: the row keeps its height so the words do not jump. */}
+          {at > 0 ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} onPress={() => go(at - 1)} style={styles.breakBack}>
+              <Icon name="back" size={24} color={palette.onPhoto} />
+            </Pressable>
+          ) : (
+            <View style={styles.breakBack} />
+          )}
           <View style={styles.breakText}>
             <Text accessibilityRole="header" style={styles.breakTitle}>
               {stop.title}
