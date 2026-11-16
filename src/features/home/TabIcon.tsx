@@ -1,6 +1,6 @@
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
-export type TabIconName = "home" | "map" | "feed" | "profile";
+export type TabIconName = "home" | "map" | "feed" | "spark" | "profile";
 
 /**
  * The tab bar's own icons: thin line drawings, as on Beli. An idle tab is a grey hairline drawing;
@@ -33,6 +33,12 @@ export function TabIcon({ name, active, color, size = 26 }: { name: TabIconName;
           <Rect x={4} y={4.2} width={16} height={15.6} rx={2.4} {...line} />
           <Rect x={7.2} y={7.6} width={4} height={4} rx={0.6} {...line} />
           <Path d="M14 8h2.8M14 11.2h2.8M7.2 14.4h9.6M7.2 17h6" {...line} />
+        </>
+      )}
+      {name === "spark" && (
+        <>
+          <Path d="M10.6 5.2l1.8 4.9 4.9 1.8-4.9 1.8-1.8 4.9-1.8-4.9-4.9-1.8 4.9-1.8z" {...line} />
+          <Path d="M18.4 3.6v3.2M16.8 5.2H20M18.6 17.4v2.4M17.4 18.6h2.4" {...line} />
         </>
       )}
       {name === "profile" && (

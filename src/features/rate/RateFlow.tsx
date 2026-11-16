@@ -17,7 +17,7 @@ import { usePhotoDraft } from "./usePhotoDraft";
 
 type Step = "how" | "compare" | "details" | "result" | "questions";
 
-/** The flow is over: back to the tabs, on the Feed, where the new post is. */
+/** The flow is over: back to the tabs, on the Feed (the first tab), where the new post is on top. */
 function goToFeed() {
   if (router.canDismiss()) router.dismissAll();
   router.replace(paths.feed);

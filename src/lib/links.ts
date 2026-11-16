@@ -14,7 +14,10 @@ export const paths = {
   home: "/" as Href,
   map: "/map" as Href,
   rate: "/rate" as Href,
-  feed: "/feed" as Href,
+  /** The feed is the first tab, the screen the app opens on. */
+  feed: "/" as Href,
+  /** The "For you" tab: recommendations. */
+  recs: "/recs" as Href,
   profile: "/profile" as Href,
   notifications: "/notifications" as Href,
   friends: "/friends" as Href,
@@ -51,7 +54,7 @@ const STATIC_ROUTES = new Set([
   "/",
   "/map",
   "/rate",
-  "/feed",
+  "/recs",
   "/profile",
   "/notifications",
   "/friends",
@@ -80,6 +83,8 @@ export function resolveLink(link: string | null | undefined): Href | null {
   const queryStart = trimmed.search(/[?#]/);
   const path = (queryStart === -1 ? trimmed : trimmed.slice(0, queryStart)).replace(/\/+$/, "") || "/";
   const query = queryStart === -1 ? "" : trimmed.slice(queryStart);
+  // The feed used to be its own tab at "/feed"; a link saved from then opens the first tab, where it lives now.
+  if (path === "/feed") return `/${query}` as Href;
   if (STATIC_ROUTES.has(path)) return `${path}${query}` as Href;
 
   const [root, first, second, ...rest] = path.slice(1).split("/");

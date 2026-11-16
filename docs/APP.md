@@ -35,10 +35,10 @@ Build every path with `src/lib/links.ts`. Never write a path string in a screen.
 | `(onboarding)/welcome.tsx` | `paths.welcome` | |
 | `sign-in.tsx` | `signInPath("signup" \| "signin")` | `mode` |
 | `(onboarding)/quiz.tsx`, `taste-card.tsx` | `paths.quiz`, `paths.tasteCard` | |
-| `(tabs)/index.tsx` Home | `paths.home` | |
+| `(tabs)/index.tsx` Feed (opens first) | `paths.feed` (same as `paths.home`) | |
 | `(tabs)/map.tsx` | `paths.map` | |
 | `(tabs)/rate.tsx` pick a spot | `paths.rate` | |
-| `(tabs)/feed.tsx` | `paths.feed` | |
+| `(tabs)/recs.tsx` For you | `paths.recs` | |
 | `(tabs)/profile.tsx` | `paths.profile` | |
 | `venue/[kind]/[id].tsx` | `venuePath(kind, id)` | `kind` (`place` \| `event`), `id` |
 | `rate/[kind]/[id].tsx` rank one place | `ratePath(kind, id)` | `kind`, `id` |

@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Skeleton, Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { colors, fontWeight } from "../../theme";
-import { CARD_HEIGHT, CARD_ROUND, CARD_WIDTH, PhotoCard } from "./PhotoCard";
+import { CARD_HEIGHT, CARD_ROUND, CARD_WIDTH, COMPACT_CARD_HEIGHT, COMPACT_CARD_WIDTH, PhotoCard } from "./PhotoCard";
 
 /** A small bold uppercase section label, with an optional bold "See all" at the right. */
 export function SectionLabel({ title, moreLabel, onMore }: { title: string; moreLabel?: string; onMore?: () => void }) {
@@ -30,6 +30,7 @@ export function SectionLabel({ title, moreLabel, onMore }: { title: string; more
  * One labelled carousel of overlay photo cards, in the order the backend sent.
  * `undefined` = still loading (card-shaped placeholders). An empty list draws nothing at all.
  * `gutter` is the screen's side padding: the row runs to both edges and the first card lines up with the label.
+ * `compact` draws the slim row that sits above the feed.
  */
 export function CardRow({
   title,
@@ -38,6 +39,7 @@ export function CardRow({
   now,
   moreLabel,
   onMore,
+  compact = false,
 }: {
   title: string;
   items: NearbyItem[] | undefined;
@@ -45,8 +47,11 @@ export function CardRow({
   now: number;
   moreLabel: string;
   onMore: () => void;
+  compact?: boolean;
 }) {
   if (items !== undefined && items.length === 0) return null;
+  const width = compact ? COMPACT_CARD_WIDTH : CARD_WIDTH;
+  const height = compact ? COMPACT_CARD_HEIGHT : CARD_HEIGHT;
   return (
     <View>
       <SectionLabel title={title} moreLabel={moreLabel} onMore={onMore} />
@@ -55,14 +60,14 @@ export function CardRow({
         scrollEnabled={items !== undefined}
         showsHorizontalScrollIndicator={false}
         decelerationRate="fast"
-        snapToInterval={CARD_WIDTH + GAP}
+        snapToInterval={width + GAP}
         snapToAlignment="start"
         style={[styles.bleed, { marginHorizontal: -gutter }]}
         contentContainerStyle={[styles.row, { paddingHorizontal: gutter }]}
       >
         {items === undefined
-          ? [0, 1, 2].map((index) => <Skeleton key={index} width={CARD_WIDTH} height={CARD_HEIGHT} round={CARD_ROUND} />)
-          : items.map((item) => <PhotoCard key={`${item.kind}:${item.id}`} item={item} now={now} />)}
+          ? [0, 1, 2].map((index) => <Skeleton key={index} width={width} height={height} round={CARD_ROUND} />)
+          : items.map((item) => <PhotoCard key={`${item.kind}:${item.id}`} item={item} now={now} compact={compact} />)}
       </ScrollView>
     </View>
   );

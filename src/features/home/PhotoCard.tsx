@@ -13,6 +13,9 @@ import { Photo } from "./Photo";
 export const CARD_WIDTH = 158;
 export const CARD_HEIGHT = 180;
 export const CARD_ROUND = 10;
+/** The slim card of the one carousel above the feed. */
+export const COMPACT_CARD_WIDTH = 136;
+export const COMPACT_CARD_HEIGHT = 124;
 
 const FADE = ["rgba(0,0,0,0)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.9)"] as const;
 const FADE_STOPS = [0, 0.45, 1] as const;
@@ -22,7 +25,7 @@ const FADE_STOPS = [0, 0.45, 1] as const;
  * in bold white over it (two lines) and one small white line: the score for you and the reason
  * (an event leads with when it starts).
  */
-export function PhotoCard({ item, now }: { item: NearbyItem; now: number }) {
+export function PhotoCard({ item, now, compact = false }: { item: NearbyItem; now: number; compact?: boolean }) {
   const lead = item.startsAt !== undefined ? formatEventTime(item.startsAt, now) : "";
   const sub = [formatScore(item.score), lead, item.why].filter((part) => part !== "").join(" · ");
   return (
@@ -32,10 +35,16 @@ export function PhotoCard({ item, now }: { item: NearbyItem; now: number }) {
       onPress={() => router.push(venuePath(item.kind, item.id))}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <Photo item={item} width={CARD_WIDTH} height={CARD_HEIGHT} round={CARD_ROUND} dark>
+      <Photo
+        item={item}
+        width={compact ? COMPACT_CARD_WIDTH : CARD_WIDTH}
+        height={compact ? COMPACT_CARD_HEIGHT : CARD_HEIGHT}
+        round={CARD_ROUND}
+        dark
+      >
         <LinearGradient colors={FADE} locations={FADE_STOPS} style={styles.fade} pointerEvents="none" />
         <View style={styles.copy} pointerEvents="none">
-          <Text numberOfLines={2} style={styles.name}>
+          <Text numberOfLines={compact ? 1 : 2} style={styles.name}>
             {item.name}
           </Text>
           <Text numberOfLines={1} style={styles.sub}>

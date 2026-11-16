@@ -11,10 +11,10 @@ import { colors, fontWeight } from "../../theme";
 const IDLE = "#8a8a93";
 
 const TABS: Record<string, { label: string; icon: TabIconName | null }> = {
-  index: { label: "Home", icon: "home" },
+  index: { label: "Feed", icon: "feed" },
   map: { label: "Map", icon: "map" },
   rate: { label: "Rank", icon: null },
-  feed: { label: "Feed", icon: "feed" },
+  recs: { label: "For you", icon: "spark" },
   profile: { label: "Profile", icon: "profile" },
 };
 
@@ -24,10 +24,10 @@ export default function TabsLayout() {
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
       tabBar={(props) => <TabBar {...props} />}
     >
-      <Tabs.Screen name="index" options={{ title: "Tonight" }} />
+      <Tabs.Screen name="index" options={{ title: "Feed" }} />
       <Tabs.Screen name="map" options={{ title: "Map" }} />
       <Tabs.Screen name="rate" options={{ title: "Rate" }} />
-      <Tabs.Screen name="feed" options={{ title: "Feed" }} />
+      <Tabs.Screen name="recs" options={{ title: "For you" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
     </Tabs>
   );
