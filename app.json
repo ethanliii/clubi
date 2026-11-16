@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.clubi.app"
@@ -44,7 +44,7 @@
       ]
     ],
     "scheme": "clubi",
-    "backgroundColor": "#141119",
+    "backgroundColor": "#ffffff",
     "experiments": {
       "typedRoutes": true
     }
