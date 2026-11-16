@@ -92,35 +92,42 @@ export default function TripsScreen() {
           onAction={openForm}
         />
       ) : (
-        <View>
-          {trips.map((trip, index) => {
+        <View style={styles.list}>
+          {trips.map((trip) => {
             const invited = trip.myStatus === "invited";
             return (
-              <View key={trip.tripId} style={[styles.trip, index > 0 && styles.divided]}>
+              <View key={trip.tripId} style={styles.card}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={trip.name}
                   onPress={() => router.push(tripPath(trip.tripId))}
-                  style={({ pressed }) => [styles.open, pressed && styles.pressed]}
+                  style={({ pressed }) => [pressed && styles.pressed]}
                 >
-                  {/* The cover and the faces are a second, optional read: if it fails the row still stands. */}
+                  {/* The cover and the faces are a second, optional read: if it fails the card still stands. */}
                   <ErrorBoundary fallback={() => null}>
                     <TripCover tripId={trip.tripId} />
                   </ErrorBoundary>
-                  <View style={styles.line}>
-                    <View style={styles.text}>
-                      {invited ? <Text style={styles.invited}>{`${trip.ownerName} invited you`}</Text> : null}
-                      <Text numberOfLines={2} style={styles.name}>
-                        {trip.name}
-                      </Text>
-                      <Text muted numberOfLines={1} style={styles.facts}>
-                        {summaryLine(trip)}
+                  <View style={styles.body}>
+                    {invited ? <Text style={styles.invited}>{`${trip.ownerName} invited you`}</Text> : null}
+                    <View style={styles.line}>
+                      <View style={styles.text}>
+                        <Text numberOfLines={2} style={styles.name}>
+                          {trip.name}
+                        </Text>
+                        <Text muted numberOfLines={1} style={styles.facts}>
+                          {summaryLine(trip)}
+                        </Text>
+                      </View>
+                      <Icon name="chevron" size={16} color={colors.low} />
+                    </View>
+                    <View style={styles.who}>
+                      <ErrorBoundary fallback={() => null}>
+                        <TripFaces tripId={trip.tripId} />
+                      </ErrorBoundary>
+                      <Text muted numberOfLines={1} style={styles.whoText}>
+                        {trip.myStatus === "owner" ? "You're organizing" : `Organized by ${trip.ownerName}`}
                       </Text>
                     </View>
-                    <ErrorBoundary fallback={() => null}>
-                      <TripFaces tripId={trip.tripId} />
-                    </ErrorBoundary>
-                    <Icon name="chevron" size={16} color={colors.low} />
                   </View>
                 </Pressable>
                 {invited ? (
@@ -159,17 +166,26 @@ export default function TripsScreen() {
 
 const styles = StyleSheet.create({
   newTrip: { width: "auto" },
+  list: { gap: spacing.md + 2 },
   trip: { paddingVertical: spacing.lg, gap: spacing.md },
-  divided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
-  open: { gap: spacing.md },
-  cover: { borderRadius: radius.lg },
-  line: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 44 },
+  card: {
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    overflow: "hidden",
+  },
+  cover: { borderRadius: 0 },
+  body: { padding: spacing.md + 2, gap: spacing.sm },
+  line: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   pressed: { opacity: 0.6 },
   text: { flex: 1, gap: 2 },
   invited: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.accent },
-  name: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  name: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
   facts: { fontSize: 14, lineHeight: 19 },
-  answer: { flexDirection: "row", gap: spacing.sm },
+  who: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 28 },
+  whoText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  answer: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md + 2, paddingBottom: spacing.md + 2 },
   answerButton: { flex: 1 },
   outline: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line },
 });

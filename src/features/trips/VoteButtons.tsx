@@ -5,8 +5,8 @@ import { colors, fontWeight, palette, radius } from "../../theme";
 export type Vote = 1 | -1;
 
 /**
- * "Vote up" and "Vote down" as two quiet line icons. The one I already picked is tinted (teal for
- * up, near-black for down) on a soft disc; the screen decides what a tap means (tapping the active
+ * "Vote up" and "Vote down" as two quiet line icons. They sit in one grey pill; the one I already picked is tinted (dark red for
+ * up, near-black for down); the screen decides what a tap means (tapping the active
  * one clears it). Pass `up` / `down` to show the counts beside the thumbs, as the shortlist does.
  */
 export function VoteButtons({
@@ -22,7 +22,9 @@ export function VoteButtons({
 }) {
   return (
     <View style={styles.row}>
+      <View pointerEvents="none" style={styles.pill} />
       <Thumb icon="thumbUp" label="Vote up" on={myVote === 1} count={up} tone="up" onPress={() => onVote(1)} />
+      <View pointerEvents="none" style={styles.split} />
       <Thumb icon="thumbDown" label="Vote down" on={myVote === -1} count={down} tone="down" onPress={() => onVote(-1)} />
     </View>
   );
@@ -43,7 +45,7 @@ function Thumb({
   tone: "up" | "down";
   onPress: () => void;
 }) {
-  const ink = on ? (tone === "up" ? colors.accent : colors.fg) : colors.muted;
+  const ink = on ? (tone === "up" ? colors.accent : colors.fg) : palette.soft;
   return (
     <Pressable
       accessibilityRole="button"
@@ -57,26 +59,28 @@ function Thumb({
         pressed && styles.pressed,
       ]}
     >
-      <Icon name={icon} size={19} color={ink} />
+      <Icon name={icon} size={18} color={ink} />
       {count === undefined ? null : <Text style={[styles.count, { color: ink }]}>{count}</Text>}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 2 },
+  // One grey pill behind both thumbs (36 tall to the eye, each thumb still a 44pt target).
+  row: { flexDirection: "row", alignItems: "center", height: 44 },
+  pill: { position: "absolute", left: 0, right: 0, top: 4, bottom: 4, borderRadius: radius.pill, backgroundColor: palette.field },
+  split: { width: StyleSheet.hairlineWidth, height: 18, backgroundColor: colors.line },
   thumb: {
-    minWidth: 44,
+    minWidth: 46,
     height: 44,
-    borderRadius: radius.pill,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
   },
-  counted: { paddingHorizontal: 10 },
-  upOn: { backgroundColor: colors.accentSoft },
-  downOn: { backgroundColor: palette.field },
+  counted: { paddingHorizontal: 12 },
+  upOn: {},
+  downOn: {},
   pressed: { opacity: 0.55 },
   count: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, fontVariant: ["tabular-nums"] },
 });

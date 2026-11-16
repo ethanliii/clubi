@@ -206,7 +206,7 @@ export function Shortlist({
                 round={radius.md}
               />
               <View style={styles.flex}>
-                <Text numberOfLines={1} style={styles.listedName}>
+                <Text numberOfLines={2} style={styles.listedName}>
                   {`${index + 1}. ${item.name}`}
                 </Text>
                 <Text muted numberOfLines={1} style={styles.listedMeta}>
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   agree: { marginTop: 2 },
   pressed: { opacity: 0.7 },
-  listed: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingVertical: spacing.sm + 2 },
+  listed: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm + 2 },
   divided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
   listedOpen: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 44 },
   listedName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },

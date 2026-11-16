@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   ringOn: { borderColor: colors.accent },
-  dim: { opacity: 0.4 },
+  dim: { opacity: 0.55 },
   tick: {
     position: "absolute",
     right: -2,
