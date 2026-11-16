@@ -157,6 +157,10 @@ function CompareLoader() {
   const opening = `${result.tasteMatchPct}% taste match · `;
   const rest = result.summary.startsWith(opening) ? result.summary.slice(opening.length) : result.summary;
   const summary = rest.charAt(0).toUpperCase() + rest.slice(1);
+  // "Maya loved" holds only what the backend filed under loved; a friend with none gets their list under a plainer title.
+  const loved = result.theirTopNewToMe.filter((item) => item.bucket === "loved");
+  const anyLoved = loved.length > 0;
+  const theirPicks = anyLoved ? loved : result.theirTopNewToMe;
   const photoOf = new Map<string, string>();
   for (const item of mine ?? []) if (item.imageUrl) photoOf.set(`${item.kind}-${item.id}`, item.imageUrl);
 
@@ -175,16 +179,16 @@ function CompareLoader() {
         <Text style={[styles.lead, styles.centre]}>{summary}</Text>
       </View>
 
-      {result.theirTopNewToMe.length > 0 ? (
+      {theirPicks.length > 0 ? (
         <View style={styles.section}>
-          <SectionLabel title={`${theirName} loved`} />
+          <SectionLabel title={anyLoved ? `${theirName} loved` : `${theirName} ranked`} />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.carousel}
             contentContainerStyle={styles.carouselContent}
           >
-            {result.theirTopNewToMe.map((item) => (
+            {theirPicks.map((item) => (
               <PhotoCard key={item.rankingId} item={item} />
             ))}
           </ScrollView>

@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { Pressable, Share, StyleSheet, View } from "react-native";
 import { Avatar, Icon, IconButton, Skeleton, Text, type IconName } from "../../components";
 import { api, type FeedItem, type Visibility } from "../../lib/api";
-import { categoryLabel, formatRelativeTime, formatScore } from "../../lib/format";
+import { categoryLabel, displayName, formatRelativeTime, formatScore } from "../../lib/format";
 import { ratePath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { colors, fontWeight, ratingColor, spacing } from "../../theme";
@@ -99,7 +99,7 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost, hide
             </Text>
             <Text style={styles.verb}> ranked </Text>
             <Text accessibilityLabel={`Open ${target.name}`} onPress={openVenue} style={styles.strong}>
-              {target.name}
+              {displayName(target.name)}
             </Text>
           </Text>
           <Text numberOfLines={1} style={styles.place}>

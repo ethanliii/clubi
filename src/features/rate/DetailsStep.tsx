@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Icon, Text, type IconName } from "../../components";
-import { categoryLabel } from "../../lib/format";
+import { categoryLabel, displayName } from "../../lib/format";
 import type { Bucket, VenueDetail, Visibility } from "../../lib/api";
 import { colors, fontWeight, palette, radius, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
@@ -143,7 +143,7 @@ export function DetailsStep({
         <PlacePhoto uri={venue.imageUrl} category={venue.category} height={56} width={56} round={radius.lg} />
         <View style={styles.placeText}>
           <Text numberOfLines={1} style={styles.placeName}>
-            {venue.name}
+            {displayName(venue.name)}
           </Text>
           <View style={styles.placeMeta}>
             {bucket ? (

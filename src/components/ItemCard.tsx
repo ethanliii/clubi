@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import type { NearbyItem } from "../../convex/lib/contract";
-import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../lib/format";
+import { categoryLabel, displayName, formatDistance, formatEventTime, formatPrice, formatScore } from "../lib/format";
 import { venuePath } from "../lib/links";
 import { colors, fontWeight, layout, palette, radius, ratingColor, spacing } from "../theme";
 import { AvatarStack } from "./Avatar";
@@ -100,7 +100,7 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
           </View>
           <View style={styles.overlayText}>
             <Text numberOfLines={2} style={styles.overlayName}>
-              {item.name}
+              {displayName(item.name)}
             </Text>
             {sub !== "" ? (
               <Text numberOfLines={1} style={styles.overlaySub}>
@@ -127,7 +127,7 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
         <View style={styles.cardFoot}>
           <View style={styles.cardTitles}>
             <Text numberOfLines={1} style={styles.cardName}>
-              {item.name}
+              {displayName(item.name)}
             </Text>
             <Text variant="caption" muted numberOfLines={1}>
               {metaLine(item, false)}
@@ -172,7 +172,7 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
       <View style={styles.rowBody}>
         <Text numberOfLines={1} style={styles.rowName}>
           {showRank ? `${item.rank}. ` : ""}
-          {item.name}
+          {displayName(item.name)}
         </Text>
         <Text variant="caption" muted numberOfLines={1}>
           {metaLine(item, false)}

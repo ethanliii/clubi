@@ -17,6 +17,8 @@ const DANGER = palette.danger;
 const AVATAR = 32;
 /** The grey field is the focus mark; the browser's own blue ring would sit inside it. */
 const WEB_NO_OUTLINE = Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null;
+/** A browser's text area is two rows tall and never grows: start it at one row and let it size to its text. */
+const WEB_GROWS = Platform.OS === "web" ? ({ fieldSizing: "content" } as object) : null;
 /** Small text buttons reach 44pt with this around them. */
 const HIT = { top: 14, bottom: 14, left: 10, right: 10 };
 
@@ -162,10 +164,11 @@ export function CommentComposer({ postId, ref }: { postId: Id<"posts">; ref?: Re
           onChangeText={setText}
           maxLength={COMMENT_MAX}
           multiline
+          rows={1}
           // A phone's return key starts a new line; on the web Enter sends, as in any chat box.
           submitBehavior={Platform.OS === "web" ? "submit" : "newline"}
           onSubmitEditing={Platform.OS === "web" ? () => void send() : undefined}
-          style={[styles.input, WEB_NO_OUTLINE]}
+          style={[styles.input, WEB_NO_OUTLINE, WEB_GROWS]}
         />
         {hasText ? (
           <Pressable

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { EmptyState, Header, Icon, IconButton, Screen, SectionHeader, Skeleton, Text, VenuePhoto } from "../components";
 import { api, type SavedItem, type SaveType } from "../lib/api";
-import { categoryHue, categoryLabel, formatEventTime } from "../lib/format";
+import { categoryHue, categoryLabel, displayName, formatEventTime } from "../lib/format";
 import { paths, venuePath } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
@@ -46,7 +46,7 @@ function SavedRow({
         />
         <View style={styles.rowText}>
           <Text numberOfLines={2} style={styles.name}>
-            {item.name}
+            {displayName(item.name)}
           </Text>
           <Text numberOfLines={1} style={styles.meta}>
             {categoryLabel(item.category)}

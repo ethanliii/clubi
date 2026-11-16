@@ -51,6 +51,8 @@ export default function FeedTab() {
   const list = useRef<FlatList>(null);
   /** Where "YOUR FEED" starts inside the list, under everything that sits on top. */
   const feedTop = useRef(0);
+  /** The list's and its content's heights again, for a timer to read: how far the list can scroll. */
+  const heights = useRef({ list: 0, content: 0 });
   /** The post of mine the list last scrolled to, so it happens once per post. */
   const shownPost = useRef<string | null>(null);
 
@@ -63,8 +65,12 @@ export default function FeedTab() {
     if (!mineOnTop || firstId === undefined || firstAt === undefined) return;
     if (shownPost.current === firstId || Date.now() - firstAt > JUST_POSTED_MS) return;
     shownPost.current = firstId;
-    // A beat later, once the list has laid out what sits on top.
-    setTimeout(() => list.current?.scrollToOffset({ offset: Math.max(0, feedTop.current - 4), animated: false }), 250);
+    // A beat later, once the list has laid out what sits on top. A feed too short to bring
+    // "YOUR FEED" to the top stays where it is: the post is on screen, and a half-scroll would only clip the wordmark.
+    setTimeout(() => {
+      const offset = Math.max(0, feedTop.current - 4);
+      if (heights.current.content - heights.current.list >= offset) list.current?.scrollToOffset({ offset, animated: false });
+    }, 250);
   }, [mineOnTop, firstId, firstAt]);
 
   const badge = unread ? (unread >= UNREAD_CAP ? `${UNREAD_CAP}+` : String(unread)) : null;
@@ -181,9 +187,13 @@ export default function FeedTab() {
         }
         onLayout={(event) => {
           const height = event.nativeEvent.layout.height;
+          heights.current.list = height;
           setSize((was) => (was.list === height ? was : { ...was, list: height }));
         }}
-        onContentSizeChange={(_width, content) => setSize((was) => (was.content === content ? was : { ...was, content }))}
+        onContentSizeChange={(_width, content) => {
+          heights.current.content = content;
+          setSize((was) => (was.content === content ? was : { ...was, content }));
+        }}
         onEndReached={feed.more}
         onEndReachedThreshold={0.6}
         showsVerticalScrollIndicator={false}

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, ScoreBadge, Skeleton, Text, type IconName } from "../../components";
 import type { Bucket, RankResult, RankedListItem, VenueDetail } from "../../lib/api";
-import { categoryLabel, formatEventTime, formatPrice, formatScore } from "../../lib/format";
+import { categoryLabel, displayName, formatEventTime, formatPrice, formatScore } from "../../lib/format";
 import { colors, fontWeight, palette, radius, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
 import { opponentOf, totalRounds, type Search } from "./search";
@@ -93,7 +93,7 @@ export function HowStep({
           <PlacePhoto uri={venue.imageUrl} category={venue.category} height={photoHeight} round={PHOTO_ROUND} />
           <View style={styles.placeText}>
             <Text numberOfLines={2} style={styles.placeName}>
-              {venue.name}
+              {displayName(venue.name)}
             </Text>
             <Text numberOfLines={1} style={type.meta}>
               {venueLine(venue)}
@@ -106,7 +106,7 @@ export function HowStep({
           <PlacePhoto category={venue.category} height={64} width={64} round={32} />
           <View style={styles.placeText}>
             <Text numberOfLines={3} style={[styles.placeName, styles.placeNameBare]}>
-              {venue.name}
+              {displayName(venue.name)}
             </Text>
             <Text numberOfLines={1} style={[type.meta, styles.center]}>
               {venueLine(venue)}
@@ -331,7 +331,7 @@ export function ResultStep({
         <Rise style={styles.resultName}>
           <View accessible accessibilityRole="header" accessibilityLabel={`${venue.name} is now ${result.label}`}>
             <Text numberOfLines={2} style={styles.resultHeading}>
-              {venue.name}
+              {displayName(venue.name)}
             </Text>
           </View>
           <Text numberOfLines={1} style={[type.meta, styles.center]}>
@@ -369,7 +369,7 @@ export function ResultStep({
               >
                 <View style={styles.rowText}>
                   <Text numberOfLines={1} style={[type.strong, isNew && styles.rowNameNew]}>
-                    {`${row.position}. ${row.name}`}
+                    {`${row.position}. ${displayName(row.name)}`}
                   </Text>
                   {isNew ? (
                     <Text numberOfLines={1} style={styles.rowMetaNew}>
