@@ -6,7 +6,7 @@ import { Text } from "./Text";
 /**
  * `primary` the one main action on a screen (solid accent, white label) · `secondary` a light grey
  * action beside it (`ghost` is the old name for the same thing) · `quiet` text only, for the least
- * important action · `destructive` solid red: delete, leave, sign out · `light` white, for use on
+ * important action · `destructive` red outline, red label: delete, leave, sign out · `light` white, for use on
  * photos and video · `link` inline text in the accent.
  */
 type Variant = "primary" | "secondary" | "ghost" | "quiet" | "destructive" | "light" | "link";
@@ -61,7 +61,7 @@ const INK: Record<Exclude<Variant, "ghost">, string> = {
   primary: colors.white,
   secondary: colors.fg,
   quiet: colors.fg,
-  destructive: colors.white,
+  destructive: palette.danger,
   light: colors.fg,
   link: colors.accent,
 };
@@ -85,8 +85,8 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: colors.accent },
   secondary: { backgroundColor: palette.field },
   quiet: { backgroundColor: "transparent" },
-  destructive: { backgroundColor: palette.danger },
-  light: { backgroundColor: colors.white },
+  destructive: { backgroundColor: colors.bg, borderWidth: 1.5, borderColor: palette.danger },
+  light: { backgroundColor: colors.white, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.hairline },
   link: { backgroundColor: "transparent", paddingVertical: spacing.xs, width: "auto", minHeight: 32 },
   pressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
   pressedText: { opacity: 0.55 },

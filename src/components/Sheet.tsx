@@ -67,12 +67,14 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 520,
     maxHeight: "88%",
-    // A step lighter than the page, so the sheet reads as a layer above it.
+    // White, with rounded top corners and a soft shadow.
     backgroundColor: colors.bg,
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
     paddingTop: spacing.sm,
     ...elevation.floating,
+    // The shadow falls upward, onto the page behind the sheet.
+    shadowOffset: { width: 0, height: -6 },
   },
   handle: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, backgroundColor: colors.line },
   header: {

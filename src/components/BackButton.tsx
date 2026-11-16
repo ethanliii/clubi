@@ -8,7 +8,7 @@ export function goBack() {
   else router.replace("/");
 }
 
-/** The round back button. `onPhoto` gives it dark glass so it reads on top of a picture or the map. */
+/** The round back button. `onPhoto` gives it white glass so it reads on top of a picture or the map. */
 export function BackButton({
   onPress = goBack,
   onPhoto = false,
