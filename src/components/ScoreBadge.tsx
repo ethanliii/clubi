@@ -10,18 +10,19 @@ const SIZES: Record<Size, { fontSize: number; height: number; minWidth: number; 
   lg: { fontSize: 24, height: 42, minWidth: 62, paddingHorizontal: 12, radius: 13 },
 };
 
-/** The ring: a white disc, a thin line in the rating colour, the number in the same colour. */
+/** The ring: a white disc inside a thin grey line, the number in its rating colour. */
 const RINGS: Record<Size, { diameter: number; fontSize: number; border: number }> = {
-  sm: { diameter: 32, fontSize: 12.5, border: 1.5 },
-  md: { diameter: 40, fontSize: 15, border: 1.5 },
-  lg: { diameter: 54, fontSize: 20, border: 2 },
+  sm: { diameter: 34, fontSize: 13, border: 1 },
+  md: { diameter: 44, fontSize: 16, border: 1.5 },
+  lg: { diameter: 58, fontSize: 21, border: 1.5 },
 };
+const RING_LINE = "#d6d6dc";
 
 export type ScoreBadgeProps = {
   score: number;
   size?: Size;
   /**
-   * `ring` (default): the score in its rating colour inside a thin ring of the same colour, on white.
+   * `ring` (default): the score in its rating colour inside a thin grey ring, on white.
    * This is the one way a score looks across the app, in lists, on cards and on photos.
    * `solid`: the rating colour filled with a white number, for a tight spot on a busy photo.
    * `plain`: just the number in its rating colour, for secondary scores (a friend's, a list total).
@@ -53,7 +54,7 @@ export function ScoreBadge({ score, size = "md", variant = "ring", style }: Scor
         style={[
           styles.badge,
           styles.ring,
-          { width: ring.diameter, height: ring.diameter, borderRadius: ring.diameter / 2, borderWidth: ring.border, borderColor: tint },
+          { width: ring.diameter, height: ring.diameter, borderRadius: ring.diameter / 2, borderWidth: ring.border, borderColor: RING_LINE },
           style,
         ]}
       >

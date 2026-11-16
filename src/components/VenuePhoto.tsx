@@ -27,7 +27,7 @@ export function VenuePhoto({
   children?: ReactNode;
 }) {
   return (
-    <Photo uri={uri} category={category} hue={hue} height={height} round={radius.lg} scrim={scrim} style={style}>
+    <Photo uri={uri} category={category} hue={hue} height={height} round={radius.md} scrim={scrim} style={style}>
       {children}
     </Photo>
   );

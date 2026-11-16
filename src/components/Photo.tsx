@@ -17,14 +17,14 @@ const CATEGORY_LOOK: Record<Category, { hue: number; tint: number; icon: IconNam
   popup: { hue: 48, tint: 348, icon: "spark" },
 };
 
-function lookFor(category: Category | undefined, hue: number | undefined): { hue: number; icon: IconName | null } {
+function lookFor(category: Category | undefined, hue: number | undefined): { hue: number; icon: IconName } {
   if (category && CATEGORY_LOOK[category]) return { hue: CATEGORY_LOOK[category].tint, icon: CATEGORY_LOOK[category].icon };
   if (hue !== undefined) {
     // Callers that only know the hue (it comes from `categoryHue`) still get that category's look.
     const match = Object.values(CATEGORY_LOOK).find((look) => look.hue === hue);
-    return match ? { hue: match.tint, icon: match.icon } : { hue, icon: null };
+    return match ? { hue: match.tint, icon: match.icon } : { hue, icon: "camera" };
   }
-  return { hue: 280, icon: null };
+  return { hue: 280, icon: "camera" };
 }
 
 export type PhotoProps = {
@@ -39,7 +39,7 @@ export type PhotoProps = {
   width?: DimensionValue;
   /** Width divided by height, e.g. 4 / 5 for a tall card, 16 / 9 for a banner. */
   aspectRatio?: number;
-  /** Corner radius. Default 14; pass 0 for edge-to-edge. */
+  /** Corner radius. Default 10; pass 0 for edge-to-edge. */
   round?: number;
   /** A dark gradient so text on the photo stays readable: along the bottom, a full hero, or the top edge. */
   scrim?: boolean | "bottom" | "hero" | "top";
@@ -51,7 +51,8 @@ export type PhotoProps = {
 
 /**
  * A photo of a place, an event or a post. It fades in when it has loaded, and until then (or when
- * there is none) shows a pale tinted tile with the category's glyph, never a dark block.
+ * there is none) shows a soft light-grey tile with a small line glyph, never a dark block. The image
+ * always covers the frame (cropped, never stretched).
  */
 export function Photo({
   uri,
@@ -60,7 +61,7 @@ export function Photo({
   height,
   width = "100%",
   aspectRatio,
-  round = radius.lg,
+  round = radius.md,
   scrim = false,
   children,
   accessibilityLabel,
@@ -82,7 +83,7 @@ export function Photo({
   };
 
   const kind = scrim === true ? "bottom" : scrim;
-  const glyph = Math.round(Math.min(32, Math.max(18, size * 0.26)));
+  const glyph = Math.round(Math.min(26, Math.max(16, size * 0.22)));
 
   return (
     <View
@@ -90,19 +91,10 @@ export function Photo({
       onLayout={height === undefined ? (event) => setMeasured(event.nativeEvent.layout.height) : undefined}
       style={[styles.photo, { width, borderRadius: round }, height !== undefined && { height }, aspectRatio ? { aspectRatio } : null, style]}
     >
-      <LinearGradient
-        // A pale wash of the category's colour: it sits on a white page the way a photo placeholder does.
-        colors={[`hsl(${look.hue}, 70%, 97%)`, `hsl(${look.hue}, 66%, 95%)`, `hsl(${look.hue}, 62%, 92%)`]}
-        locations={[0, 0.55, 1]}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.85, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      {look.icon ? (
-        <View style={styles.glyph}>
-          <Icon name={look.icon} size={glyph} color={`hsla(${look.hue}, 48%, 58%, 0.8)`} />
-        </View>
-      ) : null}
+      {/* The fallback: a soft light tile with a small line glyph. The photo fades in over it. */}
+      <View style={styles.glyph}>
+        <Icon name={look.icon} size={glyph} color={FALLBACK_GLYPH} />
+      </View>
       {imageUri ? (
         <Animated.Image
           source={{ uri: imageUri }}
@@ -123,6 +115,8 @@ export function Photo({
     </View>
   );
 }
+
+const FALLBACK_GLYPH = "#b4b4be";
 
 const styles = StyleSheet.create({
   photo: { overflow: "hidden", backgroundColor: colors.surface },
