@@ -5,13 +5,16 @@ import { Animated, Platform, StyleSheet } from "react-native";
 
 /** The team's own footage. Originals live in the project drive at design/welcome-clips/. */
 const CLIPS: VideoSource[] = [
-  // Only the night clips: the road, coast and lake footage does not read as a night out.
+  // All five of Bryan's clips, in his order, at his pace: three seconds each.
+  require("../../../assets/welcome/01-road.mp4"),
   require("../../../assets/welcome/02-fair.mp4"),
   require("../../../assets/welcome/03-party.mp4"),
+  require("../../../assets/welcome/04-coast.mp4"),
+  require("../../../assets/welcome/05-lake.mp4"),
 ];
 
-const SLIDE_MS = 6000;
-const FADE_MS = 1100;
+const SLIDE_MS = 3000;
+const FADE_MS = 900;
 
 /**
  * One clock for every `VideoBackground` on screen, so a second one mounted anywhere shows the same
