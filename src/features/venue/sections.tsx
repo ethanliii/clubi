@@ -6,7 +6,7 @@ import { categoryLabel, formatDistance, formatEventTime, formatRelativeTime, for
 import { performerPath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { colors, fontWeight, palette, radius, spacing } from "../../theme";
-import { GUTTER, Photo, SectionTitle } from "./parts";
+import { GUTTER, Photo, Scrim, SectionTitle } from "./parts";
 
 type FriendRanking = VenueDetail["friendRankings"][number];
 
@@ -20,7 +20,7 @@ function FriendRow({ friend, now, last }: { friend: FriendRanking; now: number; 
       style={({ pressed }) => [styles.friend, !last && styles.hairline, pressed && styles.pressed]}
     >
       <View style={styles.friendTop}>
-        <Avatar name={friend.displayName} uri={friend.avatarUrl} size={40} />
+        <Avatar name={friend.displayName} uri={friend.avatarUrl} size={48} />
         <View style={styles.flex}>
           <Text numberOfLines={1} style={styles.rowTitle}>
             {friend.displayName}
@@ -32,16 +32,47 @@ function FriendRow({ friend, now, last }: { friend: FriendRanking; now: number; 
         </View>
         <ScoreBadge score={friend.score} />
       </View>
-      {friend.caption ? <Text style={styles.quote}>{`“${friend.caption}”`}</Text> : null}
-      {friend.photoUrl ? (
-        <Image
-          source={{ uri: friend.photoUrl }}
-          resizeMode="cover"
-          accessibilityLabel={`Photo by ${friend.displayName}`}
-          style={styles.friendPhoto}
-        />
+      {friend.caption ? (
+        <Text style={styles.quote}>
+          <Text style={styles.quoteLabel}>Notes: </Text>
+          {friend.caption}
+        </Text>
       ) : null}
     </Pressable>
+  );
+}
+
+const SHOT_WIDTH = 168;
+const SHOT_HEIGHT = 210;
+
+/** The photos friends took here, as a sideways row of tall cards with the photographer's name on each. */
+export function PhotosSection({ venue }: { venue: VenueDetail }) {
+  const shots = venue.friendRankings.filter((friend) => !!friend.photoUrl);
+  if (shots.length === 0) return null;
+  return (
+    <View style={styles.section}>
+      <SectionTitle>Photos</SectionTitle>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={styles.cards}>
+        {shots.map((friend) => (
+          <Pressable
+            key={friend.userId}
+            accessibilityRole="button"
+            accessibilityLabel={`Photo by ${friend.displayName}`}
+            onPress={() => router.push(userPath(friend.userId))}
+            style={({ pressed }) => [styles.shot, shots.length === 1 && styles.shotWide, pressed && styles.cardPressed]}
+          >
+            <Image source={{ uri: friend.photoUrl }} resizeMode="cover" style={StyleSheet.absoluteFill} />
+            <Scrim from="rgba(0, 0, 0, 0)" to="rgba(0, 0, 0, 0.62)" height="45%" />
+            <View style={styles.shotBy}>
+              <Avatar name={friend.displayName} uri={friend.avatarUrl} size={22} />
+              <Text numberOfLines={1} style={styles.shotName}>
+                {friend.displayName}
+              </Text>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -50,38 +81,20 @@ export function FriendsSection({ venue, now }: { venue: VenueDetail; now: number
   const friends = venue.friendRankings;
   if (friends.length === 0) {
     return (
-      <View style={styles.quiet}>
-        <Icon name="users" size={18} color={colors.low} />
-        <Text muted style={styles.quietText}>
-          No friends have ranked this yet. Be the first.
-        </Text>
+      <View style={styles.section}>
+        <SectionTitle>Friends who went</SectionTitle>
+        <View style={styles.quiet}>
+          <Icon name="users" size={18} color={colors.low} />
+          <Text muted style={styles.quietText}>
+            No friends have ranked this yet. Be the first.
+          </Text>
+        </View>
       </View>
     );
   }
   return (
     <View style={styles.section}>
       <SectionTitle note={friends.length > 1 ? `${friends.length} friends` : undefined}>Friends who went</SectionTitle>
-      {friends.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={styles.faces}>
-          {friends.map((friend) => (
-            <Pressable
-              key={friend.userId}
-              accessibilityRole="button"
-              accessibilityLabel={`${friend.displayName}'s profile, ${formatScore(friend.score)}`}
-              onPress={() => router.push(userPath(friend.userId))}
-              style={({ pressed }) => [styles.face, pressed && styles.pressed]}
-            >
-              <View>
-                <Avatar name={friend.displayName} uri={friend.avatarUrl} size={56} />
-                <ScoreBadge score={friend.score} size="sm" style={styles.faceScore} />
-              </View>
-              <Text numberOfLines={1} style={styles.faceName}>
-                {friend.displayName.split(" ")[0]}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      ) : null}
       <View>
         {friends.map((friend, index) => (
           <FriendRow key={friend.userId} friend={friend} now={now} last={index === friends.length - 1} />
@@ -272,8 +285,8 @@ export function PerformersSection({
   );
 }
 
-const CARD_WIDTH = 224;
-const CARD_HEIGHT = 140;
+const CARD_WIDTH = 168;
+const CARD_HEIGHT = 210;
 
 function SimilarCard({ item, now }: { item: NearbyItem; now: number }) {
   const facts =
@@ -287,19 +300,16 @@ function SimilarCard({ item, now }: { item: NearbyItem; now: number }) {
       onPress={() => router.push(venuePath(item.kind, item.id))}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
-      <View style={styles.cardPhoto}>
-        <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${item.name}`} />
-      </View>
-      <View style={styles.cardRow}>
-        <View style={styles.flex}>
-          <Text numberOfLines={1} style={styles.cardName}>
-            {item.name}
-          </Text>
-          <Text numberOfLines={1} style={styles.cardFacts}>
-            {facts}
-          </Text>
-        </View>
-        <ScoreBadge score={item.score} size="sm" />
+      <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${item.name}`} />
+      <Scrim from="rgba(0, 0, 0, 0)" to="rgba(0, 0, 0, 0.72)" height="62%" />
+      <ScoreBadge score={item.score} size="sm" style={styles.cardScore} />
+      <View style={styles.cardText}>
+        <Text numberOfLines={2} style={styles.cardName}>
+          {item.name}
+        </Text>
+        <Text numberOfLines={1} style={styles.cardFacts}>
+          {facts}
+        </Text>
       </View>
     </Pressable>
   );
@@ -313,8 +323,8 @@ export function SimilarSection({ items, now }: { items: NearbyItem[] | undefined
       <SectionTitle>More like this</SectionTitle>
       {items === undefined ? (
         <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loadingCards}>
-          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={radius.lg} />
-          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={radius.lg} />
+          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={10} />
+          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={10} />
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={styles.cards}>
@@ -330,20 +340,24 @@ export function SimilarSection({ items, now }: { items: NearbyItem[] | undefined
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   section: { gap: spacing.md + 2 },
-  hairline: { borderBottomWidth: 1, borderBottomColor: palette.hairline },
+  hairline: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
   pressed: { opacity: 0.55 },
   dim: { color: colors.muted },
 
-  rowTitle: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold },
+  rowTitle: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold },
   rowSub: { fontSize: 13, lineHeight: 18 },
 
-  quiet: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: 14, borderRadius: 14, backgroundColor: colors.surface },
+  quiet: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   quietText: { flex: 1, fontSize: 14, lineHeight: 20 },
 
   friend: { gap: spacing.md, paddingVertical: 14 },
   friendTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  quote: { color: palette.soft, fontSize: 15, lineHeight: 22 },
-  friendPhoto: { width: "100%", aspectRatio: 16 / 10, borderRadius: radius.lg, backgroundColor: colors.surface },
+  quote: { color: colors.fg, fontSize: 15, lineHeight: 22 },
+  quoteLabel: { fontSize: 15, lineHeight: 22, fontWeight: fontWeight.bold },
+  shot: { width: SHOT_WIDTH, height: SHOT_HEIGHT, borderRadius: 10, overflow: "hidden", backgroundColor: colors.surface },
+  shotWide: { width: 280 },
+  shotBy: { position: "absolute", left: 10, right: 10, bottom: 10, flexDirection: "row", alignItems: "center", gap: 6 },
+  shotName: { flex: 1, color: palette.onPhoto, fontSize: 13, lineHeight: 17, fontWeight: fontWeight.semibold },
 
   bars: { gap: 14 },
   barRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
@@ -375,17 +389,13 @@ const styles = StyleSheet.create({
   bleed: { marginHorizontal: -GUTTER, flexGrow: 0 },
   cards: { gap: spacing.md, paddingHorizontal: GUTTER },
   loadingCards: { flexDirection: "row", gap: spacing.md },
-  card: { width: CARD_WIDTH, gap: 8 },
-  cardPhoto: { height: CARD_HEIGHT, borderRadius: radius.lg, overflow: "hidden", backgroundColor: colors.surface },
+  card: { width: CARD_WIDTH, height: CARD_HEIGHT, borderRadius: 10, overflow: "hidden", backgroundColor: colors.surface },
   cardPressed: { opacity: 0.8 },
-  cardRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  cardName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
-  cardFacts: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  cardScore: { position: "absolute", top: 8, right: 8 },
+  cardText: { position: "absolute", left: 12, right: 12, bottom: 12, gap: 2 },
+  cardName: { color: palette.onPhoto, fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  cardFacts: { color: palette.onPhoto, fontSize: 12.5, lineHeight: 17, opacity: 0.9 },
 
-  faces: { gap: 16, paddingHorizontal: GUTTER, paddingBottom: 4 },
-  face: { width: 64, alignItems: "center", gap: 6 },
-  faceScore: { position: "absolute", right: -8, bottom: -4 },
-  faceName: { fontSize: 12.5, lineHeight: 16, fontWeight: fontWeight.medium },
   rowVerb: { color: colors.muted, fontWeight: fontWeight.regular },
   pills: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   pill: { height: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: "center", backgroundColor: palette.field },

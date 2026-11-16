@@ -14,7 +14,7 @@ import { useMutationToast } from "../../lib/useMutationToast";
 import { useNow } from "../../lib/useNow";
 import { colors, fontWeight, palette, spacing } from "../../theme";
 import { DetailRow, GUTTER, Photo, SectionTitle } from "./parts";
-import { BreakdownSection, FriendsSection, InsightsSection, PerformersSection, SimilarSection } from "./sections";
+import { BreakdownSection, FriendsSection, InsightsSection, PerformersSection, PhotosSection, SimilarSection } from "./sections";
 
 /** "View on …" for the event sources that have a page worth opening (docs/UI-SPEC.md section 5). */
 const SOURCE_LABELS: Partial<Record<Source, string>> = {
@@ -265,29 +265,30 @@ function Loaded({
         </View>
 
         <View style={styles.body}>
-          <View style={styles.heading}>
-            <Text accessibilityRole="header" numberOfLines={4} style={[styles.name, nameSize]}>
-              {venue.name}
-            </Text>
-            {metaParts.length > 0 || openLabel ? (
-              <Text style={styles.meta}>
-                {metaParts.join(" · ")}
-                {openLabel ? (
-                  <Text style={[styles.meta, venue.openNow ? styles.metaOpen : null]}>
-                    {metaParts.length > 0 ? ` · ${openLabel}` : openLabel}
+          <View style={styles.top}>
+            <View style={styles.titleRow}>
+              <View style={styles.heading}>
+                <Text accessibilityRole="header" numberOfLines={4} style={[styles.name, nameSize]}>
+                  {venue.name}
+                </Text>
+                {metaParts.length > 0 || openLabel ? (
+                  <Text style={styles.meta}>
+                    {metaParts.join(" · ")}
+                    {openLabel ? (
+                      <Text style={[styles.meta, venue.openNow ? styles.metaOpen : null]}>
+                        {metaParts.length > 0 ? ` · ${openLabel}` : openLabel}
+                      </Text>
+                    ) : null}
                   </Text>
                 ) : null}
-              </Text>
-            ) : null}
-            {when ? <Text style={styles.when}>{when}</Text> : null}
-          </View>
-
-          <View style={styles.scoreCard}>
-            <View style={styles.scoreCol}>
-              <ScoreBadge score={venue.score} size="lg" />
-              <Text style={styles.scoreCaption}>for you</Text>
+                {when ? <Text style={styles.when}>{when}</Text> : null}
+              </View>
+              <View style={styles.scoreCol}>
+                <ScoreBadge score={venue.score} size="lg" />
+                <Text style={styles.scoreCaption}>for you</Text>
+              </View>
             </View>
-            <View style={styles.factText}>
+            <View style={styles.reason}>
               <Text style={styles.why}>{why}</Text>
               <Text muted style={styles.proof}>
                 {socialProof.join(" · ")}
@@ -326,6 +327,8 @@ function Loaded({
           ) : null}
 
           <FriendsSection venue={venue} now={now} />
+
+          <PhotosSection venue={venue} />
 
           {isEvent ? <PerformersSection performers={performers} names={venue.performers} /> : null}
 
@@ -398,27 +401,21 @@ const styles = StyleSheet.create({
   creditText: { color: palette.onPhoto, fontSize: 11, lineHeight: 15 },
 
   body: { paddingHorizontal: GUTTER, paddingTop: 18, gap: 28 },
-  heading: { gap: 6 },
-  name: { color: colors.fg, fontSize: 30, lineHeight: 35, fontWeight: "800", letterSpacing: -0.7 },
-  nameMedium: { fontSize: 26, lineHeight: 31, letterSpacing: -0.5 },
+  top: { gap: 14 },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  heading: { flex: 1, gap: 5 },
+  reason: { gap: 2, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.hairline },
+  name: { color: colors.fg, fontSize: 28, lineHeight: 33, fontWeight: "800", letterSpacing: -0.6 },
+  nameMedium: { fontSize: 24, lineHeight: 29, letterSpacing: -0.4 },
   nameSmall: { fontSize: 22, lineHeight: 27, letterSpacing: -0.3 },
   meta: { color: colors.muted, fontSize: 15, lineHeight: 21 },
   metaOpen: { color: colors.ok, fontWeight: fontWeight.semibold },
   when: { color: colors.fg, fontSize: 15, lineHeight: 21, fontWeight: fontWeight.semibold },
 
-  scoreCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginTop: -8,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-  },
-  scoreCol: { alignItems: "center", gap: 4, width: 58 },
-  scoreCaption: { color: colors.muted, fontSize: 12, lineHeight: 15, fontWeight: fontWeight.semibold },
+  scoreCol: { alignItems: "center", gap: 4, width: 58, paddingTop: 2 },
+  scoreCaption: { color: colors.muted, fontSize: 11, lineHeight: 14, fontWeight: fontWeight.semibold },
   factText: { flex: 1, gap: 3 },
-  why: { fontSize: 16, lineHeight: 22, fontWeight: fontWeight.semibold, letterSpacing: -0.2 },
+  why: { fontSize: 15, lineHeight: 21, fontWeight: fontWeight.semibold },
   proof: { fontSize: 13, lineHeight: 18 },
   mine: {
     flexDirection: "row",
@@ -430,7 +427,7 @@ const styles = StyleSheet.create({
     borderColor: palette.hairline,
   },
   mineText: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold },
-  about: { gap: 14, marginTop: -6 },
+  about: { gap: 14, marginTop: -8 },
   blurb: { color: palette.soft, fontSize: 15, lineHeight: 23 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   pill: { height: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: "center", backgroundColor: palette.field },
@@ -484,7 +481,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     backgroundColor: colors.bg,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.hairline,
   },
   going: { width: "auto", minHeight: ACTION_HEIGHT, paddingHorizontal: spacing.lg },

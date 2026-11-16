@@ -13,12 +13,12 @@ export const GUTTER = layout.gutter;
 /** The page background as rgba, for scrims that fade a photo into the page. */
 export const pageFade = (alpha: number) => `rgba(255, 255, 255, ${alpha})`;
 
-/** A section's heading: bigger than a card title, smaller than the page's name. */
+/** A section's label: small, bold, uppercase and letter-spaced, as on the home feed. */
 export function SectionTitle({ children, note }: { children: string; note?: string }) {
   return (
     <View style={styles.sectionTitle}>
-      <Text variant="headline" accessibilityRole="header" style={styles.sectionTitleText}>
-        {children}
+      <Text accessibilityRole="header" style={styles.sectionTitleText}>
+        {children.toUpperCase()}
       </Text>
       {note ? (
         <Text muted style={styles.sectionNote}>
@@ -168,7 +168,7 @@ export function DetailRow({
 
 const styles = StyleSheet.create({
   sectionTitle: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.md },
-  sectionTitleText: { flexShrink: 1 },
+  sectionTitleText: { flexShrink: 1, color: colors.fg, fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
   sectionNote: { fontSize: 13, lineHeight: 18 },
   tile: { alignItems: "center", justifyContent: "center" },
   tileText: { color: colors.white, fontWeight: fontWeight.bold, letterSpacing: -0.5, fontVariant: ["tabular-nums"] },
@@ -178,9 +178,9 @@ const styles = StyleSheet.create({
   detailIcon: { width: 36, justifyContent: "center" },
   detailBody: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 15 },
   detailText: { flex: 1, gap: 2 },
-  detailTitle: { fontSize: 15, lineHeight: 21, fontWeight: fontWeight.medium },
+  detailTitle: { fontSize: 15, lineHeight: 21 },
   detailSubtitle: { fontSize: 13, lineHeight: 18 },
   detailAction: { color: colors.accent, fontSize: 14, lineHeight: 20, fontWeight: fontWeight.semibold },
-  hairline: { borderBottomWidth: 1, borderBottomColor: palette.hairline },
+  hairline: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
   pressed: { opacity: 0.55 },
 });
