@@ -11,10 +11,10 @@ import { colors, fontWeight } from "../../theme";
 const IDLE = colors.muted;
 
 const TABS: Record<string, { label: string; icon: TabIconName | null }> = {
-  index: { label: "Feed", icon: "feed" },
+  index: { label: "Home", icon: "home" },
   map: { label: "Map", icon: "map" },
-  rate: { label: "Rank", icon: null },
-  recs: { label: "For you", icon: "compass" },
+  rate: { label: "", icon: null },
+  recs: { label: "Search", icon: "compass" },
   profile: { label: "Profile", icon: "profile" },
 };
 
@@ -24,10 +24,10 @@ export default function TabsLayout() {
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
       tabBar={(props) => <TabBar {...props} />}
     >
-      <Tabs.Screen name="index" options={{ title: "Feed" }} />
+      <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="map" options={{ title: "Map" }} />
       <Tabs.Screen name="rate" options={{ title: "Rate" }} />
-      <Tabs.Screen name="recs" options={{ title: "For you" }} />
+      <Tabs.Screen name="recs" options={{ title: "Search" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
     </Tabs>
   );
@@ -61,18 +61,13 @@ function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
           >
             {({ pressed }) =>
               tab.icon === null ? (
-                // The one accented thing in the bar: rank a place.
-                <View style={styles.tab}>
-                  {/* Bigger than its neighbours and lifted above their row. Open: a white gap and an accent ring. */}
-                  <View style={[styles.rankRing, pressed && styles.rankPressed]}>
-                    {focused ? <View style={styles.rankRingOn} /> : null}
-                    <View style={[styles.rank, focused && styles.rankOn]}>
-                      <Icon name="plus" size={22} color={colors.white} />
-                    </View>
+                // The one accented thing in the bar: rank a place. No word under it, so the plus
+                // sits in the middle of the bar's height. Open: a gap and an accent ring.
+                <View style={[styles.rankRing, pressed && styles.rankPressed]}>
+                  {focused ? <View style={styles.rankRingOn} /> : null}
+                  <View style={[styles.rank, focused && styles.rankOn]}>
+                    <Icon name="plus" size={24} color={colors.white} />
                   </View>
-                  <Text numberOfLines={1} allowFontScaling={false} style={[styles.label, { color }, focused && styles.labelOn]}>
-                    {tab.label}
-                  </Text>
                 </View>
               ) : (
                 <View style={[styles.tab, pressed && styles.tabPressed]}>
@@ -106,7 +101,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.bg,
   },
   item: { flex: 1, height: 52, alignItems: "center", justifyContent: "center" },
   tab: { alignItems: "center", gap: 3 },
@@ -117,24 +112,22 @@ const styles = StyleSheet.create({
   faceOn: { borderColor: colors.fg },
   label: { fontSize: 11, lineHeight: 13, fontWeight: fontWeight.medium },
   labelOn: { fontWeight: fontWeight.bold },
-  // 40pt against the 34pt glyph boxes: it rises 4pt above them and dips 2pt, so the labels still share a baseline.
+  // 46pt, centred in the 52pt item: the other four tabs' icon and label together are about as tall.
   rankRing: {
-    width: 40,
-    height: 40,
-    marginTop: -4,
-    marginBottom: -2,
+    width: 46,
+    height: 46,
     alignItems: "center",
     justifyContent: "center",
   },
-  rankRingOn: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1.5, borderColor: colors.accent },
+  rankRingOn: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 23, borderWidth: 1.5, borderColor: colors.accent },
   rank: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  rankOn: { width: 33, height: 33, borderRadius: 16.5 },
+  rankOn: { width: 38, height: 38, borderRadius: 19 },
   rankPressed: { opacity: 0.85, transform: [{ scale: 0.94 }] },
 });

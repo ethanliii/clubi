@@ -73,7 +73,7 @@ export default function ForYou() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text accessibilityRole="header" style={styles.title}>
-            For you
+            Search
           </Text>
         </View>
 

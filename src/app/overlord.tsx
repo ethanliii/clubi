@@ -40,7 +40,7 @@ export default function OverlordScreen() {
         { label: "Feed (opens first)", href: paths.feed },
         { label: "Map", href: paths.map },
         { label: "Rate: pick a spot", href: paths.rate },
-        { label: "For you", href: paths.recs },
+        { label: "Search", href: paths.recs },
         { label: "Profile", href: paths.profile },
       ],
     },
