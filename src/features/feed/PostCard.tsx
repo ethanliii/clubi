@@ -73,7 +73,7 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
           onPress={openAuthor}
           style={({ pressed }) => pressed && styles.pressed}
         >
-          <Avatar name={author.displayName} uri={author.avatarUrl} size={40} />
+          <Avatar name={author.displayName} uri={author.avatarUrl} size={36} />
         </Pressable>
         <View style={styles.who}>
           {/* "<Name> ranked <Place>": the name opens the person, the place opens the place. */}
@@ -149,10 +149,12 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
             accessibilityLabel="Rank it too"
             hitSlop={8}
             onPress={() => router.push(ratePath(target.kind, target.id))}
-            style={({ pressed }) => [styles.rankToo, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.rankTooHit, pressed && styles.pressed]}
           >
-            <Icon name="plusCircle" size={20} color={palette.soft} />
+            <View style={styles.rankToo}>
+            <Icon name="plus" size={15} color={colors.fg} />
             <Text style={styles.rankTooText}>Rank it too</Text>
+            </View>
           </Pressable>
         )}
       </View>
@@ -199,7 +201,7 @@ export function PostSkeleton() {
   return (
     <View style={styles.post}>
       <View style={styles.top}>
-        <Skeleton width={40} height={40} round={20} />
+        <Skeleton width={36} height={36} round={18} />
         <View style={[styles.flex, styles.lines]}>
           <Skeleton width="70%" height={14} />
           <Skeleton width="40%" height={11} />
@@ -235,7 +237,7 @@ const styles = StyleSheet.create({
   post: { gap: 10 },
   flex: { flex: 1 },
   shrink: { flexShrink: 1 },
-  top: { flexDirection: "row", alignItems: "center", gap: 10 },
+  top: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
   who: { flex: 1, gap: 2 },
   headline: { fontSize: 15, lineHeight: 20, color: colors.fg },
   strong: { fontWeight: fontWeight.bold, color: colors.fg },
@@ -251,8 +253,19 @@ const styles = StyleSheet.create({
   // The dots line up with the picture's right edge.
   menu: { marginRight: -11 },
   yours: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
-  rankToo: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44 },
-  rankTooText: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: palette.soft },
+  // A small outline pill, like Beli's secondary buttons; the 44pt tap target is the wrapper.
+  rankTooHit: { minHeight: 44, justifyContent: "center" },
+  rankToo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  rankTooText: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
   pressed: { opacity: 0.6 },
   lines: { gap: spacing.sm },
   skeletons: { gap: POST_GAP * 2 },

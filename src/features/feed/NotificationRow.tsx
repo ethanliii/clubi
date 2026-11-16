@@ -44,28 +44,25 @@ export function NotificationRow({
         )}
       </View>
       <View style={styles.text}>
+        {/* One sentence, the way Instagram and Beli write it: what happened, then how long ago in grey. */}
         <Text numberOfLines={3} style={[styles.title, unread ? styles.unreadTitle : styles.readTitle]}>
           {item.title}
+          <Text style={styles.time}>  {formatRelativeTime(item.createdAt, now)}</Text>
         </Text>
         {item.body ? (
-          <Text muted numberOfLines={2} style={styles.body}>
+          <Text muted numberOfLines={1} style={styles.body}>
             {item.body}
           </Text>
         ) : null}
       </View>
-      <View style={styles.side}>
-        <Text muted style={styles.time}>
-          {formatRelativeTime(item.createdAt, now)}
-        </Text>
-        {unread ? <View accessibilityLabel="Unread" style={styles.dot} /> : null}
-      </View>
+      <View style={styles.side}>{unread ? <View accessibilityLabel="Unread" style={styles.dot} /> : null}</View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   // No lines between rows: the round leads and the space keep them apart.
-  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, minHeight: 64, paddingVertical: spacing.md },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 68, paddingVertical: spacing.md },
   pressed: { opacity: 0.6 },
   lead: { width: 44, height: 44 },
   icon: {
@@ -89,12 +86,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  text: { flex: 1, gap: 3 },
+  text: { flex: 1, gap: 2 },
   title: { fontSize: 15, lineHeight: 20 },
   unreadTitle: { fontWeight: fontWeight.semibold, color: colors.fg },
-  readTitle: { fontWeight: fontWeight.regular, color: colors.muted },
+  readTitle: { fontWeight: fontWeight.regular, color: colors.fg },
   body: { fontSize: 13, lineHeight: 18 },
-  side: { alignItems: "flex-end", gap: spacing.sm, paddingTop: 1, minWidth: 28 },
-  time: { fontSize: 13, lineHeight: 18 },
-  dot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: colors.accent },
+  side: { width: 10, alignItems: "center", justifyContent: "center" },
+  time: { fontSize: 13, lineHeight: 20, fontWeight: fontWeight.regular, color: colors.muted },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
 });

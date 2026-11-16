@@ -8,7 +8,7 @@ import { errorMessage } from "../lib/errors";
 import { openLink } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
-import { fontWeight, spacing } from "../theme";
+import { fontWeight, palette, spacing } from "../theme";
 
 export default function NotificationsScreen() {
   const items = useQuery(api.notifications.list, {});
@@ -62,6 +62,7 @@ export default function NotificationsScreen() {
                     {day}
                   </Text>
                 ) : null}
+                {showDay ? null : <View style={styles.rule} />}
                 <NotificationRow item={item} now={now} onPress={() => open(item)} />
               </View>
             );
@@ -74,6 +75,8 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   markAll: { minHeight: 44, justifyContent: "center" },
-  day: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, paddingBottom: spacing.xs },
+  day: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2, paddingBottom: spacing.xs },
+  // The hairline starts under the text, past the avatar, like a contacts list.
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: palette.hairline, marginLeft: 44 + spacing.md },
   nextDay: { marginTop: spacing.xl },
 });

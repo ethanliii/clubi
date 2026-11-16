@@ -8,11 +8,11 @@ import { formatRelativeTime } from "../../lib/format";
 import { userPath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { useNow } from "../../lib/useNow";
-import { colors, fontWeight, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
 /** The backend's limit (`COMMENT_MAX` in convex/lib/social.ts). */
 const COMMENT_MAX = 500;
-const DANGER = "#ff6b6b";
+const DANGER = palette.danger;
 
 /**
  * One comment. Long-press (or the "⋯" beside it) shows "Delete" on a comment I may remove:
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: 23,
-    backgroundColor: colors.surface,
+    backgroundColor: palette.field,
     color: colors.fg,
     fontSize: 16,
   },
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.surface,
   },
-  sendReady: { backgroundColor: colors.accent },
+  sendReady: { backgroundColor: colors.fg },
   none: { paddingVertical: spacing.xxl },
   // Tall enough to read a thread; the sheet itself stops short of the top of the screen.
   sheetList: { flexGrow: 0, flexShrink: 1, minHeight: 260 },

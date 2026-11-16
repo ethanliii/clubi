@@ -39,6 +39,7 @@ export default function FeedScreen() {
           icon="bell"
           accessibilityLabel="Notifications"
           size={44}
+          plain
           badge={unread ? formatCount(unread) : null}
           onPress={() => router.push(paths.notifications)}
         />
