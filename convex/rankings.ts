@@ -21,12 +21,14 @@ import {
 import { forgetAnswers } from "./insights";
 import { notify } from "./notifications";
 import { recordPerformerAffinity } from "./performers";
-import { applyBucket, applyComparison } from "./scoring";
+import { applyComparison, applyScore } from "./scoring";
 import { categoryValidator } from "./tables/catalog";
 import { bucketValidator, visibilityValidator } from "./tables/people";
 
 const DEGREES_PER_HOUR = 15;
 const MAX_COMPARISONS = 20;
+/** A re-rank teaches taste again when its score lands at least this far from the old one. */
+const RESCORE_TEACHES = 1;
 const MAX_TAGS = 12;
 const MAX_TAG_LENGTH = 40;
 const MAX_GROUP_SIZE = 99;
@@ -439,8 +441,11 @@ export const rank = mutation({
     for (const { winnerId, loserId } of fresh) {
       await applyComparison(ctx, userId, winnerId, loserId);
     }
-    if (existing === undefined || existing.bucket !== bucket) {
-      await applyBucket(ctx, userId, id, bucket);
+    // The score itself teaches taste: low pushes it away from what this place is like (so places like
+    // it score lower for this person, and unlike ones a little higher), high pulls it toward. Once for
+    // a new ranking, and again only when a re-rank changes the bucket or moves the score a full point.
+    if (existing === undefined || existing.bucket !== bucket || Math.abs(existing.score - score) >= RESCORE_TEACHES) {
+      await applyScore(ctx, userId, id, score);
     }
     if (kind === "event") {
       await recordPerformerAffinity(ctx, {

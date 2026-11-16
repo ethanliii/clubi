@@ -2,7 +2,7 @@ import { Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 import type { Bucket } from "./lib/contract";
 import { tasteOf, venueVectorOf } from "./lib/discovery";
-import { lovedStepFor, nudgeTaste, updateElo, updateTaste } from "./lib/recs";
+import { lovedStepFor, nudgeTaste, nudgeTasteByScore, updateElo, updateTaste } from "./lib/recs";
 
 /*
  * Live learning, for rankings.rank (Captain 2, task P5). Add this import:
@@ -50,6 +50,22 @@ export async function applyBucket(ctx: MutationCtx, userId: Id<"users">, item: I
   const prior = user.tastePrior?.length === taste.length ? user.tastePrior : taste;
   await ctx.db.patch(userId, {
     tasteVector: nudgeTaste(taste, venueVectorOf(doc), bucket, lovedStepFor(prior)),
+    tastePrior: prior,
+  });
+}
+
+/**
+ * The score a ranking ended up with, as a taste step (lib/recs.ts, nudgeTasteByScore): the lower the
+ * score, the further taste moves away from what the place is like; the higher, the further toward it.
+ * `rankings.rank` calls this for every new ranking and for a re-rank whose score really moved.
+ */
+export async function applyScore(ctx: MutationCtx, userId: Id<"users">, item: ItemId, score: number): Promise<void> {
+  const [user, doc] = await Promise.all([ctx.db.get(userId), ctx.db.get(item)]);
+  if (user === null || doc === null || !Number.isFinite(score)) return;
+  const taste = tasteOf(user);
+  const prior = user.tastePrior?.length === taste.length ? user.tastePrior : taste;
+  await ctx.db.patch(userId, {
+    tasteVector: nudgeTasteByScore(taste, venueVectorOf(doc), score, lovedStepFor(prior)),
     tastePrior: prior,
   });
 }
