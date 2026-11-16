@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
-import { useState, type Ref } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { FlatList, Platform, Pressable, StyleSheet, TextInput, View, type TextInputInstance } from "react-native";
 import { Avatar, Icon, Sheet, SkeletonRows, Text } from "../../components";
 import { api, type CommentItem, type Id } from "../../lib/api";
@@ -14,28 +14,31 @@ import { colors, fontWeight, palette, spacing } from "../../theme";
 /** The backend's limit (`COMMENT_MAX` in convex/lib/social.ts). */
 const COMMENT_MAX = 500;
 const DANGER = palette.danger;
-const AVATAR = 34;
+const AVATAR = 32;
 /** The grey field is the focus mark; the browser's own blue ring would sit inside it. */
 const WEB_NO_OUTLINE = Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null;
-/** Small text buttons and the "more" dot reach 44pt with this around them. */
+/** Small text buttons reach 44pt with this around them. */
 const HIT = { top: 14, bottom: 14, left: 10, right: 10 };
 
 /**
  * One comment, Instagram style: a small round avatar, the bold name with the text flowing after it,
- * and a grey time underneath. Long-press (or the small "more" beside it) shows "Delete" on a comment
- * I may remove: my own, or any comment on my own post.
+ * and a grey line underneath: the time and "Reply". Long-press shows "Delete" on that line for a
+ * comment I may remove: my own, or any comment on my own post.
  */
 export function CommentRow({
   comment,
   canDelete,
   now,
   onAuthor,
+  onReply,
 }: {
   comment: CommentItem;
   canDelete: boolean;
   now: number;
   /** Called before the author's profile opens, e.g. to close the sheet. */
   onAuthor?: () => void;
+  /** "Reply" under the comment: the comment box takes the keyboard, starting with "@Name ". */
+  onReply?: (name: string) => void;
 }) {
   const [armed, setArmed] = useState(false);
   const { run: remove, pending } = useMutationToast(api.posts.removeComment);
@@ -46,7 +49,7 @@ export function CommentRow({
   };
 
   return (
-    <View style={[styles.row, armed && styles.rowArmed]}>
+    <View style={styles.row}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${author.displayName}'s profile`}
@@ -67,12 +70,23 @@ export function CommentRow({
         >
           <Text style={styles.text}>
             <Text style={styles.name}>{author.displayName}</Text>
-            {"  "}
+            {" "}
             {comment.text}
           </Text>
         </Pressable>
         <View style={styles.meta}>
           <Text style={styles.time}>{formatRelativeTime(comment.createdAt, now)}</Text>
+          {onReply && !armed ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Reply to ${author.displayName}`}
+              hitSlop={HIT}
+              onPress={() => onReply(author.displayName)}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <Text style={styles.reply}>Reply</Text>
+            </Pressable>
+          ) : null}
           {armed ? (
             <>
               <Pressable
@@ -98,41 +112,56 @@ export function CommentRow({
           ) : null}
         </View>
       </View>
-      {canDelete && !armed ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Comment options"
-          hitSlop={HIT}
-          onPress={() => setArmed(true)}
-          style={({ pressed }) => [styles.more, pressed && styles.pressed]}
-        >
-          <Icon name="more" size={16} color={colors.low} />
-        </Pressable>
-      ) : null}
     </View>
   );
 }
 
+/** Who "Reply" was pressed on. `at` changes on every press, so pressing the same name twice works. */
+export type ReplyTarget = { name: string; at: number };
+
 /**
- * The comment box: my avatar, a light-grey rounded field and a dark-red "Post" that enables only
- * with text. Clears itself when the comment is saved; the list updates by itself.
+ * The comment box: my avatar and a light-grey rounded field that grows to four lines as you type.
+ * "Post" appears in dark red once there is text. Clears itself when the comment is saved; the list
+ * updates by itself.
  */
-export function CommentComposer({ postId, inputRef }: { postId: Id<"posts">; inputRef?: Ref<TextInputInstance> }) {
+export function CommentComposer({
+  postId,
+  inputRef,
+  replyTo,
+}: {
+  postId: Id<"posts">;
+  inputRef?: Ref<TextInputInstance>;
+  replyTo?: ReplyTarget | null;
+}) {
   const me = useMe();
   const [text, setText] = useState("");
+  const box = useRef<TextInputInstance | null>(null);
   const { run: addComment, pending } = useMutationToast(api.posts.addComment);
-  const ready = text.trim().length > 0 && !pending;
+  const hasText = text.trim().length > 0;
+  const ready = hasText && !pending;
   const send = async () => {
     if (!ready) return;
     const saved = await addComment({ postId, text: text.trim() });
     if (saved !== undefined) setText("");
   };
+  const setBox = (node: TextInputInstance | null) => {
+    box.current = node;
+    if (typeof inputRef === "function") inputRef(node);
+    else if (inputRef) (inputRef as { current: TextInputInstance | null }).current = node;
+  };
+  const replyName = replyTo?.name;
+  const replyAt = replyTo?.at;
+  useEffect(() => {
+    if (replyName === undefined) return;
+    setText((was) => (was.trim().length > 0 ? was : `@${replyName} `));
+    box.current?.focus();
+  }, [replyName, replyAt]);
   return (
     <View style={styles.composer}>
-      {me ? <Avatar name={me.displayName} uri={me.avatarUrl} size={36} /> : null}
+      {me ? <Avatar name={me.displayName} uri={me.avatarUrl} size={36} style={styles.composerAvatar} /> : null}
       <View style={styles.field}>
         <TextInput
-          ref={inputRef}
+          ref={setBox}
           placeholder="Add a comment…"
           placeholderTextColor={colors.muted}
           selectionColor={colors.accent}
@@ -140,22 +169,25 @@ export function CommentComposer({ postId, inputRef }: { postId: Id<"posts">; inp
           value={text}
           onChangeText={setText}
           maxLength={COMMENT_MAX}
-          returnKeyType="send"
-          submitBehavior="submit"
-          onSubmitEditing={() => void send()}
+          multiline
+          // A phone's return key starts a new line; on the web Enter sends, as in any chat box.
+          submitBehavior={Platform.OS === "web" ? "submit" : "newline"}
+          onSubmitEditing={Platform.OS === "web" ? () => void send() : undefined}
           style={[styles.input, WEB_NO_OUTLINE]}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Post comment"
-          accessibilityState={{ disabled: !ready }}
-          disabled={!ready}
-          hitSlop={{ top: 6, bottom: 6, right: 6 }}
-          onPress={() => void send()}
-          style={({ pressed }) => [styles.send, pressed && styles.pressed]}
-        >
-          <Text style={[styles.sendLabel, !ready && styles.sendOff]}>Post</Text>
-        </Pressable>
+        {hasText ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Post comment"
+            accessibilityState={{ disabled: !ready }}
+            disabled={!ready}
+            hitSlop={{ top: 6, bottom: 6, right: 6 }}
+            onPress={() => void send()}
+            style={({ pressed }) => [styles.send, (pressed || pending) && styles.pressed]}
+          >
+            <Text style={styles.sendLabel}>Post</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -193,6 +225,7 @@ export function CommentsSheet({
 }) {
   const comments = useQuery(api.posts.comments, postId ? { postId } : "skip");
   const now = useNow();
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   return (
     <Sheet visible={visible} onClose={onClose} title="Comments" scroll={false}>
       {comments === undefined ? (
@@ -204,7 +237,13 @@ export function CommentsSheet({
           data={comments}
           keyExtractor={(comment) => comment.id}
           renderItem={({ item }) => (
-            <CommentRow comment={item} canDelete={item.mine || postIsMine} now={now} onAuthor={onClose} />
+            <CommentRow
+              comment={item}
+              canDelete={item.mine || postIsMine}
+              now={now}
+              onAuthor={onClose}
+              onReply={(name) => setReplyTo({ name, at: Date.now() })}
+            />
           )}
           ListEmptyComponent={<NoComments />}
           keyboardShouldPersistTaps="handled"
@@ -215,7 +254,7 @@ export function CommentsSheet({
       )}
       {postId ? (
         <View style={styles.sheetComposer}>
-          <CommentComposer postId={postId} />
+          <CommentComposer postId={postId} replyTo={replyTo} />
         </View>
       ) : null}
     </Sheet>
@@ -224,40 +263,44 @@ export function CommentsSheet({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
-  // A soft wash marks the comment the "Delete" belongs to.
-  rowArmed: {
-    backgroundColor: colors.surface,
-    marginHorizontal: -spacing.sm,
-    paddingHorizontal: spacing.sm,
-    marginVertical: -spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: 12,
-  },
-  body: { flex: 1, gap: 3, paddingTop: 1 },
-  name: { fontSize: 14, lineHeight: 20, fontWeight: fontWeight.bold, color: colors.fg },
-  text: { fontSize: 14.5, lineHeight: 20, color: colors.fg },
+  body: { flex: 1, gap: 2 },
+  name: { fontSize: 14, lineHeight: 19, fontWeight: fontWeight.bold, color: colors.fg },
+  text: { fontSize: 14, lineHeight: 19, color: colors.fg },
   meta: { flexDirection: "row", alignItems: "center", gap: spacing.lg, minHeight: 18 },
   time: { fontSize: 12, lineHeight: 16, color: colors.low },
   delete: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, color: DANGER },
+  reply: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, color: colors.muted },
   cancel: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, color: colors.muted },
-  more: { width: 28, height: AVATAR, alignItems: "flex-end", justifyContent: "center" },
   pressed: { opacity: 0.6 },
-  composer: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  // The avatar and "Post" stay on the last line as the field grows.
+  composer: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md },
+  composerAvatar: { marginBottom: 4 },
   field: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     minHeight: 44,
     borderRadius: 22,
     backgroundColor: palette.field,
     paddingLeft: spacing.lg,
     paddingRight: spacing.xs,
   },
-  // 16 keeps iOS Safari from zooming the page when the box is focused.
-  input: { flex: 1, minWidth: 0, minHeight: 44, paddingVertical: spacing.sm, color: colors.fg, fontSize: 16 },
+  // 16 keeps iOS Safari from zooming the page when the box is focused. Four lines, then it scrolls.
+  input: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 44,
+    maxHeight: 104,
+    paddingTop: 11,
+    paddingBottom: 11,
+    paddingRight: spacing.md,
+    color: colors.fg,
+    fontSize: 16,
+    lineHeight: 22,
+    textAlignVertical: "center",
+  },
   send: { minWidth: 52, height: 44, paddingHorizontal: spacing.md, alignItems: "center", justifyContent: "center" },
   sendLabel: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold, color: colors.accent },
-  sendOff: { opacity: 0.35 },
   none: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.xxl + spacing.sm },
   noneTitle: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, marginTop: spacing.sm },
   noneBody: { fontSize: 14, lineHeight: 20 },
@@ -265,7 +308,7 @@ const styles = StyleSheet.create({
   // comment box stays above the keyboard. The sheet itself stops short of the top of the screen.
   sheetList: { flexGrow: 0, flexShrink: 1, minHeight: 120 },
   sheetWait: { height: 280 },
-  sheetListContent: { gap: spacing.lg + 2, paddingTop: spacing.sm, paddingBottom: spacing.lg, minHeight: 280 },
+  sheetListContent: { gap: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.lg, minHeight: 280 },
   sheetComposer: {
     marginHorizontal: -spacing.lg,
     paddingHorizontal: spacing.lg,

@@ -3,7 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View, type TextInputInstance } from "react-native";
 import { EmptyState, ErrorBoundary, goBack, Header, Screen, SkeletonRows, Text } from "../../components";
-import { CommentComposer, CommentRow, NoComments } from "../../features/feed/Comments";
+import { CommentComposer, CommentRow, NoComments, type ReplyTarget } from "../../features/feed/Comments";
 import { PostCard, PostSkeletons } from "../../features/feed/PostCard";
 import { PostMenu } from "../../features/feed/PostMenu";
 import { api, type Id } from "../../lib/api";
@@ -45,6 +45,7 @@ function Post({ postId }: { postId: Id<"posts"> }) {
   const comments = useQuery(api.posts.comments, { postId });
   const commentBox = useRef<TextInputInstance>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
 
   if (post === undefined) return <PostSkeletons count={1} />;
   if (post === null) return <Gone />;
@@ -55,18 +56,25 @@ function Post({ postId }: { postId: Id<"posts"> }) {
       <FlatList
         data={comments ?? []}
         keyExtractor={(comment) => comment.id}
-        renderItem={({ item }) => <CommentRow comment={item} canDelete={item.mine || mine} now={now} />}
+        renderItem={({ item }) => (
+          <CommentRow
+            comment={item}
+            canDelete={item.mine || mine}
+            now={now}
+            onReply={(name) => setReplyTo({ name, at: Date.now() })}
+          />
+        )}
         ListHeaderComponent={
           <View style={styles.header}>
             <PostCard
               post={post}
               mine={mine}
               now={now}
+              hideCommentCount
               onComments={() => commentBox.current?.focus()}
               onMenu={mine ? () => setMenuOpen(true) : undefined}
             />
             <View style={styles.comments}>
-              <View style={styles.handle} />
               <Text accessibilityRole="header" style={styles.commentsTitle}>
                 Comments
               </Text>
@@ -83,7 +91,7 @@ function Post({ postId }: { postId: Id<"posts"> }) {
         contentContainerStyle={styles.content}
       />
       <View style={styles.composer}>
-        <CommentComposer postId={postId} inputRef={commentBox} />
+        <CommentComposer postId={postId} inputRef={commentBox} replyTo={replyTo} />
       </View>
       <PostMenu post={post} visible={menuOpen} onClose={() => setMenuOpen(false)} onDeleted={goBack} />
     </View>
@@ -95,31 +103,21 @@ const styles = StyleSheet.create({
   // `Screen` leaves room under its content; the comment box sits closer to the bottom edge.
   body: { flex: 1, marginBottom: -spacing.md },
   list: { flex: 1, marginHorizontal: -spacing.lg },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg + 2 },
-  header: { gap: spacing.xl },
-  // Like the comment sheet: a hairline, a grab handle and the "Comments" title set the thread apart.
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg },
+  header: { gap: spacing.lg },
+  // The app's section label, at the left gutter, under a hairline that runs to both edges.
   comments: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: spacing.sm,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xs,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
     marginHorizontal: -spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.line,
   },
-  handle: {
-    position: "absolute",
-    top: spacing.sm,
-    alignSelf: "center",
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.line,
-  },
-  commentsTitle: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold },
-  count: { fontSize: 15, lineHeight: 20, color: colors.low },
+  commentsTitle: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, letterSpacing: 0.9, textTransform: "uppercase", color: colors.fg },
+  count: { fontSize: 12, lineHeight: 16, color: colors.low },
   // The comment box stays over the thread, with a hairline where the list scrolls under it.
   composer: {
     marginHorizontal: -spacing.lg,

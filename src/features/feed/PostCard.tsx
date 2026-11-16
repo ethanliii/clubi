@@ -1,11 +1,11 @@
 import { router } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, Share, StyleSheet, View } from "react-native";
 import { Avatar, Icon, IconButton, Skeleton, Text, type IconName } from "../../components";
 import { api, type FeedItem, type Visibility } from "../../lib/api";
 import { categoryLabel, formatRelativeTime, formatScore } from "../../lib/format";
 import { ratePath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, fontWeight, palette, spacing } from "../../theme";
+import { colors, fontWeight, ratingColor, spacing } from "../../theme";
 import { POST_MEDIA_HEIGHT, POST_MEDIA_RADIUS, PostMedia } from "./PostMedia";
 import { ScoreRing } from "./ScoreRing";
 
@@ -28,6 +28,8 @@ export type PostCardProps = {
   onMenu?: () => void;
   /** Tapping the line under the headline (standing and time) opens the post's own page. Left out on that page. */
   onOpenPost?: () => void;
+  /** The post page lists the comments right under the post, so their count is not said twice. */
+  hideCommentCount?: boolean;
 };
 
 /**
@@ -35,16 +37,17 @@ export type PostCardProps = {
  * what they said, the short answers, and the like, comment and rank buttons.
  * Everything shown is what `FeedItem` carries; nothing is computed here.
  */
-export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: PostCardProps) {
+export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost, hideCommentCount = false }: PostCardProps) {
   const { run: react, pending: reacting } = useMutationToast(api.posts.react);
   const { author, target } = post;
   const liked = post.myReaction !== undefined;
   const reactionCount = post.reactionCount ?? 0;
   const commentCount = post.commentCount ?? 0;
-  // The short answers and the tags, as they came, on one grey line.
-  const facts = [...(post.insightChips ?? []), ...post.tags];
+  // The author's own labels read as one "Vibe:" sentence; the quick answers sit on a quiet line under it.
+  const vibe = sentence(post.tags);
+  const answers = (post.insightChips ?? []).join(" · ");
   const visibility = VISIBILITY_OPTIONS.find((option) => option.value === (post.visibility ?? "friends"));
-  const time = formatRelativeTime(post.createdAt, now);
+  const time = ago(formatRelativeTime(post.createdAt, now));
   const hasScore = post.score > 0;
   // The place's own photo, once the backend sends one with the post.
   const placePhotoUrl = (target as { imageUrl?: string }).imageUrl;
@@ -55,14 +58,25 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
   const standing =
     post.label === target.name ? null : post.label.endsWith(scoreEnding) ? post.label.slice(0, -scoreEnding.length) : post.label;
 
-  // Under the headline: where it stands in their list, or what kind of place it is.
-  const detail = standing ?? categoryLabel(target.category);
+  // Under the headline: where the place is when the backend says, otherwise what kind of place it is.
+  const where = target as { neighborhood?: string; neighbourhood?: string; city?: string };
+  const area = [where.neighborhood ?? where.neighbourhood, where.city].filter(Boolean).join(", ");
+  const detail = area || categoryLabel(target.category);
+  // A top-three spot on their list is worth a quiet line: "No. 1 on Maya's bars list".
+  const place = standing ? /^#([1-3]) of their (.+)$/.exec(standing) : null;
+  const firstName = author.displayName.split(" ")[0] ?? author.displayName;
+  const topSpot = place ? `No. ${place[1]} on ${mine ? "your" : `${firstName}'s`} ${place[2]} list` : null;
+  const share = () =>
+    void Share.share({
+      message: `${author.displayName} ranked ${target.name}${hasScore ? ` ${formatScore(post.score)}` : ""} on clubi`,
+    }).catch(() => undefined);
 
   const openVenue = () => router.push(venuePath(target.kind, target.id));
   const openAuthor = () => router.push(userPath(author.userId));
   // Sending my current emoji again is how the backend removes a reaction; with none, it adds the default heart.
   const onLike = () => void react(post.myReaction ? { postId: post.postId, emoji: post.myReaction } : { postId: post.postId });
 
+  const shownComments = hideCommentCount ? 0 : commentCount;
   const likes = reactionCount === 1 ? "1 like" : `${reactionCount} likes`;
   const comments = commentCount === 1 ? "1 comment" : `${commentCount} comments`;
 
@@ -95,29 +109,38 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
         {hasScore ? <ScoreRing score={post.score} /> : null}
       </View>
 
-      {post.caption ? (
-        <Text style={styles.caption}>
-          <Text style={styles.strong}>Notes: </Text>
-          {post.caption}
-        </Text>
-      ) : null}
-      {facts.length > 0 ? (
-        <View style={styles.facts}>
-          {facts.map((fact, index) => (
-            <View key={`${fact}-${index}`} style={styles.fact}>
-              <Text numberOfLines={1} style={styles.factText}>
-                {fact}
-              </Text>
-            </View>
-          ))}
+      {post.caption || vibe || answers || topSpot ? (
+        <View style={styles.words}>
+          {post.caption ? (
+            <Text style={styles.caption}>
+              <Text style={styles.strong}>Notes: </Text>
+              {post.caption}
+            </Text>
+          ) : null}
+          {vibe ? (
+            <Text numberOfLines={1} style={styles.caption}>
+              <Text style={styles.strong}>Vibe: </Text>
+              {vibe}
+            </Text>
+          ) : null}
+          {answers ? (
+            <Text numberOfLines={1} style={styles.quiet}>
+              {answers}
+            </Text>
+          ) : null}
+          {topSpot ? (
+            <Text numberOfLines={1} style={styles.quiet}>
+              {topSpot}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
       <PostMedia photoUrls={post.photoUrls} placePhotoUrl={placePhotoUrl} name={target.name} onPress={openVenue} />
 
-      {reactionCount > 0 || commentCount > 0 ? (
+      {reactionCount > 0 || shownComments > 0 ? (
         <Text style={styles.likes}>
-          {[reactionCount > 0 ? likes : null, commentCount > 0 ? comments : null].filter(Boolean).join("  ·  ")}
+          {[reactionCount > 0 ? likes : null, shownComments > 0 ? comments : null].filter(Boolean).join("  ·  ")}
         </Text>
       ) : null}
 
@@ -131,29 +154,29 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
           onPress={onLike}
         />
         <Action icon="comment" accessibilityLabel="Comments" color={colors.fg} onPress={onComments} />
-        {mine || post.myScoreForIt !== undefined ? null : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Rank it too"
-            hitSlop={4}
-            onPress={() => router.push(ratePath(target.kind, target.id))}
-            style={({ pressed }) => [styles.rankToo, pressed && styles.pressed]}
-          >
-            <Icon name="plusCircle" size={22} color={colors.fg} />
-            <Text style={styles.rankTooText}>Rank it too</Text>
-          </Pressable>
-        )}
+        <Action icon="paperPlane" accessibilityLabel="Share" color={colors.fg} onPress={share} />
         <View style={styles.flex} />
         {mine && onMenu ? (
           <IconButton icon="more" accessibilityLabel="Post options" size={44} plain color={colors.fg} onPress={onMenu} style={styles.menu} />
         ) : mine ? null : post.myScoreForIt !== undefined ? (
-          <View accessibilityLabel={`You gave it ${formatScore(post.myScoreForIt)}`} style={styles.yours}>
-            <Text style={styles.yoursText}>You gave it {formatScore(post.myScoreForIt)}</Text>
-            <View style={styles.checkRing}>
-              <Icon name="check" size={13} color={palette.soft} />
+          // Already on my list: the ring fills with my score's colour, as the reference's check circle.
+          <View accessibilityLabel={`You gave it ${formatScore(post.myScoreForIt)}`} style={styles.ringHit}>
+            <View style={[styles.ring, styles.ringDone, { backgroundColor: ratingColor(post.myScoreForIt), borderColor: ratingColor(post.myScoreForIt) }]}>
+              <Icon name="check" size={13} color={colors.bg} />
             </View>
           </View>
-        ) : null}
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Rank it too"
+            onPress={() => router.push(ratePath(target.kind, target.id))}
+            style={({ pressed }) => [styles.ringHit, pressed && styles.pressed]}
+          >
+            <View style={styles.ring}>
+              <Icon name="plus" size={13} color={colors.muted} />
+            </View>
+          </Pressable>
+        )}
       </View>
 
       <Pressable
@@ -177,7 +200,19 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
   );
 }
 
-/** Like and comment: a line icon, 44 tall so it is easy to hit; the counts are on the line above. */
+/** "club", "great music" → "Club, great music": the labels as one sentence. */
+function sentence(words: string[]): string {
+  const line = words.map((word) => word.trim()).filter(Boolean).join(", ").toLowerCase();
+  return line.charAt(0).toUpperCase() + line.slice(1);
+}
+
+/** "6h" → "6h ago", "now" → "Just now"; a date ("Nov 3") stays as it is. */
+function ago(time: string): string {
+  if (time === "now") return "Just now";
+  return /^\d+[mhd]$/.test(time) ? `${time} ago` : time;
+}
+
+/** Like, comment and share: a line icon, 44 tall so it is easy to hit; the counts are on the line above. */
 function Action({
   icon,
   accessibilityLabel,
@@ -246,33 +281,29 @@ export function PostDivider() {
 export const POST_GAP = 16;
 
 /** The author's picture, the size of the one in the reference feed. */
-const AVATAR = 56;
+const AVATAR = 48;
 
 const styles = StyleSheet.create({
   post: { gap: 10 },
   flex: { flex: 1 },
-  top: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: AVATAR },
-  who: { flex: 1, gap: 3 },
+  top: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: AVATAR },
+  who: { flex: 1, gap: 2 },
   headline: { fontSize: 16, lineHeight: 21, color: colors.fg, letterSpacing: -0.2 },
   strong: { fontWeight: fontWeight.bold, color: colors.fg },
   verb: { fontWeight: fontWeight.regular, color: colors.fg },
   place: { fontSize: 13, lineHeight: 18, color: colors.muted },
-  caption: { fontSize: 15, lineHeight: 21, color: colors.fg, marginTop: 2 },
-  // The short answers: tiny grey pills that wrap.
-  facts: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  fact: { height: 24, paddingHorizontal: 9, borderRadius: 12, justifyContent: "center", backgroundColor: colors.surface, maxWidth: "100%" },
-  factText: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.medium, color: palette.soft },
+  // Notes, Vibe and the quiet lines read as one block, 2pt apart.
+  words: { gap: 2, marginTop: 2 },
+  caption: { fontSize: 15, lineHeight: 21, color: colors.fg },
+  quiet: { fontSize: 13, lineHeight: 18, color: colors.muted },
   likes: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.semibold, color: colors.fg, marginTop: 2 },
   // The icon row hugs the lines around it.
-  actions: { flexDirection: "row", alignItems: "center", gap: 2, marginVertical: -8, marginLeft: -10, minHeight: 44 },
+  actions: { flexDirection: "row", alignItems: "center", marginVertical: -8, marginLeft: -10, minHeight: 44 },
   action: { alignItems: "center", justifyContent: "center", width: 44, minHeight: 44 },
-  rankToo: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingHorizontal: 6 },
-  rankTooText: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
-  // The dots line up with the picture's right edge.
+  // The dots and the ring line up with the picture's right edge.
   menu: { marginRight: -11 },
-  yours: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
-  yoursText: { fontSize: 12, lineHeight: 16, color: colors.muted, fontVariant: ["tabular-nums"] },
-  checkRing: {
+  ringHit: { width: 44, minHeight: 44, alignItems: "center", justifyContent: "center", marginRight: -10 },
+  ring: {
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -281,6 +312,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  ringDone: { borderWidth: 0 },
   line: { flexDirection: "row", alignItems: "center", gap: 4 },
   visibility: { flexDirection: "row", alignItems: "center", gap: 4 },
   time: { fontSize: 12, lineHeight: 16, color: colors.muted },

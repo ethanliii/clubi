@@ -30,19 +30,19 @@ export function NotificationRow({
       accessibilityLabel={[item.title, item.body].filter(Boolean).join(". ")}
       accessibilityHint={unread ? "Unread" : undefined}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.row, unread && styles.unread, pressed && styles.pressed]}
     >
       <View style={styles.lead}>
         {actor ? (
           <>
             <Avatar name={actor.displayName} uri={actor.avatarUrl} size={48} />
             <View style={styles.badge}>
-              <Icon name={look.icon} size={11} color={look.tint} />
+              <Icon name={look.icon} size={10} color={item.type === "post_reaction" ? colors.accent : colors.fg} />
             </View>
           </>
         ) : (
           <View style={styles.icon}>
-            <Icon name={look.icon} size={22} color={look.tint} />
+            <Icon name={look.icon} size={22} color={colors.fg} />
           </View>
         )}
       </View>
@@ -65,7 +65,17 @@ export function NotificationRow({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 72, paddingVertical: spacing.md },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    minHeight: 68,
+    paddingVertical: 10,
+    marginHorizontal: -spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  // An unread row carries a faint wash to both edges of the screen, and the dot.
+  unread: { backgroundColor: "rgba(179,18,42,0.045)" },
   pressed: { opacity: 0.6 },
   lead: { width: 48, height: 48 },
   icon: {
@@ -78,14 +88,14 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: "absolute",
-    right: -4,
-    bottom: -4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.bg,
+    right: -3,
+    bottom: -3,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.bg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
     alignItems: "center",
     justifyContent: "center",
   },

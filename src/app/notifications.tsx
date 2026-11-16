@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { EmptyState, Header, Screen, SkeletonRows, Text, useToast } from "../components";
+import { StyleSheet, View } from "react-native";
+import { EmptyState, Header, IconButton, Screen, SkeletonRows, Text, useToast } from "../components";
 import { NotificationRow } from "../features/feed/NotificationRow";
 import { api, type NotificationItem } from "../lib/api";
 import { errorMessage } from "../lib/errors";
@@ -35,16 +35,16 @@ export default function NotificationsScreen() {
         right={
           // Only there while something is unread: a button that would do nothing is not shown.
           hasUnread ? (
-            <Pressable
-              accessibilityRole="button"
+            <IconButton
+              icon="checkCircle"
+              size={44}
+              plain
+              color={colors.fg}
               accessibilityLabel="Mark all read"
               disabled={pending}
-              hitSlop={8}
               onPress={() => void markAllRead({})}
-              style={({ pressed }) => [styles.markAll, (pressed || pending) && styles.dim]}
-            >
-              <Text style={styles.markAllText}>Mark all read</Text>
-            </Pressable>
+              style={styles.markAll}
+            />
           ) : undefined
         }
       />
@@ -61,7 +61,6 @@ export default function NotificationsScreen() {
               </Text>
               {group.items.map((item, index) => (
                 <View key={item.id}>
-                  {index > 0 ? <View style={styles.rule} /> : null}
                   <NotificationRow item={item} now={now} onPress={() => open(item)} />
                 </View>
               ))}
@@ -95,9 +94,8 @@ function groupNotifications(items: NotificationItem[], now: number): { label: st
 }
 
 const styles = StyleSheet.create({
-  markAll: { minHeight: 44, justifyContent: "center", paddingLeft: spacing.sm },
-  markAllText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.fg },
-  dim: { opacity: 0.5 },
+  // The icon's glyph lines up with the page's right gutter.
+  markAll: { marginRight: -10 },
   // The reference's section label: small, bold, uppercase, spaced.
   label: {
     fontSize: 12,
@@ -106,10 +104,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.9,
     textTransform: "uppercase",
     color: colors.fg,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.xs,
   },
-  nextGroup: { marginTop: spacing.lg },
-  // The hairline starts under the text, past the avatar, like a contacts list.
-  rule: { height: StyleSheet.hairlineWidth, backgroundColor: palette.hairline, marginLeft: 48 + spacing.md },
+  // A hairline sets one group apart from the next.
+  nextGroup: { marginTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.hairline },
 });

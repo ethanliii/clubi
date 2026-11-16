@@ -73,7 +73,10 @@ export default function FeedTab() {
   const isMine = (postId: Id<"posts"> | null) =>
     me !== undefined && feed.posts.some((post) => post.postId === postId && post.author.userId === me.userId);
   const menuPost = feed.posts.find((post) => post.postId === menu.postId) ?? null;
-  const hasPicks = tonight === undefined ? ready : tonight.topPicks.length > 0;
+  // The row above the feed is what is on tonight (the "For you" tab holds the picks), and only
+  // cards that have a picture: white text needs a photo under it.
+  const tonightCards = tonight ? (tonight.events.length > 0 ? tonight.events : tonight.topPicks).filter((item) => !!item.imageUrl) : undefined;
+  const hasPicks = tonightCards === undefined ? ready : tonightCards.length > 0;
 
   const top = (
     <View>
@@ -82,16 +85,16 @@ export default function FeedTab() {
           clubi
         </Text>
         <View style={styles.icons}>
-          <IconButton icon="calendar" size={44} plain accessibilityLabel="Trips" onPress={() => router.push(paths.trips)} />
+          <IconButton icon="calendar" size={40} plain accessibilityLabel="Trips" onPress={() => router.push(paths.trips)} />
           <IconButton
             icon="bell"
-            size={44}
+            size={40}
             plain
             accessibilityLabel="Notifications"
             badge={badge}
             onPress={() => router.push(paths.notifications)}
           />
-          <IconButton icon="menu" size={44} plain accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} />
+          <IconButton icon="menu" size={40} plain accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} />
         </View>
       </View>
 
@@ -101,7 +104,6 @@ export default function FeedTab() {
         <Pills
           gutter={GUTTER}
           pills={[
-            { key: "recs", label: "For you", icon: "spark", onPress: openRecs },
             { key: "plan", label: "Plan my night", icon: "navigate", onPress: () => router.push(planPath()) },
             { key: "group", label: "With friends", icon: "map", onPress: () => router.push(paths.groupMap) },
             { key: "friends", label: "Find friends", icon: "users", onPress: () => router.push(paths.friends) },
@@ -114,8 +116,8 @@ export default function FeedTab() {
         <View style={styles.picks}>
           <CardRow
             compact
-            title="Top picks for you"
-            items={tonight?.topPicks}
+            title="Tonight near you"
+            items={tonightCards}
             gutter={GUTTER}
             now={now}
             moreLabel="See all recommendations"
@@ -211,13 +213,13 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   list: { flex: 1 },
   content: { paddingHorizontal: GUTTER, paddingTop: 2, paddingBottom: 32 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", height: 52 },
-  wordmark: { fontFamily: SERIF, fontSize: 32, lineHeight: 40, fontWeight: fontWeight.bold, letterSpacing: -0.8, color: colors.accent },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", height: 48 },
+  wordmark: { fontFamily: SERIF, fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.6, color: colors.accent },
   // The three icons sit close together and the last one lines up with the page's right edge.
-  icons: { flexDirection: "row", alignItems: "center", marginRight: -10 },
-  pills: { marginTop: 6 },
-  picks: { marginTop: 4 },
-  feedLabel: { marginTop: 8, marginBottom: 4 },
+  icons: { flexDirection: "row", alignItems: "center", marginRight: -9 },
+  pills: { marginTop: 4 },
+  picks: { marginTop: -2 },
+  feedLabel: { marginTop: 6 },
   divider: { marginHorizontal: -GUTTER },
   more: { alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 18 },
   caughtUp: { fontSize: 13, lineHeight: 18, paddingVertical: 12 },

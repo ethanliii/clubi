@@ -11,9 +11,9 @@ import {
 import { Text } from "../../components";
 import { colors, fontWeight, palette } from "../../theme";
 
-/** The picture's shape: a little wider than tall, like a photo in a feed. */
-const PHOTO_HEIGHT = 260;
-const RADIUS = 10;
+/** The picture's shape: close to 16:9, so a whole post and the next one's headline fit on a screen. */
+const PHOTO_HEIGHT = 200;
+const RADIUS = 12;
 
 /**
  * The picture under a post's headline: the author's own photos when the post has any (swipe between
