@@ -3,25 +3,23 @@ import { Text } from "../../components";
 import { colors, fontWeight, spacing } from "../../theme";
 
 const clamp = (value: number) => Math.min(100, Math.max(0, value));
+const DOT = 12;
 
-function Bar({ who, value, mine }: { who: string; value: number; mine: boolean }) {
+function Key({ color, label }: { color: string; label: string }) {
   return (
-    <View style={styles.line}>
-      <Text numberOfLines={1} style={[styles.who, mine && styles.mine]}>
-        {who}
+    <View style={styles.key}>
+      <View style={[styles.keyDot, { backgroundColor: color }]} />
+      <Text numberOfLines={1} style={styles.keyText}>
+        {label}
       </Text>
-      <View style={styles.track}>
-        <View style={[styles.fill, { width: `${clamp(value)}%`, backgroundColor: mine ? colors.accent : colors.fg }]} />
-      </View>
-      <Text style={[styles.value, mine && styles.mine]}>{`${Math.round(value)}%`}</Text>
     </View>
   );
 }
 
 /**
- * Two taste profiles side by side: for each dimension a pair of slim bars, mine in the accent
- * and theirs in black, each with its number at the right. Every width is the 0–100 value the
- * backend returned.
+ * Two taste profiles on one line per dimension: a thin grey track with two dots on it, mine in
+ * the accent and theirs in black, each placed at the 0–100 value the backend returned. The key
+ * ("You", their name) is said once, above the rows.
  */
 export function TasteCompare({
   dims,
@@ -32,7 +30,11 @@ export function TasteCompare({
 }) {
   if (dims.length === 0) return null;
   return (
-    <View style={styles.wrap}>
+    <View>
+      <View style={styles.keys}>
+        <Key color={colors.accent} label="You" />
+        <Key color={colors.fg} label={theirName} />
+      </View>
       {dims.map((dim) => (
         <View
           key={dim.label}
@@ -43,8 +45,11 @@ export function TasteCompare({
           <Text numberOfLines={1} style={styles.label}>
             {dim.label}
           </Text>
-          <Bar who="You" value={dim.me} mine />
-          <Bar who={theirName} value={dim.them} mine={false} />
+          <View style={styles.lane}>
+            <View style={styles.track} />
+            <View style={[styles.dot, { left: `${clamp(dim.them)}%`, backgroundColor: colors.fg }]} />
+            <View style={[styles.dot, { left: `${clamp(dim.me)}%`, backgroundColor: colors.accent }]} />
+          </View>
         </View>
       ))}
     </View>
@@ -52,13 +57,23 @@ export function TasteCompare({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.lg },
-  dim: { gap: 6 },
-  label: { fontSize: 14, lineHeight: 19, fontWeight: fontWeight.bold, color: colors.fg },
-  line: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  who: { width: 64, fontSize: 13, lineHeight: 17, color: colors.muted },
-  track: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 2 },
-  value: { width: 40, textAlign: "right", fontSize: 13, lineHeight: 17, color: colors.fg, fontVariant: ["tabular-nums"] },
-  mine: { color: colors.accent, fontWeight: fontWeight.bold },
+  keys: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.md, paddingBottom: spacing.xs },
+  key: { flexDirection: "row", alignItems: "center", gap: 6 },
+  keyDot: { width: 8, height: 8, borderRadius: 4 },
+  keyText: { fontSize: 13, lineHeight: 17, color: colors.muted },
+  dim: { flexDirection: "row", alignItems: "center", gap: spacing.md, height: 44 },
+  label: { width: 132, fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.fg },
+  // The dots are centred on their value, so the lane is inset by half a dot at each end.
+  lane: { flex: 1, height: DOT, justifyContent: "center", marginHorizontal: DOT / 2 },
+  track: { height: 6, borderRadius: 3, backgroundColor: "#ececf0", marginHorizontal: -DOT / 2 },
+  dot: {
+    position: "absolute",
+    top: 0,
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+    marginLeft: -DOT / 2,
+    borderWidth: 2,
+    borderColor: colors.bg,
+  },
 });

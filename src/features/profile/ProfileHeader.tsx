@@ -8,7 +8,9 @@ function Stat({ value, label, onPress }: { value: number; label: string; onPress
   const text = (
     <>
       <Text style={styles.statValue}>{value.toLocaleString()}</Text>
-      <Text style={styles.statLabel}>{label.toUpperCase()}</Text>
+      <Text numberOfLines={1} style={styles.statLabel}>
+        {label}
+      </Text>
     </>
   );
   if (!onPress) {
@@ -31,43 +33,41 @@ function Stat({ value, label, onPress }: { value: number; label: string; onPress
 }
 
 /**
- * The top of a profile: the photo, the name as the screen's heading, the handle and home city,
- * a short bio, then the three counts side by side (ranked, friends, posts).
+ * The top of a profile, the same on mine and on anyone else's: the photo at the left with the
+ * three counts beside it (ranked, friends, posts), then the name, the handle and home city and a
+ * short bio, all left aligned, and the screen's buttons under them.
  */
 export function ProfileHeader({
   user,
   counts,
   onPressFriends,
-  showName = true,
   children,
 }: Pick<ProfileResult, "user" | "counts"> & {
   onPressFriends?: () => void;
-  /** Off when the screen's own bar already carries the name (my profile tab). */
-  showName?: boolean;
-  /** The outline buttons under the bio ("Edit profile", "Compare tastes"). */
+  /** The buttons under the bio ("Edit profile", "Compare tastes"). */
   children?: ReactNode;
 }) {
   const facts = [user.username ? `@${user.username}` : "", user.homeCity ?? ""].filter((part) => part !== "").join(" · ");
   return (
     <View style={styles.wrap}>
-      <Avatar name={user.displayName} uri={user.avatarUrl} size={96} />
+      <View style={styles.top}>
+        <Avatar name={user.displayName} uri={user.avatarUrl} size={80} />
+        <View style={styles.stats}>
+          <Stat value={counts.ranked} label="Ranked" />
+          <Stat value={counts.friends} label={counts.friends === 1 ? "Friend" : "Friends"} onPress={onPressFriends} />
+          <Stat value={counts.posts} label={counts.posts === 1 ? "Post" : "Posts"} />
+        </View>
+      </View>
       <View style={styles.names}>
-        {showName ? (
-          <Text accessibilityRole="header" numberOfLines={2} style={styles.name}>
-            {user.displayName}
-          </Text>
-        ) : null}
+        <Text accessibilityRole="header" numberOfLines={2} style={styles.name}>
+          {user.displayName}
+        </Text>
         {facts !== "" ? (
           <Text numberOfLines={1} style={styles.facts}>
             {facts}
           </Text>
         ) : null}
-      </View>
-      {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
-      <View style={styles.stats}>
-        <Stat value={counts.ranked} label="Ranked" />
-        <Stat value={counts.friends} label={counts.friends === 1 ? "Friend" : "Friends"} onPress={onPressFriends} />
-        <Stat value={counts.posts} label={counts.posts === 1 ? "Post" : "Posts"} />
+        {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
       </View>
       {children ? <View style={styles.actions}>{children}</View> : null}
     </View>
@@ -75,16 +75,16 @@ export function ProfileHeader({
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: "center", gap: spacing.md },
-  names: { alignItems: "center", gap: spacing.xxs },
-  name: { fontSize: 22, lineHeight: 27, fontWeight: fontWeight.bold, letterSpacing: -0.4, textAlign: "center" },
-  facts: { fontSize: 14, lineHeight: 20, color: colors.muted, textAlign: "center" },
-  bio: { fontSize: 15, lineHeight: 21, color: palette.soft, textAlign: "center", paddingHorizontal: spacing.md },
-  actions: { alignSelf: "stretch", paddingTop: spacing.xs },
-  stats: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", paddingTop: spacing.xs },
+  wrap: { gap: spacing.md },
+  top: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  stats: { flex: 1, flexDirection: "row", alignItems: "center" },
   stat: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 1 },
-  rule: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: colors.line },
-  statValue: { fontSize: 20, lineHeight: 25, fontWeight: fontWeight.bold, color: colors.fg, fontVariant: ["tabular-nums"] },
-  statLabel: { fontSize: 11, lineHeight: 15, fontWeight: fontWeight.bold, letterSpacing: 0.8, color: colors.muted },
+  statValue: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold, color: colors.fg, fontVariant: ["tabular-nums"] },
+  statLabel: { fontSize: 12, lineHeight: 16, color: colors.muted },
+  names: { gap: 1 },
+  name: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  facts: { fontSize: 14, lineHeight: 19, color: colors.muted },
+  bio: { fontSize: 15, lineHeight: 21, color: palette.soft, paddingTop: spacing.xs },
+  actions: { alignSelf: "stretch" },
   pressed: { opacity: 0.55 },
 });

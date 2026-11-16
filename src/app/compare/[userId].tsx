@@ -165,38 +165,34 @@ function CompareLoader() {
       <BackButton />
 
       <View style={styles.hero}>
-        <View style={styles.heroTop}>
-          <Text accessibilityRole="header" numberOfLines={2} style={[styles.title, styles.grow]}>
-            {`You and ${theirName}`}
-          </Text>
-          <View style={styles.faces}>
-            <Avatar name={me.displayName} uri={me.avatarUrl} size={48} />
-            <Avatar name={them.displayName} uri={them.avatarUrl} size={48} style={styles.overlap} />
-          </View>
+        <View style={styles.faces}>
+          <Avatar name={me.displayName} uri={me.avatarUrl} size={56} />
+          <Avatar name={them.displayName} uri={them.avatarUrl} size={56} style={styles.overlap} />
         </View>
-        <View accessibilityLabel={`${result.tasteMatchPct}% taste match`} style={styles.match}>
-          <Text style={styles.pct}>{`${result.tasteMatchPct}%`}</Text>
-          <Text muted style={styles.pctLabel}>
-            taste match
-          </Text>
-        </View>
-        <Text style={styles.lead}>{summary}</Text>
+        <Text accessibilityRole="header" accessibilityLabel={`You and ${theirName}: ${result.tasteMatchPct}% taste match`} style={styles.pct}>
+          {`${result.tasteMatchPct}% match`}
+        </Text>
+        <Text style={[styles.lead, styles.centre]}>{summary}</Text>
       </View>
 
-      {result.dims.length > 0 ? (
+      {result.theirTopNewToMe.length > 0 ? (
         <View style={styles.section}>
-          <SectionLabel title="Your tastes" />
-          <TasteCompare dims={result.dims} theirName={theirName} />
+          <SectionLabel title={`${theirName} loved`} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.carousel}
+            contentContainerStyle={styles.carouselContent}
+          >
+            {result.theirTopNewToMe.map((item) => (
+              <PhotoCard key={item.rankingId} item={item} />
+            ))}
+          </ScrollView>
         </View>
       ) : null}
-
-      <View style={styles.section}>
-        <SectionLabel title="Both ranked" />
-        {result.shared.length === 0 ? (
-          <Text muted style={styles.lead}>
-            No places in common yet.
-          </Text>
-        ) : (
+      {result.shared.length === 0 ? null : (
+        <View style={styles.section}>
+          <SectionLabel title="Both ranked" />
           <View>
             <View style={styles.columns}>
               <Text muted style={styles.agree}>
@@ -218,22 +214,13 @@ function CompareLoader() {
               />
             ))}
           </View>
-        )}
-      </View>
+        </View>
+      )}
 
-      {result.theirTopNewToMe.length > 0 ? (
+      {result.dims.length > 0 ? (
         <View style={styles.section}>
-          <SectionLabel title={`${theirName}'s picks you haven't ranked`} />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.carousel}
-            contentContainerStyle={styles.carouselContent}
-          >
-            {result.theirTopNewToMe.map((item) => (
-              <PhotoCard key={item.rankingId} item={item} />
-            ))}
-          </ScrollView>
+          <SectionLabel title="Your tastes" />
+          <TasteCompare dims={result.dims} theirName={theirName} />
         </View>
       ) : null}
     </Screen>
@@ -242,22 +229,20 @@ function CompareLoader() {
 
 const styles = StyleSheet.create({
   loading: { gap: spacing.lg },
-  hero: { gap: spacing.xs },
-  heroTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  grow: { flex: 1 },
+  hero: { alignItems: "center", gap: spacing.xs },
+  centre: { textAlign: "center" },
   title: { fontSize: 24, lineHeight: 30, fontWeight: fontWeight.bold, letterSpacing: -0.5 },
   faces: { flexDirection: "row", alignItems: "center" },
-  overlap: { marginLeft: -8 },
-  match: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm, paddingTop: spacing.sm },
+  overlap: { marginLeft: -14, borderWidth: 2, borderColor: colors.bg },
   pct: {
-    fontSize: 56,
-    lineHeight: 60,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: fontWeight.bold,
-    letterSpacing: -2,
-    color: colors.accent,
+    letterSpacing: -0.6,
+    color: colors.fg,
+    paddingTop: spacing.sm,
     fontVariant: ["tabular-nums"],
   },
-  pctLabel: { fontSize: 17, lineHeight: 22 },
   lead: { fontSize: 15, lineHeight: 21, color: colors.muted },
   section: { gap: spacing.md, paddingTop: spacing.md },
   columns: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingBottom: spacing.xs },

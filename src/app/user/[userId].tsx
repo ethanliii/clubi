@@ -8,6 +8,7 @@ import {
   EmptyState,
   ErrorBoundary,
   Icon,
+  IconButton,
   ListRow,
   Loading,
   Screen,
@@ -25,7 +26,7 @@ import { useMutationToast } from "../../lib/useMutationToast";
 import { useNow } from "../../lib/useNow";
 import { colors, spacing } from "../../theme";
 
-/** "Invite to a trip": pick one of the trips I'm in, from `api.trips.list`. */
+/** "Invite to a plan": pick one of the plans I'm in, from `api.trips.list`. */
 function InviteSheet({
   visible,
   onClose,
@@ -44,14 +45,14 @@ function InviteSheet({
   const mine = trips?.filter((trip) => trip.myStatus === "owner" || trip.myStatus === "joined");
 
   return (
-    <Sheet visible={visible} onClose={onClose} title={`Invite ${displayName} to a trip`}>
+    <Sheet visible={visible} onClose={onClose} title={`Invite ${displayName} to a plan`}>
       {mine === undefined ? (
         <Loading compact />
       ) : mine.length === 0 ? (
         <EmptyState
-          title="You have no trips yet"
+          title="No plans yet"
           body="Start one, then invite your friends."
-          actionLabel="Trips"
+          actionLabel="Plans"
           onAction={() => {
             onClose();
             router.push(paths.trips);
@@ -139,9 +140,8 @@ function UserLoader() {
     <Button
       title="Compare tastes"
       accessibilityLabel="Compare tastes"
-      // One pink button at a time: adding them comes first, comparing once you are friends.
-      variant={isFriend ? "primary" : "ghost"}
-      style={isFriend ? styles.primary : undefined}
+      // Grey like the button beside it: the accent is kept for adding and accepting.
+      variant="secondary"
       onPress={() => router.push(comparePath(user.userId))}
     />
   );
@@ -154,11 +154,11 @@ function UserLoader() {
       <View style={styles.bar}>
         <BackButton />
         {isFriend ? (
-          <Button
-            title="Invite to a trip"
-            accessibilityLabel="Invite to a trip"
-            variant="link"
-            hitSlop={8}
+          <IconButton
+            icon="plusCircle"
+            plain
+            size={44}
+            accessibilityLabel="Invite to a plan"
             style={styles.invite}
             onPress={() => setInviting(true)}
           />
@@ -234,13 +234,11 @@ function UserLoader() {
 
 const styles = StyleSheet.create({
   stack: { gap: spacing.sm },
-  wants: { textAlign: "center" },
+  wants: {},
   actions: { flexDirection: "row", gap: spacing.sm },
   half: { flex: 1 },
   bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 36 },
-  invite: { minHeight: 36, justifyContent: "center" },
-  // The ghost button has a 1px border; the same border in pink keeps the pair the same height.
-  primary: { borderWidth: 1, borderColor: colors.accent },
+  invite: { marginRight: -11 },
   locked: {
     flexDirection: "row",
     alignItems: "center",

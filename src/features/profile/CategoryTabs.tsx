@@ -3,20 +3,20 @@ import { Text } from "../../components";
 import type { Category } from "../../lib/api";
 import { colors, fontWeight, palette, radius, spacing } from "../../theme";
 
-export type CategoryTab = { category: Category; label: string; count?: number };
+export type CategoryTab<K extends string = Category> = { category: K; label: string; count?: number };
 
 /**
  * The category pills on the rankings screen, in one row that scrolls sideways: light grey pills,
  * the picked one filled black. `count` (how many I ranked there) follows the label.
  */
-export function CategoryTabs({
+export function CategoryTabs<K extends string = Category>({
   tabs,
   selected,
   onSelect,
 }: {
-  tabs: CategoryTab[];
-  selected?: Category;
-  onSelect: (category: Category) => void;
+  tabs: CategoryTab<K>[];
+  selected?: K;
+  onSelect: (category: K) => void;
 }) {
   return (
     <ScrollView

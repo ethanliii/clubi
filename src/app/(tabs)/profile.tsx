@@ -1,18 +1,17 @@
 import { useQuery } from "convex/react";
 import { router, type Href } from "expo-router";
-import { StyleSheet, View } from "react-native";
-import { EmptyState, IconButton, Screen, Text, type IconName } from "../../components";
-import { LinkRow, OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel, TasteMeters } from "../../features/profile";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { EmptyState, Icon, IconButton, Screen, Text, type IconName } from "../../components";
+import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel, TasteMeters } from "../../features/profile";
 import { api } from "../../lib/api";
 import { paths, rankingsPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
 import { colors, fontWeight, palette, spacing } from "../../theme";
 
 const SHORTCUTS: { label: string; icon: IconName; href: Href }[] = [
-  { label: "Friends", icon: "users", href: paths.friends },
   { label: "Saved", icon: "bookmark", href: paths.saved },
-  { label: "Following", icon: "music", href: paths.following },
-  { label: "Trips", icon: "globe", href: paths.trips },
+  { label: "Plans", icon: "users", href: paths.trips },
+  { label: "Artists", icon: "music", href: paths.following },
 ];
 
 /** My profile: who I am, my taste, my counts and my ranked lists, all from `api.profile.get`. */
@@ -21,7 +20,7 @@ export default function ProfileScreen() {
   const now = useNow();
 
   const settings = (
-    <IconButton icon="gear" size={40} accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} />
+    <IconButton icon="gear" plain size={44} accessibilityLabel="Settings" style={styles.gear} onPress={() => router.push(paths.settings)} />
   );
 
   // null only while signing out; the gate moves the user on.
@@ -42,16 +41,10 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <View style={styles.bar}>
-        <Text accessibilityRole="header" numberOfLines={1} style={styles.barName}>
-          {profile.user.displayName}
-        </Text>
-        {settings}
-      </View>
+      <View style={styles.loadingBar}>{settings}</View>
       <ProfileHeader
         user={profile.user}
         counts={profile.counts}
-        showName={false}
         onPressFriends={() => router.push(paths.friends)}
       >
         <View style={styles.buttons}>
@@ -60,23 +53,26 @@ export default function ProfileScreen() {
         </View>
       </ProfileHeader>
 
-      <View style={styles.links}>
-        {SHORTCUTS.map((shortcut, index) => (
-          <LinkRow
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pills} contentContainerStyle={styles.pillRow}>
+        {SHORTCUTS.map((shortcut) => (
+          <Pressable
             key={shortcut.label}
-            icon={shortcut.icon}
-            label={shortcut.label}
-            count={shortcut.label === "Friends" ? profile.counts.friends : undefined}
-            divider={index < SHORTCUTS.length - 1}
+            accessibilityRole="button"
+            accessibilityLabel={shortcut.label}
+            hitSlop={{ top: 4, bottom: 4 }}
             onPress={() => router.push(shortcut.href)}
-          />
+            style={({ pressed }) => [styles.pill, pressed && styles.pillPressed]}
+          >
+            <Icon name={shortcut.icon} size={16} color={colors.fg} />
+            <Text style={styles.pillLabel}>{shortcut.label}</Text>
+          </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       {profile.tasteSummary.length > 0 ? (
         <View style={styles.section}>
           <SectionLabel title="Taste profile" />
-          <TasteMeters summary={profile.tasteSummary} mine />
+          <TasteMeters summary={profile.tasteSummary} />
         </View>
       ) : null}
 
@@ -112,17 +108,24 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingBar: { flexDirection: "row", justifyContent: "flex-end" },
-  // Beli's top bar: the name at the left, settings at the right.
-  bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 44 },
-  barName: { flex: 1, fontSize: 22, lineHeight: 27, fontWeight: fontWeight.bold, letterSpacing: -0.4, color: colors.fg },
+  // Only the gear, a plain line icon whose glyph ends at the gutter.
+  loadingBar: { flexDirection: "row", justifyContent: "flex-end", height: 36, alignItems: "center", marginBottom: -spacing.sm },
+  gear: { marginRight: -11 },
   buttons: { flexDirection: "row", gap: spacing.sm },
-  // The list under the counts: one row per place to go, hairlines between and around.
-  links: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+  // Light-grey icon pills in one row that scrolls sideways and bleeds to the screen edges.
+  pills: { flexGrow: 0, marginHorizontal: -spacing.lg },
+  pillRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: palette.field,
   },
+  pillPressed: { backgroundColor: palette.fieldPressed },
+  pillLabel: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
   section: { gap: spacing.md, paddingTop: spacing.sm },
   posts: { gap: spacing.lg },
 });

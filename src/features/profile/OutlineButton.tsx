@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { Icon, Text, type IconName } from "../../components";
-import { colors, fontWeight, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
-/** A small outline button, the quiet action under a profile header ("Edit profile", "Compare tastes"). */
+/** The small grey button under a profile header ("Edit profile", "My rankings"): filled, no border. */
 export function OutlineButton({
   title,
   icon,
@@ -39,11 +39,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.bg,
+    borderRadius: 10,
+    backgroundColor: palette.field,
   },
-  pressed: { backgroundColor: colors.surface },
-  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.fg },
+  pressed: { backgroundColor: palette.fieldPressed },
+  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
 });
