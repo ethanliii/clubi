@@ -6,6 +6,7 @@ import { FriendScores, formatDistance } from "./Bits";
 import { MatchBadge, ScoreBadge } from "./ScoreBadge";
 import { Text } from "./Text";
 import { VenuePhoto } from "./VenuePhoto";
+import { placeholderPhoto } from "../constants/placeholderPhotos";
 
 const CATEGORY_HUE: Record<string, number> = { nightlife: 320, food: 25, culture: 265, outdoors: 140, live: 200, popup: 45 };
 
@@ -13,9 +14,15 @@ export function openVenue(item: Pick<NearbyItem, "kind" | "id">) {
   router.push({ pathname: "/venue/[kind]/[id]", params: { kind: item.kind, id: String(item.id) } });
 }
 
-export function Photo({ item, height }: { item: Pick<NearbyItem, "imageUrl" | "category">; height: number }) {
-  if (item.imageUrl) return <Image source={{ uri: item.imageUrl }} style={{ height, width: "100%" }} />;
-  return <VenuePhoto hue={CATEGORY_HUE[item.category] ?? 300} height={height} style={{ borderRadius: 0 }} />;
+/** The place's photo; with none yet, a stand-in photo for its category over the glow placeholder. */
+export function Photo({ item, height }: { item: Pick<NearbyItem, "imageUrl" | "category"> & { id?: unknown; name?: string }; height: number }) {
+  const uri = item.imageUrl ?? placeholderPhoto(item.category, String(item.id ?? item.name ?? ""));
+  return (
+    <View style={{ height, width: "100%", overflow: "hidden" }}>
+      <VenuePhoto hue={CATEGORY_HUE[item.category] ?? 300} height={height} glowOnly style={{ borderRadius: 0 }} />
+      {uri ? <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+    </View>
+  );
 }
 
 /** Everything shown comes straight from the backend item: score + why, match %, distance, friends. */

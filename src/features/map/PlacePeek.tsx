@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { Alert, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import type { NearbyItem } from "../../../convex/lib/contract";
-import { Avatar, Button, Chip, Photo, ScoreBadge, Skeleton, Text, openVenue, timeAgo } from "../../components/bryan";
+import { Avatar, Button, Chip, Icon, Photo, ScoreBadge, Skeleton, Text, openVenue, timeAgo } from "../../components/bryan";
 import { colors, radius, spacing } from "../../theme";
 
 /**
@@ -39,6 +39,26 @@ export function PlacePeek({ item, onClose }: { item: NearbyItem; onClose: () => 
         <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} hitSlop={8}><Text muted>✕</Text></Pressable>
       </View>
       <Text variant="caption">{item.why}</Text>
+      {item.friends.length > 0 ? (
+        <View style={styles.rated}>
+          {item.friends.slice(0, 3).map((f) => (
+            <View key={String(f.userId)} style={[styles.ratedPill, { borderColor: colors.accent }]}>
+              <Avatar name={f.displayName} url={f.avatarUrl} size={18} />
+              <Text variant="caption" style={{ fontWeight: "700" }}>{f.displayName.split(" ")[0]} {f.score.toFixed(1)}</Text>
+            </View>
+          ))}
+        </View>
+      ) : item.publicScore !== undefined ? (
+        <View style={styles.rated}>
+          <View style={[styles.ratedPill, { borderColor: colors.line, backgroundColor: colors.surface }]}>
+            <Icon name="users" size={13} color={colors.muted} />
+            <Text variant="caption" muted style={{ fontWeight: "700" }}>
+              Public {item.publicScore.toFixed(1)}{item.ratingCount ? ` · ${item.ratingCount} ${item.ratingCount === 1 ? "rating" : "ratings"}` : ""}
+            </Text>
+          </View>
+          <Text variant="caption" muted>No friends have rated it yet</Text>
+        </View>
+      ) : null}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actions}>
         <Chip label="Directions" onPress={directions} />
@@ -89,6 +109,8 @@ export function PlacePeek({ item, onClose }: { item: NearbyItem; onClose: () => 
 }
 
 const styles = StyleSheet.create({
+  rated: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
+  ratedPill: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1.5, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 2 },
   between: { flexDirection: "row", alignItems: "center", gap: 10 },
   actions: { gap: 8 },
   strip: { gap: 8 },

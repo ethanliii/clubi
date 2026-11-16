@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { APP_NAME } from "../constants/brand";
-import { colors, spacing } from "../theme";
+import { colors, spacing, wordmark } from "../theme";
 import { Text } from "./Text";
 
 const SLOW_AFTER_MS = 8000;
@@ -16,7 +16,7 @@ export function Splash() {
 
   return (
     <View accessibilityRole="progressbar" accessibilityLabel={`${APP_NAME} is loading`} style={styles.wrap}>
-      <Text variant="display">{APP_NAME}</Text>
+      <Text style={styles.mark}>{APP_NAME.toLowerCase()}</Text>
       <ActivityIndicator color={colors.muted} />
       {slow ? (
         <Text muted center>
@@ -36,4 +36,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     backgroundColor: colors.bg,
   },
+  // The same lowercase serif mark as the feed header.
+  mark: { ...wordmark, fontSize: 40, lineHeight: 48, letterSpacing: -1, color: colors.accent },
 });

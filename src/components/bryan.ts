@@ -16,3 +16,4 @@ export * from "./Text";
 export * from "./VenueCard";
 export * from "./VenuePhoto";
 export * from "./SocialButton";
+export * from "./ThemeToggle";

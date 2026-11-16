@@ -43,6 +43,8 @@ export type IconName =
   | "lock"
   | "globe"
   | "info"
+  | "sun"
+  | "moon"
   // Bryan's own extras
   | "plusCircle"
   | "undo"
@@ -51,13 +53,22 @@ export type IconName =
   | "utensils"
   | "landmark"
   | "tree"
-  | "alert";
+  | "alert"
+  // The reference's header, post and tab icons.
+  | "menu"
+  | "paperPlane"
+  | "checkCircle"
+  | "list"
+  | "trophy"
+  | "trending"
+  | "pin";
 
 export function Icon({ name, size = 22, color }: { name: IconName; size?: number; color: string }) {
-  const stroke = { stroke: color, strokeWidth: 2, fill: "none" } as const;
+  // Thin, round-ended lines: every icon shares one weight.
+  const stroke = { stroke: color, strokeWidth: 1.7, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" } as const;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      {name === "back" && <Path d="M15 5l-7 7 7 7" {...stroke} strokeWidth={2.2} strokeLinecap="round" />}
+      {name === "back" && <Path d="M15 5l-7 7 7 7" {...stroke} strokeWidth={1.9} strokeLinecap="round" />}
       {name === "bell" && (
         <>
           <Path d="M6 16V11a6 6 0 1112 0v5l2 2H4z" {...stroke} />
@@ -71,7 +82,7 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
           <Circle cx={12} cy={10} r={2.5} {...stroke} />
         </>
       )}
-      {name === "plus" && <Path d="M12 5v14M5 12h14" {...stroke} strokeWidth={2.6} strokeLinecap="round" />}
+      {name === "plus" && <Path d="M12 5v14M5 12h14" {...stroke} strokeWidth={2.1} strokeLinecap="round" />}
       {name === "feed" && (
         <>
           <Rect x={4} y={4} width={16} height={16} rx={3} {...stroke} />
@@ -84,20 +95,26 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
           <Path d="M4 21c1-4 4-6 8-6s7 2 8 6" {...stroke} />
         </>
       )}
-      {name === "spark" && <Path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" {...stroke} />}
+      {/* "Picked for you": a compass, not a sparkle. */}
+      {name === "spark" && (
+        <G>
+          <Circle cx={12} cy={12} r={9} {...stroke} />
+          <Path d="M15.6 8.4l-1.9 5.3-5.3 1.9 1.9-5.3z" {...stroke} />
+        </G>
+      )}
       {name === "search" && (
         <>
           <Circle cx={11} cy={11} r={7} {...stroke} />
           <Path d="M20 20l-4-4" {...stroke} strokeLinecap="round" />
         </>
       )}
-      {name === "close" && <Path d="M6 6l12 12M18 6L6 18" {...stroke} strokeWidth={2.2} strokeLinecap="round" />}
+      {name === "close" && <Path d="M6 6l12 12M18 6L6 18" {...stroke} strokeWidth={1.9} strokeLinecap="round" />}
       {name === "check" && (
-        <Path d="M5 12l5 5 9-10" {...stroke} strokeWidth={2.6} strokeLinecap="round" />
+        <Path d="M5 12l5 5 9-10" {...stroke} strokeWidth={2.1} strokeLinecap="round" />
       )}
-      {name === "chevron" && <Path d="M9 5l7 7-7 7" {...stroke} strokeWidth={2.2} strokeLinecap="round" />}
-      {name === "chevronDown" && <Path d="M5 9l7 7 7-7" {...stroke} strokeWidth={2.2} strokeLinecap="round" />}
-      {name === "minus" && <Path d="M5 12h14" {...stroke} strokeWidth={2.6} strokeLinecap="round" />}
+      {name === "chevron" && <Path d="M9 5l7 7-7 7" {...stroke} strokeWidth={1.9} strokeLinecap="round" />}
+      {name === "chevronDown" && <Path d="M5 9l7 7 7-7" {...stroke} strokeWidth={1.9} strokeLinecap="round" />}
+      {name === "minus" && <Path d="M5 12h14" {...stroke} strokeWidth={2.1} strokeLinecap="round" />}
       {(name === "heart" || name === "heartFilled") && (
         <Path
           d="M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z"
@@ -106,13 +123,10 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
         />
       )}
       {name === "comment" && (
-        <Path d="M4 5h16v11H9l-5 4z" {...stroke} strokeLinejoin="round" />
+        <Path d="M12 3.8a8.2 8.2 0 00-7.2 12.1L3.8 20.2l4.4-1A8.2 8.2 0 1012 3.8z" {...stroke} />
       )}
-      {name === "send" && (
-        <>
-          <Path d="M20 4.5L4 11l6.5 2.5L13 20z" {...stroke} strokeLinejoin="round" />
-          <Path d="M10.5 13.5L20 4.5" {...stroke} />
-        </>
+      {(name === "send" || name === "paperPlane") && (
+        <Path d="M20.5 3.5L10 14M20.5 3.5l-6.3 17-4.2-6.5-6.5-4.2z" {...stroke} />
       )}
       {name === "share" && (
         <Path d="M21 3L10 14M21 3l-7 18-4-7-7-4z" {...stroke} strokeLinejoin="round" />
@@ -235,6 +249,13 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
           />
         </>
       )}
+      {name === "sun" && (
+        <>
+          <Circle cx={12} cy={12} r={4} {...stroke} />
+          <Path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" {...stroke} strokeLinecap="round" />
+        </>
+      )}
+      {name === "moon" && <Path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" {...stroke} strokeLinejoin="round" />}
       {name === "info" && (
         <>
           <Circle cx={12} cy={12} r={8.5} {...stroke} />
@@ -274,6 +295,34 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
         <>
           <Circle cx={12} cy={12} r={8.5} {...stroke} />
           <Path d="M12 7.5V13M12 16.2v.3" {...stroke} strokeLinecap="round" />
+        </>
+      )}
+      {name === "menu" && <Path d="M3.5 7h17M3.5 12h17M3.5 17h17" {...stroke} />}
+      {name === "checkCircle" && (
+        <>
+          <Circle cx={12} cy={12} r={8.8} {...stroke} />
+          <Path d="M8 12.3l2.7 2.7L16 9.4" {...stroke} />
+        </>
+      )}
+      {name === "list" && (
+        <>
+          <Circle cx={4.6} cy={6.5} r={1.2} fill={color} />
+          <Circle cx={4.6} cy={12} r={1.2} fill={color} />
+          <Circle cx={4.6} cy={17.5} r={1.2} fill={color} />
+          <Path d="M9 6.5h11.5M9 12h11.5M9 17.5h11.5" {...stroke} />
+        </>
+      )}
+      {name === "trophy" && (
+        <Path
+          d="M7.5 4h9v5.5a4.5 4.5 0 01-9 0zM7.5 5.8H4.2c0 3 1.4 4.6 3.6 5M16.5 5.8h3.3c0 3-1.4 4.6-3.6 5M12 14v3.5M8.5 20.2h7M9.8 17.5h4.4"
+          {...stroke}
+        />
+      )}
+      {name === "trending" && <Path d="M3.5 16.5l5.5-5.5 4 4 7.5-7.5M15 7.5h5.5V13" {...stroke} />}
+      {name === "pin" && (
+        <>
+          <Path d="M12 21s-6.5-5.9-6.5-11a6.5 6.5 0 1113 0c0 5.1-6.5 11-6.5 11z" {...stroke} />
+          <Circle cx={12} cy={10} r={2.3} {...stroke} />
         </>
       )}
     </Svg>

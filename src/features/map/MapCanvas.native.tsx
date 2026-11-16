@@ -1,6 +1,6 @@
 /**
  * The map on iOS and Android: react-native-maps (Apple Maps in Expo Go on iOS, Google Maps on Android),
- * dark, with the pins drawn as views. The web twin is MapCanvas.web.tsx; both follow pinLook.ts and
+ * light, with the pins drawn as views. The web twin is MapCanvas.web.tsx; both follow pinLook.ts and
  * pinLayout.ts, so the two draw the same pins.
  */
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -11,10 +11,11 @@ import { Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
 import { colors, fontWeight } from "../../theme";
-import { DARK_MAP_STYLE } from "./darkMapStyle";
+import { LIGHT_MAP_STYLE } from "./darkMapStyle";
 import { layoutPins, scaleForRegion, type PinMode } from "./pinLayout";
 import { PIN, START_LAT_DELTA, bubbleSize, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_LAT_DELTA } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
+import { displayName } from "./names";
 
 /** Apple and Google draw their own credit on the map, so there is nothing to add for the picture. */
 export const TILE_ATTRIBUTION = "";
@@ -34,12 +35,14 @@ function regionAround(center: LatLng) {
   return {
     latitude: center.lat,
     longitude: center.lng,
-    latitudeDelta: START_LAT_DELTA,
+    // A flat strip: the map widens the latitude to fill its height, so the width is always START_LAT_DELTA
+    // of longitude whatever the padding, which is what the first `scale` below assumes.
+    latitudeDelta: START_LAT_DELTA / 10,
     longitudeDelta: START_LAT_DELTA,
   };
 }
 
-export function MapCanvas({ items, center, user, selectedId, onSelect, recenterKey, padding }: MapCanvasProps) {
+export function MapCanvas({ items, center, user, userIsDemo, selectedId, onSelect, recenterKey, padding }: MapCanvasProps) {
   const mapRef = useRef<MapView>(null);
   const { width } = useWindowDimensions();
   // When a pin was last tapped (0 = never). Only read and written in tap handlers.
@@ -61,8 +64,14 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
 
   const placements = useMemo(() => layoutPins(items, scale, selectedId), [items, scale, selectedId]);
 
-  // Demo switch, a new position, or "Recenter": back to the center at the starting zoom.
+  // Demo switch, a real move (about 200 m, not a jittery fix), or "Recenter": back to the center at the
+  // starting zoom. The first run is skipped: `initialRegion` already put the camera there.
+  const centered = useRef({ lat: center.lat, lng: center.lng, key: recenterKey });
   useEffect(() => {
+    const last = centered.current;
+    const moved = Math.abs(center.lat - last.lat) > 0.002 || Math.abs(center.lng - last.lng) > 0.002;
+    if (!moved && last.key === recenterKey) return;
+    centered.current = { lat: center.lat, lng: center.lng, key: recenterKey };
     mapRef.current?.animateToRegion(regionAround({ lat: center.lat, lng: center.lng }), 600);
   }, [center.lat, center.lng, recenterKey]);
 
@@ -84,9 +93,9 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       ref={mapRef}
       style={StyleSheet.absoluteFill}
       initialRegion={initialRegion}
-      userInterfaceStyle="dark"
+      userInterfaceStyle="light"
       mapType={Platform.OS === "ios" ? "mutedStandard" : "standard"}
-      customMapStyle={Platform.OS === "android" ? DARK_MAP_STYLE : undefined}
+      customMapStyle={Platform.OS === "android" ? LIGHT_MAP_STYLE : undefined}
       // Keeps the camera's center, and the map maker's own logo and legal link, clear of the search bar and the list.
       mapPadding={{ top: padding.top, right: 0, bottom: padding.bottom, left: 0 }}
       showsPointsOfInterests={false}
@@ -111,14 +120,20 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
         onSelect(null);
       }}
     >
-      {user ? <UserMarker user={user} /> : null}
+      {user ? <UserMarker key={userIsDemo === true ? "demo" : "device"} user={user} demo={userIsDemo === true} /> : null}
       {items.map((item) => {
         const placement = placements.get(item.id);
         // A pin with no room at this zoom is left out; it comes back as the map is zoomed in.
         if (!placement || placement.mode === "hidden") return null;
         return (
           <ItemMarker
-            key={item.id}
+            // Apple Maps only ever grows a pin's frame, so a pin whose picture shrinks (unpicked, name dropped,
+            // bubble to dot) would sit off its place. A new key on iOS has it measured afresh.
+            key={
+              Platform.OS === "ios"
+                ? `${item.id}|${placement.mode}|${placement.name ? 1 : 0}|${item.id === selectedId ? 1 : 0}`
+                : item.id
+            }
             item={item}
             mode={placement.mode}
             named={placement.name}
@@ -131,8 +146,8 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
   );
 }
 
-/** The user's own position: a blue dot. It never changes its look, so it is frozen after its first moments. */
-function UserMarker({ user }: { user: LatLng }) {
+/** The user's own position: a blue dot, or a hollow ring for the demo spot. Frozen after its first moments. */
+function UserMarker({ user, demo }: { user: LatLng; demo: boolean }) {
   // Android turns a custom pin into a picture; give it a moment to be laid out before freezing it.
   const [settled, setSettled] = useState(false);
   useEffect(() => {
@@ -146,10 +161,10 @@ function UserMarker({ user }: { user: LatLng }) {
       anchor={CENTERED}
       zIndex={500}
       tracksViewChanges={!settled}
-      accessibilityLabel="You are here"
+      accessibilityLabel={demo ? "Demo location" : "You are here"}
     >
       <View style={styles.userHalo}>
-        <View style={styles.userDot} />
+        <View style={[styles.userDot, demo && styles.userDotDemo]} />
       </View>
     </Marker>
   );
@@ -253,7 +268,7 @@ const Pin = memo(function Pin({
       <View
         style={[
           styles.bubble,
-          { width: bubbleWidth, height: bubbleHeight, backgroundColor: selected ? PIN.selectedFill : color },
+          { width: bubbleWidth, height: bubbleHeight, backgroundColor: selected ? PIN.selectedFill : PIN.fill },
           selected && styles.bubbleSelected,
         ]}
       >
@@ -261,20 +276,20 @@ const Pin = memo(function Pin({
           <Path
             d={pinGlyph(item.category)}
             fill="none"
-            stroke={PIN.ink}
+            stroke={selected ? PIN.selectedInk : color}
             strokeWidth={2.4}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
         </Svg>
-        <Text style={[styles.score, { fontSize: size.font * grown, lineHeight: Math.round(size.font * grown * 1.2) }]}>
+        <Text allowFontScaling={false} style={[styles.score, { color: selected ? PIN.selectedInk : color, fontSize: size.font * grown, lineHeight: Math.round(size.font * grown * 1.2) }]}>
           {formatScore(item.score)}
         </Text>
       </View>
-      <View style={[styles.tip, { borderTopWidth: geo.tip, borderTopColor: selected ? PIN.selectedRing : color }]} />
+      <View style={[styles.tip, { borderTopWidth: geo.tip, borderTopColor: selected ? PIN.selectedFill : PIN.fill }]} />
       {named ? (
-        <Text numberOfLines={1} style={[styles.name, selected && styles.nameSelected]}>
-          {item.name}
+        <Text allowFontScaling={false} numberOfLines={1} style={[styles.name, selected && styles.nameSelected]}>
+          {displayName(item.name, true)}
         </Text>
       ) : null}
     </View>
@@ -292,16 +307,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
     borderRadius: 99,
-    borderWidth: PIN.edge,
-    borderColor: PIN.edgeColor,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: PIN.hairline,
     shadowColor: colors.black,
-    shadowOpacity: 0.45,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  bubbleSelected: { borderWidth: 3, borderColor: PIN.selectedRing, shadowOpacity: 0.6, shadowRadius: 8, elevation: 9 },
-  score: { fontWeight: fontWeight.bold, color: PIN.ink, fontVariant: ["tabular-nums"], letterSpacing: -0.2 },
+  bubbleSelected: { borderColor: PIN.selectedFill, shadowOpacity: 0.3, shadowRadius: 7, elevation: 7 },
+  score: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"], letterSpacing: -0.2 },
   name: {
     position: "absolute",
     left: 0,
@@ -313,7 +328,7 @@ const styles = StyleSheet.create({
     lineHeight: PIN.name.height,
     fontWeight: fontWeight.semibold,
     color: colors.fg,
-    textShadowColor: colors.page,
+    textShadowColor: colors.white,
     textShadowRadius: 4,
     textShadowOffset: { width: 0, height: 1 },
   },
@@ -334,7 +349,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(74,168,255,0.2)",
+    backgroundColor: PIN.userHalo,
   },
   userDot: {
     width: 16,
@@ -344,4 +359,5 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.white,
   },
+  userDotDemo: { backgroundColor: "transparent", borderColor: PIN.user },
 });

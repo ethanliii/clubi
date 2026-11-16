@@ -1,18 +1,37 @@
 import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import type { Category } from "../../convex/lib/contract";
 import { radius } from "../theme";
 import { Photo } from "./Photo";
+import { categoryForHue, placeholderPhoto } from "../constants/placeholderPhotos";
 
 /**
  * A real photo when there is one (`uri`, from main's Google Places photos), otherwise Bryan's
  * glowing gradient placeholder. Extra props are main's and optional.
  */
-export function VenuePhoto({ hue, height, style, uri, category, scrim, children }: {
+export function VenuePhoto({ hue, height, style, uri, category, scrim, children, seed, glowOnly }: {
   hue: number; height: number; style?: StyleProp<ViewStyle>;
   uri?: string | null; category?: Category; scrim?: boolean | "bottom" | "hero" | "top"; children?: ReactNode;
+  /** Picks which stand-in photo (e.g. the place id). */
+  seed?: string | number;
+  /** Only the glow (no stand-in photo), e.g. under a real photo or for album covers. */
+  glowOnly?: boolean;
+  /** Main's screens: white text sits on it (Bryan's glow is already dark, so nothing changes). */
+  deep?: boolean;
 }) {
+  if (!uri && !glowOnly) {
+    const stand = placeholderPhoto(category ?? categoryForHue(hue), seed ?? height);
+    if (stand) {
+      return (
+        <View style={[styles.photo, { height }, style]}>
+          <VenuePhoto hue={hue} height={height} glowOnly style={StyleSheet.absoluteFill} />
+          <Image source={{ uri: stand }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {children}
+        </View>
+      );
+    }
+  }
   if (uri) {
     return (
       <Photo uri={uri} category={category} hue={hue} height={height} round={radius.xl} scrim={scrim} style={style}>

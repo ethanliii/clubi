@@ -12,10 +12,10 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { VenuePhoto } from "../../components";
-import type { Category } from "../../lib/api";
-import { categoryHue } from "../../lib/format";
-import { colors, fontWeight, radius } from "../../theme";
+import { Text, VenuePhoto } from "../../components";
+import type { Bucket, Category } from "../../lib/api";
+import { categoryHue, formatScore } from "../../lib/format";
+import { colors, fontWeight, palette, radius, ratingColor, ratingColors, scrim as scrims } from "../../theme";
 
 /** The browser has no native animation thread. */
 const NATIVE = Platform.OS !== "web";
@@ -25,13 +25,14 @@ export const noFocusRing = Platform.select({ web: { outlineStyle: "none" } as ob
 
 /** Text sizes the rank flow uses on top of the shared variants. */
 export const type = StyleSheet.create({
-  /** The question each step asks: "How was it?", "Which was better?". */
-  question: { fontSize: 30, lineHeight: 36, fontWeight: fontWeight.bold, letterSpacing: -0.6, color: colors.fg },
+  /** The question each step asks: "How was it?", "Which do you prefer?". */
+  question: { fontSize: 26, lineHeight: 32, fontWeight: "800", letterSpacing: -0.5, color: colors.fg },
   /** A name sitting on a photo. */
-  onPhoto: { fontSize: 22, lineHeight: 27, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: colors.white },
-  onPhotoNote: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.medium, color: "rgba(255,255,255,0.82)" },
-  strong: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, color: colors.fg },
-  meta: { fontSize: 13, lineHeight: 18, color: colors.muted },
+  onPhoto: { fontSize: 22, lineHeight: 27, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: palette.onPhoto },
+  onPhotoNote: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.medium, color: palette.onPhotoMuted },
+  /** A place's name under its photo or at the head of a row. */
+  strong: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  meta: { fontSize: 14, lineHeight: 19, color: colors.muted },
 });
 
 /**
@@ -46,6 +47,7 @@ export function PlacePhoto({
   width = "100%",
   round = radius.xxl,
   scrim = false,
+  deep = false,
   children,
   style,
 }: {
@@ -55,6 +57,8 @@ export function PlacePhoto({
   width?: DimensionValue;
   round?: number;
   scrim?: boolean;
+  /** With no picture, draw the deep category tint, not the pale tile: for big cards. */
+  deep?: boolean;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -72,12 +76,12 @@ export function PlacePhoto({
           style={styles.fillImage}
         />
       ) : (
-        <VenuePhoto hue={categoryHue(category)} height={height} style={styles.square} />
+        <VenuePhoto hue={categoryHue(category)} category={category} height={height} deep={deep} style={styles.square} />
       )}
       {scrim ? (
         <LinearGradient
-          colors={["rgba(8,6,12,0)", "rgba(8,6,12,0.38)", "rgba(8,6,12,0.9)"]}
-          locations={[0.2, 0.58, 1]}
+          colors={[...scrims.bottom.colors]}
+          locations={[...scrims.bottom.locations]}
           style={styles.scrim}
         />
       ) : null}
@@ -175,13 +179,41 @@ export function Pop({ children, style }: { children: ReactNode; style?: StylePro
   return <Animated.View style={[style, { opacity, transform: [{ scale }] }]}>{children}</Animated.View>;
 }
 
-/** "2 of 4" as a row of short bars: the ones up to `current` are lit. */
+/** "2 of 4" as one thin line that fills from the left. */
 export function Steps({ current, total }: { current: number; total: number }) {
+  const filled = Math.min(1, Math.max(0, total > 0 ? current / total : 0));
   return (
     <View accessibilityRole="progressbar" accessibilityLabel={`${current} of ${total}`} style={styles.steps}>
-      {Array.from({ length: total }, (_, index) => (
-        <View key={index} style={[styles.step, index < current && styles.stepOn]} />
-      ))}
+      <View style={[styles.stepFill, { width: `${Math.round(filled * 100)}%` }]} />
+    </View>
+  );
+}
+
+/**
+ * The three answers to "How was it?" and the colour each one is drawn in, the same green, amber
+ * and red the score rings use.
+ */
+export const BUCKET_LOOK: Record<Bucket, { label: string; short: string; color: string }> = {
+  loved: { label: "I liked it!", short: "Liked it", color: ratingColors.good },
+  fine: { label: "It was fine", short: "It was fine", color: ratingColors.okay },
+  didnt: { label: "I didn't like it", short: "Didn't like it", color: ratingColors.bad },
+};
+
+/**
+ * The result's score: the shared `ScoreBadge` ring (a white disc, a line in the rating colour, the
+ * number in the same colour) at the size of a headline, with "out of 10" under it.
+ */
+export function BigScore({ score, size = 148 }: { score: number; size?: number }) {
+  const tint = ratingColor(score);
+  const text = formatScore(score);
+  return (
+    <View accessible accessibilityLabel={`Score ${text} out of 10`} style={styles.bigScore}>
+      <View style={[styles.bigRing, { width: size, height: size, borderRadius: size / 2 }]}>
+        <Text style={[styles.bigNumber, { fontSize: Math.round(size * 0.4), lineHeight: Math.round(size * 0.48), color: tint }]}>
+          {text}
+        </Text>
+      </View>
+      <Text style={styles.outOf}>out of 10</Text>
     </View>
   );
 }
@@ -191,7 +223,11 @@ const styles = StyleSheet.create({
   fillImage: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
   square: { borderRadius: 0 },
   scrim: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, pointerEvents: "none" },
-  steps: { flexDirection: "row", gap: 5 },
-  step: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.line },
-  stepOn: { backgroundColor: colors.fg },
+  steps: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
+  stepFill: { height: 4, borderRadius: 2, backgroundColor: colors.accent },
+  bigScore: { alignItems: "center", gap: 10 },
+  // The same thin grey ring as every score in the app, at headline size.
+  bigRing: { alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#d6d6dc", backgroundColor: colors.bg },
+  bigNumber: { fontWeight: "800", letterSpacing: -1.5, textAlign: "center", fontVariant: ["tabular-nums"] },
+  outOf: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.muted },
 });

@@ -2,8 +2,9 @@
  * How a pin looks, shared by the native and the web map so they match.
  * Every number on a pin comes from the backend; this file is paint only.
  *
- * A pin is one of two pictures. The best ones are score bubbles: a pill in the score's rating colour
- * with a small category glyph and the score. The rest are dots in the same colour. Which one a pin
+ * A pin is one of two pictures. The best ones are score bubbles: a white pill with a small category
+ * glyph and the score, both in the score's rating colour. The rest are solid dots in that colour. The
+ * picked bubble is filled black with white ink. Which one a pin
  * gets is decided by `layoutPins` (pinLayout.ts), from how much room there is at the current zoom.
  */
 import type { Category, NearbyItem } from "../../lib/api";
@@ -30,8 +31,8 @@ const CATEGORY_GLYPH: Record<Category, string> = {
   outdoors: "M12 3l5.5 8h-3l4.5 6.5H5L9.5 11h-3zM12 17.5V21",
   // Two joined notes.
   live: "M9 17.5V6l10-2v11.5M9 17.5a2.3 2.3 0 11-4.6 0 2.3 2.3 0 014.6 0zM19 15.5a2.3 2.3 0 11-4.6 0 2.3 2.3 0 014.6 0z",
-  // A four-point spark.
-  popup: "M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z",
+  // A ticket.
+  popup: "M3 8.5V6h18v2.5a3.5 3.5 0 000 7V18H3v-2.5a3.5 3.5 0 000-7zM14.5 6v12",
 };
 const FALLBACK_GLYPH = "M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11z";
 
@@ -44,15 +45,17 @@ export const PIN = {
   /** A score bubble: the top five are a touch bigger than the rest. */
   bubble: { width: 52, height: 28, font: 13, glyph: 12 },
   bubbleTop: { width: 58, height: 32, font: 15, glyph: 14 },
-  /** The dark edge that lifts a bubble or a dot off the map. */
+  /** A bubble is white on the light map; a hairline and a soft shadow lift it off the streets. */
+  fill: colors.white,
+  hairline: "rgba(17,17,20,0.12)",
+  shadow: "rgba(17,17,20,0.22)",
+  /** The white edge around a dot. */
   edge: 2,
-  edgeColor: colors.page,
-  /** Ink on a rating colour. */
-  ink: "#111111",
-  /** The picked bubble: white, a little bigger, with an accent ring. */
+  edgeColor: colors.white,
+  /** The picked bubble: black with white ink, a little bigger. */
   selectedScale: 1.18,
-  selectedFill: colors.white,
-  selectedRing: colors.accent,
+  selectedFill: colors.fg,
+  selectedInk: colors.white,
   /** The pointed tip under a bubble. Its point is the place's exact coordinate. */
   tip: 7,
   tipHalf: 6,
@@ -60,7 +63,8 @@ export const PIN = {
   dot: 10,
   /** The name under a bubble, when there is room for it. */
   name: { font: 11, height: 14, maxWidth: 104, gap: 3 },
-  user: "#4aa8ff",
+  user: "#2f7df6",
+  userHalo: "rgba(47,125,246,0.18)",
 } as const;
 
 export function bubbleSize(item: NearbyItem) {

@@ -15,6 +15,7 @@ export function FlowScreen({
   heading,
   sub,
   progress,
+  center = false,
   back = true,
   onBack,
   right,
@@ -29,6 +30,8 @@ export function FlowScreen({
   sub?: string;
   /** Bars under the top row: `current` of `total` are lit. */
   progress?: { current: number; total: number };
+  /** Centre the question and the line under it. */
+  center?: boolean;
   /** Show the back button. The result and question steps have none: the ranking is already saved. */
   back?: boolean;
   onBack?: () => void;
@@ -58,10 +61,10 @@ export function FlowScreen({
         >
           {heading ? (
             <View style={styles.titles}>
-              <Text accessibilityRole="header" style={type.question}>
+              <Text accessibilityRole="header" style={[type.question, center && styles.centerText]}>
                 {heading}
               </Text>
-              {sub ? <Text muted>{sub}</Text> : null}
+              {sub ? <Text style={[type.meta, center && styles.centerText]}>{sub}</Text> : null}
             </View>
           ) : null}
           {children}
@@ -95,8 +98,9 @@ const styles = StyleSheet.create({
   // Both sides are the same width, so the place's name stays centred whatever sits beside it.
   side: { width: 88, flexDirection: "row", alignItems: "center" },
   sideRight: { justifyContent: "flex-end" },
-  topTitle: { flex: 1, textAlign: "center", fontSize: 15, lineHeight: 20, fontWeight: "600", color: colors.fg },
+  topTitle: { flex: 1, textAlign: "center", fontSize: 16, lineHeight: 21, fontWeight: "700", letterSpacing: -0.2, color: colors.fg },
   titles: { gap: spacing.xs + 2 },
+  centerText: { textAlign: "center" },
   content: { flexGrow: 1, gap: spacing.xl, paddingTop: spacing.xs, paddingBottom: spacing.lg },
   footer: { gap: spacing.sm, paddingTop: spacing.md },
   busyWrap: { width: "100%", justifyContent: "center" },

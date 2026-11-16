@@ -4,9 +4,9 @@ import { colors, fontWeight, spacing } from "../../theme";
 
 /**
  * The taste meters the backend returns (`tasteSummary`), two to a line. Draws nothing for an empty list.
- * Pink is always me, so my own profile draws them in the accent and everyone else's in the text colour.
+ * Black on every profile; the accent is kept for the "You" marker on Compare.
  */
-export function TasteMeters({ summary, mine = false }: { summary: { label: string; pct: number }[]; mine?: boolean }) {
+export function TasteMeters({ summary }: { summary: { label: string; pct: number }[] }) {
   if (summary.length === 0) return null;
   return (
     <View style={styles.grid}>
@@ -26,7 +26,7 @@ export function TasteMeters({ summary, mine = false }: { summary: { label: strin
               <View
                 style={[
                   styles.fill,
-                  { width: `${Math.min(100, Math.max(0, meter.pct))}%`, backgroundColor: mine ? colors.accent : colors.fg },
+                  { width: `${Math.min(100, Math.max(0, meter.pct))}%`, backgroundColor: colors.fg },
                 ]}
               />
             </View>
@@ -42,8 +42,8 @@ const styles = StyleSheet.create({
   // Two columns: half the row minus half the gap.
   cell: { flexBasis: "40%", flexGrow: 1, gap: spacing.sm },
   labels: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.sm },
-  label: { flex: 1, fontWeight: fontWeight.semibold },
+  label: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: fontWeight.semibold },
   value: { fontSize: 13, fontVariant: ["tabular-nums"] },
-  track: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
+  track: { height: 4, borderRadius: 2, backgroundColor: "#ececf0", overflow: "hidden" },
   fill: { height: "100%", borderRadius: 2 },
 });

@@ -6,7 +6,7 @@ import { api, type SettingsResult } from "../../lib/api";
 import { errorMessage } from "../../lib/errors";
 import { pickPhoto, uploadPhoto } from "../../lib/photos";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, spacing } from "../../theme";
+import { colors, palette, spacing } from "../../theme";
 import { FieldRow } from "./FieldRow";
 import { SettingsGroup } from "./Group";
 
@@ -16,7 +16,35 @@ const FIELDS: Field[] = ["displayName", "bio", "homeCity", "birthday"];
 const DISPLAY_NAME_MAX = 40;
 const BIO_MAX = 160;
 const HOME_CITY_MAX = 60;
-const AVATAR = 96;
+const AVATAR = 72;
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2000-01-01" from the backend, shown as "Jan 1, 2000". Anything else is shown as it is. */
+function prettyBirthday(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return iso;
+  const month = MONTHS[Number(match[2]) - 1];
+  return month ? `${month} ${Number(match[3])}, ${match[1]}` : iso;
+}
+
+/** What was typed ("Oct 23, 2004", "10/23/2004" or "2004-10-23") as the backend's "2004-10-23"; null when it is not a date. */
+function parseBirthday(text: string): string | null {
+  const clean = text.trim();
+  let year = 0;
+  let month = 0;
+  let day = 0;
+  let match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(clean);
+  if (match) [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  else if ((match = /^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/.exec(clean))) {
+    [month, day, year] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  } else if ((match = /^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/.exec(clean))) {
+    month = MONTHS.findIndex((name) => match![1].toLowerCase().startsWith(name.toLowerCase())) + 1;
+    [day, year] = [Number(match[2]), Number(match[3])];
+  } else return null;
+  if (year < 1900 || month < 1 || month > 12 || day < 1 || day > new Date(year, month, 0).getDate()) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 /** The photo at the top; tapping it is "Change photo": pick, upload to Convex storage, then `settings.setAvatar`. */
 function AvatarPicker({ settings }: { settings: SettingsResult }) {
@@ -41,14 +69,14 @@ function AvatarPicker({ settings }: { settings: SettingsResult }) {
   };
 
   return (
-    <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Change photo"
-        disabled={uploading}
-        onPress={() => void change()}
-        style={({ pressed }) => pressed && styles.pressed}
-      >
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Change photo"
+      disabled={uploading}
+      onPress={() => void change()}
+      style={({ pressed }) => [styles.header, pressed && styles.pressed]}
+    >
+      <View>
         <Avatar name={settings.displayName} uri={settings.avatarUrl} size={AVATAR} />
         {uploading ? (
           <View style={styles.avatarBusy}>
@@ -56,17 +84,12 @@ function AvatarPicker({ settings }: { settings: SettingsResult }) {
           </View>
         ) : (
           <View style={styles.camera}>
-            <Icon name="camera" size={16} color={colors.fg} />
+            <Icon name="camera" size={13} color={colors.white} />
           </View>
         )}
-      </Pressable>
-      <View style={styles.who}>
-        <Text variant="headline" center numberOfLines={1}>
-          {settings.displayName}
-        </Text>
-        <Text muted center numberOfLines={1}>{`@${settings.username}`}</Text>
       </View>
-    </View>
+      <Text style={styles.change}>Change photo</Text>
+    </Pressable>
   );
 }
 
@@ -80,8 +103,10 @@ export function ProfileForm({ settings }: { settings: SettingsResult }) {
   const save = useMutationToast(api.settings.update, { success: "Saved" });
 
   const saved = (field: Field) => settings[field] ?? "";
-  const value = (field: Field) => draft[field] ?? saved(field);
-  const changed = FIELDS.filter((field) => draft[field] !== undefined && draft[field].trim() !== saved(field));
+  const value = (field: Field) => draft[field] ?? (field === "birthday" ? prettyBirthday(saved(field)) : saved(field));
+  // A birthday is compared as the date it means, so retyping the same day in another style changes nothing.
+  const meant = (field: Field, text: string) => (field === "birthday" ? (parseBirthday(text) ?? text.trim()) : text.trim());
+  const changed = FIELDS.filter((field) => draft[field] !== undefined && meant(field, draft[field]) !== saved(field));
   const edit = (field: Field) => (text: string) => {
     setDraft((current) => ({ ...current, [field]: text }));
     if (errors[field]) setErrors((current) => ({ ...current, [field]: undefined }));
@@ -90,12 +115,12 @@ export function ProfileForm({ settings }: { settings: SettingsResult }) {
   const onSave = async () => {
     const problems: Partial<Record<Field, string>> = {};
     const change: Partial<Record<Field, string>> = {};
-    for (const field of changed) change[field] = value(field).trim();
+    for (const field of changed) change[field] = meant(field, value(field));
     if (change.displayName !== undefined && change.displayName === "") {
       problems.displayName = "Your name can't be empty.";
     }
     if (change.birthday !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(change.birthday)) {
-      problems.birthday = "Write it like 2004-10-23.";
+      problems.birthday = "Write it like Oct 23, 2004.";
     }
     setErrors(problems);
     if (Object.keys(problems).length > 0) return;
@@ -136,11 +161,9 @@ export function ProfileForm({ settings }: { settings: SettingsResult }) {
         />
         <FieldRow
           label="Birthday"
-          placeholder="YYYY-MM-DD"
-          autoCapitalize="none"
+          placeholder="Oct 23, 2004"
           autoCorrect={false}
-          keyboardType="numbers-and-punctuation"
-          maxLength={10}
+          maxLength={20}
           value={value("birthday")}
           onChangeText={edit("birthday")}
           error={errors.birthday}
@@ -154,8 +177,8 @@ export function ProfileForm({ settings }: { settings: SettingsResult }) {
 }
 
 const styles = StyleSheet.create({
-  form: { gap: spacing.lg },
-  header: { alignItems: "center", gap: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.sm },
+  form: { gap: spacing.xl },
+  header: { alignSelf: "center", alignItems: "center", gap: spacing.sm, paddingTop: spacing.xs },
   pressed: { opacity: 0.7 },
   avatarBusy: {
     position: "absolute",
@@ -164,7 +187,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: AVATAR / 2,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: palette.backdrop,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -172,14 +195,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: -2,
     bottom: -2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.raised,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.fg,
     borderWidth: 3,
     borderColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
   },
-  who: { alignItems: "center", gap: 2, alignSelf: "stretch" },
+  change: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: colors.fg },
 });

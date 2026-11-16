@@ -3,13 +3,17 @@
  * reason, what and how far, and the score. Everything shown is the `NearbyItem` as returned.
  */
 import { Pressable, StyleSheet, View } from "react-native";
-import { ScoreBadge, Text } from "../../components";
+import { Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
-import { colors, fontSize, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, ratingColor, spacing } from "../../theme";
 import { MapPhoto } from "./MapPhoto";
+import { displayName } from "./names";
 
-export const ROW_PHOTO = 76;
+export const ROW_PHOTO = 60;
+/** One rounding for every photo on the map screen. */
+export const PHOTO_ROUND = 10;
+const RING = 44;
 /** Every row is this tall, so the list can be sized to show whole rows. */
 export const ROW_HEIGHT = ROW_PHOTO + spacing.md * 2;
 
@@ -20,50 +24,48 @@ export function metaLine(item: NearbyItem): string {
     .join(" · ");
 }
 
+/** The score as on a feed post: the number in its rating colour inside a thin grey ring. */
+export function ScoreRing({ score }: { score: number }) {
+  const text = formatScore(score);
+  return (
+    <View accessibilityLabel={`Score ${text} out of 10`} style={styles.ring}>
+      <Text style={[styles.ringText, { color: ratingColor(score) }]}>{text}</Text>
+    </View>
+  );
+}
+
 export function MapRow({
   item,
   onPress,
-  showRank = false,
   last = false,
 }: {
   item: NearbyItem;
   onPress: () => void;
-  /** Show the backend's `rank` on the photo. */
-  showRank?: boolean;
   last?: boolean;
 }) {
   const when = item.startsAt !== undefined ? formatEventTime(item.startsAt) : null;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${formatScore(item.score)} for you. ${item.why}`}
+      accessibilityLabel={`${displayName(item.name)}, ${formatScore(item.score)} for you. ${item.why}`}
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      <View>
-        <MapPhoto item={item} width={ROW_PHOTO} height={ROW_PHOTO} round={radius.lg} />
-        {showRank ? (
-          <View style={styles.rank}>
-            <Text style={styles.rankText}>{item.rank}</Text>
-          </View>
-        ) : null}
-      </View>
+      <MapPhoto item={item} width={ROW_PHOTO} height={ROW_PHOTO} round={PHOTO_ROUND} />
       <View style={[styles.body, !last && styles.divider]}>
         <View style={styles.text}>
           <Text numberOfLines={1} style={styles.name}>
-            {item.name}
+            {displayName(item.name, true)}
+          </Text>
+          <Text numberOfLines={1} style={styles.meta}>
+            {when ? <Text style={styles.when}>{when}</Text> : null}
+            {when ? ` · ${formatDistance(item.distanceMeters)}` : metaLine(item)}
           </Text>
           <Text numberOfLines={1} style={styles.why}>
             {item.why}
           </Text>
-          <Text numberOfLines={1} style={when ? styles.when : styles.meta}>
-            {when ? `${when} · ${formatDistance(item.distanceMeters)}` : metaLine(item)}
-          </Text>
         </View>
-        {/* The badge aligns itself to the top of whatever holds it; this holds it in the middle of the row. */}
-        <View>
-          <ScoreBadge score={item.score} />
-        </View>
+        <ScoreRing score={item.score} />
       </View>
     </Pressable>
   );
@@ -71,20 +73,7 @@ export function MapRow({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, height: ROW_HEIGHT, paddingLeft: spacing.lg },
-  pressed: { backgroundColor: colors.surface },
-  rank: {
-    position: "absolute",
-    left: 5,
-    top: 5,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 5,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(11,10,15,0.78)",
-  },
-  rankText: { fontSize: 11, lineHeight: 14, fontWeight: fontWeight.bold, color: colors.white, fontVariant: ["tabular-nums"] },
+  pressed: { backgroundColor: palette.field },
   // The hairline starts at the text, not under the photo.
   body: {
     flex: 1,
@@ -94,10 +83,21 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingRight: spacing.lg,
   },
-  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
-  text: { flex: 1, gap: 3 },
-  name: { fontSize: fontSize.bodyLg, lineHeight: 21, fontWeight: fontWeight.semibold, color: colors.fg },
-  why: { fontSize: fontSize.body, lineHeight: 19, color: colors.fg, opacity: 0.78 },
+  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
+  text: { flex: 1, gap: 2 },
+  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  ring: {
+    width: RING,
+    height: RING,
+    borderRadius: RING / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+  },
+  ringText: { fontSize: 15, lineHeight: 19, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  why: { fontSize: 13, lineHeight: 17, color: colors.muted },
   meta: { fontSize: 13, lineHeight: 17, color: colors.muted },
-  when: { fontSize: 13, lineHeight: 17, color: colors.mid, fontWeight: fontWeight.medium },
+  when: { fontSize: 13, lineHeight: 17, color: colors.accent, fontWeight: fontWeight.semibold },
 });

@@ -87,6 +87,29 @@ Branch `merge-ui-overhaul` = `main` + `origin/ui-overhaul`. Rule agreed by Bryan
 - Two lint-only suppressions in Ethan's `MapCanvas.web.tsx` / `MapSheet.tsx` (React Compiler false positives that also fail on his branch).
 - **Not taken (Bryan's display wins):** Ethan's restyled venue page (`features/venue/VenuePage`: I'm going, Get tickets, performers, More like this) and his precise-pin native map. Worth folding into Bryan's venue page / map later.
 
+## Pass 13 (light / dark mode)
+- `src/theme/mode.ts`: the choice is read synchronously at startup (SecureStore `getItem`, localStorage on web), default dark. Switching saves it and reloads the app (`DevSettings.reload()`; a production build will need `expo-updates` `reloadAsync`), because every StyleSheet is built once at startup.
+- `tokens.ts`: `colors` / `palette` = light or dark set (light values = the prototype's light mode). `onboardingColors` = cream Hinge look in light, dark palette in dark. Status bar, both native maps and `app.json` (`userInterfaceStyle: automatic`) follow.
+- Buttons: sun/moon `ThemeToggle` next to the gear on the Profile tab, and Settings → Appearance (Dark / Light).
+
+## Pass 14 (stand-in photos)
+- `src/constants/placeholderPhotos.ts`: free Unsplash photos per category (nightlife, live, food, culture, outdoors, popup), picked per place with a stable seed. Used by `VenueCard`'s `Photo`, `VenuePhoto` (hue-only callers with a category hue), map pins, Spotlight, profile. Real `imageUrl` (Google Places, backend) always wins; the glow placeholder sits underneath if a stand-in fails to load. Quiz covers stay glow-only.
+
+## Pass 15 (map polish, photo upload, theme button everywhere)
+- **Map list:** drag the handle down to hide it (only the handle, a "N places" line and the OSM credit stay), drag up or tap to bring it back; tapping a pin opens it again. Legend: Friends (pink ring) · Public (grey, people icon) · For you (score color).
+- **Zoom:** + / − buttons (animated `animateToRegion`), rotate/pitch off, and pins stop re-rendering ~1.5 s after they change (`tracksViewChanges` off) so pan/zoom stay smooth.
+- **Pins by zoom:** zoomed out only the top 3–5 (backend `rank`) are photo pins; zoom in and more become photos (8 → 14 → 24 → all). The rest are small score-colored dots you can tap.
+- **Who rated it:** friends rated it → their faces + the top friend's score (pink ring) on the pin, list row and place card; nobody I know → **public score** (grey pill with a people icon, "Public 7.6 · 23 ratings"); no ratings → the "for you" prediction.
+- **Backend (small, additive, for Ethan to review):** `NearbyItem.publicScore?` in `contract.ts` and set in `convex/lib/discovery.ts` (average of everyone else's rankings in the crowd sample, one decimal; totals only).
+- **Add a photo** in the rank flow (Details step): pick from the library (`lib/photos.pickPhoto`), uploaded on Post via `posts.generateUploadUrl`, sent as `rankings.rank({ photoStorageId })`.
+- **Light / dark button** (sun/moon) now also on Home, Search, Map and Welcome (top right), not only Profile / Settings.
+
+## Pass 16 (second ui-overhaul merge: Ethan's newest backend, Bryan's screens)
+- From `ui-overhaul` (up to `ef119d3`): all `convex/` changes (Google **area import** with a $100 spend ceiling and caller-set radius, catalog/discover/rankings updates), tests, his new **group map** (`/group-map`, `features/groupmap`), and his own screens/components.
+- Kept Bryan's: every tab, onboarding, profile, friends, compare, rankings, venue, sign-in, settings, root layout, theme (dark default; his `isDark` / `toggleThemeMode` names now map onto Bryan's `mode.ts`, same storage key), links, map surface/peek, foundation components.
+- Not taken: his `(tabs)/recs` "For you" tab (Bryan's Search covers it; `paths.recs` → `/search`), his removed `home/Hero` / `Shortcuts`.
+- Three lint suppressions in his `feed/Comments.tsx` (React Compiler rules; same code as on his branch).
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 

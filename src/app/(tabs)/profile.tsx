@@ -3,7 +3,7 @@ import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
-import { Button, Icon, ProfileView, Screen, Skeleton, Text, type IconName } from "../../components/bryan";
+import { Button, Icon, ProfileView, Screen, Skeleton, Text, ThemeToggle, type IconName } from "../../components/bryan";
 import { paths, rankingsPath } from "../../lib/links";
 import { colors, radius } from "../../theme";
 
@@ -25,9 +25,12 @@ export default function ProfileScreen() {
     <Screen>
       <View style={styles.head}>
         <Text variant="heading">Profile</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} style={styles.gear} hitSlop={8}>
-          <Icon name="gear" size={20} color={colors.fg} />
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <ThemeToggle />
+          <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push(paths.settings)} style={styles.gear} hitSlop={8}>
+            <Icon name="gear" size={20} color={colors.fg} />
+          </Pressable>
+        </View>
       </View>
       {profile === undefined ? <Skeleton height={300} /> : profile === null ? <Text muted>Not signed in</Text> : <ProfileView profile={profile} />}
       <View style={styles.links}>

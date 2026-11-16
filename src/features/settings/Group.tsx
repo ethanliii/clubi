@@ -1,21 +1,21 @@
 import { Children, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text } from "../../components";
-import { colors, palette, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
-/** The inset every row shares, so labels, dividers and the group's title line up. */
-export const ROW_INSET = spacing.lg - 2;
+/** The inset every row shares inside a group's card: labels, hairlines and the group's name all start here. */
+export const ROW_INSET = 0;
 
 /**
- * One group of a settings screen, the way a phone's own settings does it: a quiet name, one soft
- * panel holding the rows with a hairline between them, and at most one line of explanation under it.
+ * One group of a settings screen: a small bold uppercase name, the rows flat on the white page with a
+ * hairline between them, and at most one line of explanation under it.
  */
 export function SettingsGroup({ title, footer, children }: { title?: string; footer?: string; children: ReactNode }) {
   const rows = Children.toArray(children);
   return (
     <View style={styles.group}>
       {title ? (
-        <Text variant="label" accessibilityRole="header" style={styles.title}>
+        <Text accessibilityRole="header" style={styles.title}>
           {title}
         </Text>
       ) : null}
@@ -51,14 +51,15 @@ export function SettingsRow({
   label: string;
   value?: string;
   onPress?: () => void;
-  tone?: "normal" | "danger";
+  /** `danger` deletes; `action` does something right here (sign out). Both sit centred, like the phone's own Settings. */
+  tone?: "normal" | "danger" | "action";
   /** Show the chevron on a tappable row. Off for actions that happen right here, like signing out. */
   chevron?: boolean;
   disabled?: boolean;
 }) {
   const content = (
     <>
-      <Text variant="bodyLg" numberOfLines={1} style={[styles.label, tone === "danger" && styles.danger]}>
+      <Text variant="bodyLg" numberOfLines={1} style={[styles.label, tone === "danger" && styles.danger, tone === "action" && styles.action]}>
         {label}
       </Text>
       {value ? (
@@ -66,7 +67,7 @@ export function SettingsRow({
           {value}
         </Text>
       ) : null}
-      {onPress && chevron ? <Icon name="chevron" size={16} color={colors.low} /> : null}
+      {onPress && chevron ? <Icon name="chevron" size={15} color={colors.low} /> : null}
     </>
   );
   if (!onPress) return <View style={styles.row}>{content}</View>;
@@ -84,11 +85,21 @@ export function SettingsRow({
 }
 
 const styles = StyleSheet.create({
-  group: { gap: spacing.sm },
-  title: { paddingHorizontal: ROW_INSET },
-  panel: { borderRadius: radius.xl, backgroundColor: palette.field, overflow: "hidden" },
-  hairline: { height: 1, marginLeft: ROW_INSET, backgroundColor: palette.hairline },
-  footer: { paddingHorizontal: ROW_INSET },
+  group: {},
+  title: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+    color: colors.fg,
+    paddingHorizontal: ROW_INSET,
+    paddingBottom: 4,
+  },
+  // Flat on the white page: only hairlines separate the rows.
+  panel: {},
+  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
+  footer: { paddingHorizontal: ROW_INSET, paddingTop: 7 },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -97,9 +108,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: ROW_INSET,
     paddingVertical: spacing.sm,
   },
-  pressed: { backgroundColor: palette.fieldPressed },
+  pressed: { opacity: 0.55 },
   dimmed: { opacity: 0.4 },
   label: { flex: 1 },
-  danger: { color: palette.danger },
+  danger: { color: palette.danger, fontWeight: fontWeight.semibold },
+  action: { fontWeight: fontWeight.semibold },
   value: { flexShrink: 1, maxWidth: "62%", textAlign: "right" },
 });

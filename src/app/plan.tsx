@@ -1,29 +1,32 @@
 import { useQuery } from "convex/react";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useState, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
-import { EmptyState, goBack, Screen, Skeleton, Text } from "../components";
+import { Pressable, Share, StyleSheet, View } from "react-native";
+import { Button, EmptyState, ErrorBoundary, goBack, Icon, Screen, Skeleton, Text } from "../components";
 import { citySpot } from "../features/trips/city";
 import { Face, FaceRow } from "../features/trips/Faces";
 import { FriendChips, toggleId } from "../features/trips/FriendChips";
 import { MemberScores } from "../features/trips/MemberScores";
-import { PlaceCard } from "../features/trips/PlaceCard";
-import { FieldLabel, ScreenTop } from "../features/trips/ScreenTop";
+import { Page } from "../features/trips/Page";
+import { PlaceRow } from "../features/trips/PlaceCard";
+import { FieldLabel, ScreenTop, SectionLabel } from "../features/trips/ScreenTop";
 import { VibeChips, type Vibe } from "../features/trips/vibes";
 import { api, type Id, type PlanResult } from "../lib/api";
+import { pluralize } from "../lib/format";
 import { useDemoLocation } from "../lib/demoLocation";
 import { useNow } from "../lib/useNow";
 import { useMe } from "../state/session";
-import { colors, fontWeight, radius, spacing } from "../theme";
-
-const PHOTO = 168;
+import { paths } from "../lib/links";
+import { colors, fontWeight, palette, radius, spacing } from "../theme";
 
 /** One step of the night on the timeline: the dot and line on the left, the stop on the right. */
-function Step({ last, children }: { last: boolean; children: ReactNode }) {
+function Step({ last, index, children }: { last: boolean; index: number; children: ReactNode }) {
   return (
     <View style={styles.step}>
       <View style={styles.rail}>
-        <View style={styles.dot} />
+        <View style={styles.dot}>
+          <Text style={styles.dotText}>{index + 1}</Text>
+        </View>
         {last ? null : <View style={styles.line} />}
       </View>
       <View style={[styles.stepBody, !last && styles.stepGap]}>{children}</View>
@@ -35,10 +38,9 @@ function StopsSkeleton() {
   return (
     <View accessibilityRole="progressbar" accessibilityLabel="Loading">
       {[0, 1, 2].map((index) => (
-        <Step key={index} last={index === 2}>
-          <Skeleton width={72} height={16} />
-          <Skeleton height={PHOTO} round={radius.xl} />
-          <Skeleton width="60%" height={16} />
+        <Step key={index} index={index} last={index === 2}>
+          <Skeleton width={72} height={14} />
+          <Skeleton height={72} round={radius.md + 2} />
         </Step>
       ))}
     </View>
@@ -46,6 +48,24 @@ function StopsSkeleton() {
 }
 
 export default function PlanScreen() {
+  const { tripId } = useLocalSearchParams<{ tripId?: string }>();
+  return (
+    // A link with a plan id the backend does not recognise throws; show it as a plan that is gone.
+    <ErrorBoundary
+      key={tripId ?? ""}
+      fallback={() => (
+        <Screen>
+          <ScreenTop title="Plan my night" />
+          <EmptyState title="This plan was deleted" icon="users" actionLabel="Back" onAction={goBack} />
+        </Screen>
+      )}
+    >
+      <PlanLoader />
+    </ErrorBoundary>
+  );
+}
+
+function PlanLoader() {
   const params = useLocalSearchParams<{ tripId?: string }>();
   const tripId = params.tripId ? (params.tripId as Id<"trips">) : undefined;
   const me = useMe();
@@ -85,20 +105,51 @@ export default function PlanScreen() {
     return (
       <Screen>
         <ScreenTop title="Plan my night" />
-        <EmptyState title="This trip was deleted" icon="users" actionLabel="Back" onAction={goBack} />
+        <EmptyState title="This plan was deleted" icon="users" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
   }
 
   const you = me ? <Face name={me.displayName} uri={me.avatarUrl} label="You" selected /> : undefined;
 
+  const stops = shown?.stops ?? [];
+  // The plan as plain words, for the share sheet: "Start: The Plant", one stop per line.
+  const sharePlan = () => {
+    const lines = stops.map((stop) => `${stop.slotLabel}: ${stop.name}`);
+    void Share.share({ message: [trip ? trip.name : "Tonight's plan", ...lines].join("\n") }).catch(() => undefined);
+  };
+
   return (
-    <Screen>
+    <Page
+      footer={
+        stops.length > 0 ? (
+          <View style={styles.footer}>
+            <Button
+              title="Open on the map"
+              accessibilityLabel="Open on the map"
+              icon="map"
+              onPress={() => router.push(tripId ? (`/group-map?tripId=${tripId}` as Href) : paths.groupMap)}
+              style={styles.open}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share this plan"
+              onPress={sharePlan}
+              style={({ pressed }) => [styles.share, pressed && styles.pressed]}
+            >
+              <Icon name="share" size={20} color={colors.fg} />
+            </Pressable>
+          </View>
+        ) : undefined
+      }
+    >
       <View style={styles.top}>
         <ScreenTop title="Plan my night" />
-        <Text muted style={styles.sub}>
-          {tripId && trip ? `Three stops for ${trip.name}` : "Three stops, picked for whoever is coming."}
-        </Text>
+        {tripId && trip ? (
+          <Text muted style={styles.sub}>
+            {`Three stops for ${trip.name}`}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.group}>
@@ -137,6 +188,7 @@ export default function PlanScreen() {
         <VibeChips value={vibe ?? shown?.vibe} onChange={setVibe} />
       </View>
 
+      <SectionLabel title="Tonight" note={shown && shown.stops.length > 0 ? pluralize(shown.stops.length, "stop", "stops") : undefined} />
       {shown === undefined ? (
         <StopsSkeleton />
       ) : shown.stops.length === 0 ? (
@@ -144,42 +196,39 @@ export default function PlanScreen() {
       ) : (
         <View style={updating && styles.updating}>
           {shown.stops.map((stop, index) => (
-            <Step key={stop.id} last={index === shown.stops.length - 1}>
+            <Step key={stop.id} index={index} last={index === shown.stops.length - 1}>
               <Text style={styles.slot}>{stop.slotLabel}</Text>
-              <PlaceCard item={stop} now={now} photoHeight={PHOTO}>
+              <PlaceRow item={stop} now={now}>
                 <MemberScores scores={stop.memberScores} meId={me?.userId} />
-              </PlaceCard>
+              </PlaceRow>
             </Step>
           ))}
         </View>
       )}
-    </Screen>
+    </Page>
   );
 }
 
-const RAIL = 22;
-const DOT = 12;
+const RAIL = 24;
+const DOT = 24;
 
 const styles = StyleSheet.create({
   group: { gap: spacing.sm + 2 },
+  footer: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
+  open: { flex: 1, width: "auto", backgroundColor: colors.fg },
+  share: { width: 50, height: 50, borderRadius: 25, backgroundColor: palette.field, alignItems: "center", justifyContent: "center" },
+  pressed: { opacity: 0.6 },
   top: { gap: spacing.xs + 2 },
   sub: { fontSize: 15 },
   loadingFaces: { flexDirection: "row", gap: spacing.md },
   updating: { opacity: 0.5 },
   step: { flexDirection: "row", gap: spacing.md },
   rail: { width: RAIL, alignItems: "center" },
-  // The dot sits on the slot label's line; the line runs from it down to the next dot.
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    marginTop: 6,
-    borderWidth: 2.5,
-    borderColor: colors.fg,
-    backgroundColor: colors.bg,
-  },
-  line: { flex: 1, width: 2, marginTop: 6, marginBottom: -2, borderRadius: 1, backgroundColor: colors.line },
-  stepBody: { flex: 1, gap: spacing.md },
-  stepGap: { paddingBottom: spacing.xl + 4 },
-  slot: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  // The numbered dot sits on the slot label's line; the line runs from it down to the next dot.
+  dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: colors.fg, alignItems: "center", justifyContent: "center" },
+  dotText: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, color: colors.white, fontVariant: ["tabular-nums"] },
+  line: { flex: 1, width: 2, marginVertical: 4, borderRadius: 1, backgroundColor: colors.line },
+  stepBody: { flex: 1, gap: spacing.sm + 2 },
+  stepGap: { paddingBottom: spacing.lg + 2 },
+  slot: { fontSize: 15, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.1, color: colors.fg },
 });

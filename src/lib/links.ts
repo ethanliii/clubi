@@ -18,6 +18,10 @@ export const paths = {
   feed: "/" as Href,
   search: "/search" as Href,
   profile: "/profile" as Href,
+  /** Main's "For you" tab is Bryan's Search tab. */
+  recs: "/search" as Href,
+  /** Main's group map (friends' picks on one map). */
+  groupMap: "/group-map" as Href,
   notifications: "/notifications" as Href,
   friends: "/friends" as Href,
   settings: "/settings" as Href,

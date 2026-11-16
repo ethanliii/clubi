@@ -4,10 +4,10 @@ import { Avatar, Text } from "../../components";
 import type { PerformerCard } from "../../lib/api";
 import { formatEventTime, formatScore } from "../../lib/format";
 import { performerPath, venuePath } from "../../lib/links";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, spacing } from "../../theme";
 import { FollowButton } from "./FollowButton";
 
-const AVATAR = 60;
+const AVATAR = 56;
 
 /** "EDM · House · You rate them 9.2" from the card's genres and affinity. */
 export function performerFacts(performer: PerformerCard): string {
@@ -77,14 +77,21 @@ export function PerformerRow({ performer, now }: { performer: PerformerCard; now
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
   avatar: { borderWidth: 0 },
   main: { flex: 1, gap: 1 },
   who: { gap: 1 },
-  name: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
   facts: { fontSize: 13, lineHeight: 18 },
   pressed: { opacity: 0.6 },
   next: { minHeight: 22, justifyContent: "center" },
-  nextText: { fontSize: 13, lineHeight: 18, color: colors.mid, fontWeight: fontWeight.semibold },
-  follow: { width: "auto", minWidth: 96, minHeight: 40, paddingVertical: spacing.sm, paddingHorizontal: spacing.md + 2, borderRadius: radius.pill },
+  nextText: { fontSize: 13, lineHeight: 18, color: colors.accent, fontWeight: fontWeight.semibold },
+  follow: { minHeight: 36, paddingHorizontal: spacing.md + 2 },
 });

@@ -3,26 +3,44 @@
  * in the backend's order; tapping one opens its page.
  */
 import { router } from "expo-router";
-import { useRef, useState, type ComponentRef } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Icon, SkeletonRows, Text } from "../../components";
-import { api } from "../../lib/api";
+import { api, type NearbyItem } from "../../lib/api";
 import { venuePath } from "../../lib/links";
 import { useDebounced } from "../../lib/useDebounced";
 import { useKeptQuery } from "../../lib/useKeptQuery";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, spacing } from "../../theme";
 import { MapRow } from "./MapRow";
 
 export const SEARCH_PLACEHOLDER = "Search places and events";
 export const SEARCH_HEIGHT = 48;
 const MIN_LETTERS = 2;
 
-export function SearchBox({ value, onChangeText }: { value: string; onChangeText: (text: string) => void }) {
+export function SearchBox({
+  value,
+  onChangeText,
+  focusKey,
+  open: held = false,
+  onOpenChange,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  /** The screen keeps search open (white page, "Cancel") from the first tap until it is cancelled. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Each new value puts the cursor in the field and brings up the keyboard (Home's search field sends one). */
+  focusKey?: string;
+}) {
   const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [focused, setFocused] = useState(false);
-  const open = focused || value !== "";
+  useEffect(() => {
+    if (focusKey) inputRef.current?.focus();
+  }, [focusKey]);
+  const open = held || focused || value !== "";
   const cancel = () => {
     onChangeText("");
+    onOpenChange?.(false);
     inputRef.current?.blur();
     Keyboard.dismiss();
   };
@@ -39,7 +57,10 @@ export function SearchBox({ value, onChangeText }: { value: string; onChangeText
           selectionColor={colors.accent}
           value={value}
           onChangeText={onChangeText}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            onOpenChange?.(true);
+          }}
           onBlur={() => setFocused(false)}
           autoCapitalize="none"
           autoCorrect={false}
@@ -57,7 +78,7 @@ export function SearchBox({ value, onChangeText }: { value: string; onChangeText
             }}
             style={({ pressed }) => [styles.clear, pressed && styles.pressed]}
           >
-            <Icon name="close" size={11} color={colors.surface} />
+            <Icon name="close" size={11} color={colors.white} />
           </Pressable>
         ) : null}
       </Pressable>
@@ -86,7 +107,10 @@ export function SearchResults({
   lng,
   ready,
   maxHeight,
+  nearby,
 }: {
+  /** What is already on the map: the first few show before anything is typed. */
+  nearby?: NearbyItem[];
   text: string;
   lat: number;
   lng: number;
@@ -98,7 +122,27 @@ export function SearchResults({
   const active = typed.length >= MIN_LETTERS;
   const asked = debounced.length >= MIN_LETTERS;
   const results = useKeptQuery(api.places.search, ready && asked ? { text: debounced, lat, lng } : "skip", debounced);
-  if (!active) return null;
+  if (!active) {
+    const first = (nearby ?? []).slice(0, 6);
+    if (first.length === 0) return null;
+    return (
+      <View style={[styles.results, { maxHeight }]}>
+        <Text accessibilityRole="header" style={styles.label}>
+          Nearby
+        </Text>
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
+          {first.map((item, index) => (
+            <MapRow
+              key={item.id}
+              item={item}
+              last={index === first.length - 1}
+              onPress={() => router.push(venuePath(item.kind, item.id))}
+            />
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
 
   // Still waiting when the query is loading, or the user has typed on since the last request.
   const waiting = results === undefined || debounced !== typed;
@@ -111,9 +155,10 @@ export function SearchResults({
       ) : results.length === 0 ? (
         <View accessibilityRole="text" style={styles.padded}>
           <Text style={styles.none}>No matches</Text>
+          <Text style={styles.noneBody}>Try a different name or a shorter word.</Text>
         </View>
       ) : (
-        <ScrollView keyboardShouldPersistTaps="handled">
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
           {results.map((item, index) => (
             <MapRow
               key={item.id}
@@ -136,15 +181,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     height: SEARCH_HEIGHT,
-    paddingLeft: 14,
     paddingRight: spacing.md,
-    borderRadius: radius.xl - 2,
-    backgroundColor: colors.surface,
+    paddingLeft: 16,
+    borderRadius: 14,
+    backgroundColor: colors.bg,
     shadowColor: colors.black,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
   },
   input: {
     flex: 1,
@@ -163,21 +208,29 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.muted,
+    backgroundColor: colors.low,
   },
   cancel: { height: SEARCH_HEIGHT, justifyContent: "center" },
-  cancelText: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.medium, color: colors.fg },
+  cancelText: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.medium, color: colors.accent },
   pressed: { opacity: 0.6 },
   results: {
-    borderRadius: radius.xl,
+    // The page behind is white while searching: the results are a plain list on it, edge to edge.
+    marginHorizontal: -(spacing.lg - 2),
     backgroundColor: colors.bg,
     overflow: "hidden",
-    shadowColor: colors.black,
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
   },
   padded: { padding: spacing.lg, gap: 4 },
+  label: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    color: colors.fg,
+  },
   none: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, color: colors.fg },
+  noneBody: { fontSize: 14, lineHeight: 20, color: colors.muted },
 });

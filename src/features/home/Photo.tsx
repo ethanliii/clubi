@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { VenuePhoto } from "../../components";
+import { Icon, VenuePhoto, type IconName } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { categoryHue } from "../../lib/format";
 import { colors } from "../../theme";
@@ -14,6 +14,8 @@ export function Photo({
   width,
   height,
   round,
+  dark = false,
+  glyph = 30,
   style,
   children,
 }: {
@@ -21,6 +23,10 @@ export function Photo({
   width: number;
   height: number;
   round: number;
+  /** White text sits on this picture: with no picture, draw a deep tint of the category's colour, never a pale tile. */
+  dark?: boolean;
+  /** The size of the category glyph on that tint; a small tile centres it. */
+  glyph?: number;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }) {
@@ -35,6 +41,10 @@ export function Photo({
           onError={() => setFailedUrl(url)}
           style={{ width, height }}
         />
+      ) : dark ? (
+        <View style={[glyph < 30 ? styles.deepSmall : styles.deep, { width, height, backgroundColor: `hsl(${DEEP_HUE[item.category] ?? categoryHue(item.category)}, 30%, 28%)` }]}>
+          <Icon name={GLYPH[item.category] ?? "ticket"} size={glyph} color="rgba(255,255,255,0.55)" />
+        </View>
       ) : (
         <VenuePhoto hue={categoryHue(item.category)} height={height} style={styles.fallback} />
       )}
@@ -43,7 +53,23 @@ export function Photo({
   );
 }
 
+/** The tints the shared photo fallback draws, so the warm categories read as rose and clay, not olive. */
+const DEEP_HUE: Partial<Record<NearbyItem["category"], number>> = { nightlife: 318, food: 12, culture: 262, outdoors: 158, live: 212, popup: 348 };
+
+/** The line glyph for a category, the same ones the shared photo fallback uses. */
+const GLYPH: Partial<Record<NearbyItem["category"], IconName>> = {
+  nightlife: "cocktail",
+  food: "utensils",
+  culture: "landmark",
+  outdoors: "tree",
+  live: "music",
+  popup: "ticket",
+};
+
 const styles = StyleSheet.create({
+  // The glyph sits in the upper part, clear of the title along the bottom.
+  deep: { alignItems: "center", paddingTop: 34 },
+  deepSmall: { alignItems: "center", justifyContent: "center" },
   frame: { overflow: "hidden", backgroundColor: colors.surface },
   fallback: { borderRadius: 0 },
 });

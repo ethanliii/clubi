@@ -6,6 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import type { FeedItem } from "../../../convex/lib/contract";
 import {
   Avatar, Button, Chip, CommentsSheet, EmptyState, Icon, Skeleton, Text, openVenue, timeAgo,
+  ThemeToggle,
 } from "../../components/bryan";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useState } from "react";
@@ -36,6 +37,7 @@ export default function Home() {
               <Text variant="heading">Home</Text>
             </View>
             <View style={styles.row}>
+              <ThemeToggle />
               <Pressable accessibilityRole="button" accessibilityLabel="Friends" onPress={() => router.push("/friends")} style={styles.iconButton}>
                 <Icon name="user" size={18} color={colors.fg} />
               </Pressable>

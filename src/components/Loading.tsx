@@ -42,12 +42,12 @@ export function Skeleton({
   round?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const [pulse] = useState(() => new Animated.Value(0.5));
+  const [pulse] = useState(() => new Animated.Value(0.55));
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: Platform.OS !== "web" }),
-        Animated.timing(pulse, { toValue: 0.5, duration: 800, useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(pulse, { toValue: 0.55, duration: 800, useNativeDriver: Platform.OS !== "web" }),
       ]),
     );
     loop.start();
@@ -77,7 +77,7 @@ export function SkeletonRows({
             <Skeleton width={index % 2 === 0 ? "58%" : "44%"} height={14} round={7} />
             <Skeleton width={index % 2 === 0 ? "36%" : "52%"} height={11} round={6} />
           </View>
-          <Skeleton width={42} height={28} round={9} />
+          <Skeleton width={40} height={40} round={20} />
         </View>
       ))}
     </View>
@@ -94,7 +94,7 @@ export function SkeletonCards({ count = 3, horizontal = true }: { count?: number
     >
       {Array.from({ length: count }, (_, index) => (
         <View key={index} style={[styles.card, horizontal ? styles.cardFixed : styles.cardWide]}>
-          <Skeleton height={horizontal ? 200 : 220} round={radius.xl - 2} />
+          <Skeleton height={horizontal ? 148 : 190} round={radius.lg} />
           <Skeleton width="70%" height={14} round={7} />
           <Skeleton width="45%" height={11} round={6} />
         </View>
@@ -106,12 +106,12 @@ export function SkeletonCards({ count = 3, horizontal = true }: { count?: number
 const styles = StyleSheet.create({
   loading: { flex: 1, minHeight: 160, alignItems: "center", justifyContent: "center", gap: spacing.sm },
   compact: { flex: 0, minHeight: 56 },
-  block: { backgroundColor: "rgba(255,255,255,0.07)" },
+  block: { backgroundColor: colors.raised },
   rows: { gap: spacing.md },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64 },
   lines: { flex: 1, gap: spacing.sm },
   cardsRow: { flexDirection: "row", gap: spacing.md, overflow: "hidden" },
   card: { gap: spacing.sm },
-  cardFixed: { width: 220 },
+  cardFixed: { width: 240 },
   cardWide: { width: "100%" },
 });

@@ -29,6 +29,11 @@ function nearestSnap(height: number, heights: SheetHeights): SheetSnap {
   return best;
 }
 
+/** Whether the list inside is scrolled to its very top. Read only while a finger is down. */
+function atTop(listOffset: { current: number } | undefined): boolean {
+  return (listOffset?.current ?? 0) <= 0;
+}
+
 export function MapSheet({
   snap,
   onSnap,
@@ -66,11 +71,11 @@ export function MapSheet({
     return () => animation.stop();
   }, [offset, rest]);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- PanResponder must be built once per snap set
   const responders = useMemo(() => {
     const snaps: SheetHeights = { peek, mid, full };
-    // Where the panel stood when the finger came down.
-    let from = full - mid;
+    // Where the panel stood when the finger came down. It starts as where the panel rests: on a phone the
+    // real position arrives a moment after the touch, and the first moves must not start from half height.
+    let from = full - snaps[snap];
     const settle = (landed: number) => {
       const next = nearestSnap(full - landed, snaps);
       Animated.spring(offset, { toValue: full - snaps[next], ...SPRING }).start();
@@ -101,7 +106,7 @@ export function MapSheet({
       // list scrolls, and only a pull down from its very top brings the panel down.
       body: PanResponder.create({
         onMoveShouldSetPanResponderCapture: (_event, gesture) =>
-          vertical(gesture.dx, gesture.dy) && (snap !== "full" || (gesture.dy > 0 && (listOffset?.current ?? 0) <= 0)),
+          vertical(gesture.dx, gesture.dy) && (snap !== "full" || (gesture.dy > 0 && atTop(listOffset))),
         ...drag,
       }),
     };
@@ -148,13 +153,13 @@ const styles = StyleSheet.create({
   sheet: {
     flex: 1,
     backgroundColor: colors.bg,
-    borderTopLeftRadius: radius.xxl + 4,
-    borderTopRightRadius: radius.xxl + 4,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
     overflow: "hidden",
     shadowColor: colors.black,
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
     elevation: 16,
   },
   grab: {
@@ -163,6 +168,6 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { cursor: "grab", userSelect: "none" } as object, default: {} }),
   },
   handleButton: { alignSelf: "center", width: 80, height: 20, alignItems: "center", justifyContent: "center" },
-  handle: { width: 36, height: 5, borderRadius: 3, backgroundColor: colors.line },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.low, opacity: 0.45 },
   body: { flex: 1 },
 });

@@ -44,7 +44,7 @@ export function Header({ title, subtitle, back = true, onBack, right }: HeaderPr
   return (
     <View style={styles.stack}>
       <View style={styles.row}>
-        <BackButton onPress={onBack} />
+        <BackButton onPress={onBack} style={styles.back} />
         <View style={styles.title} />
         {actions}
       </View>
@@ -61,8 +61,10 @@ export function Header({ title, subtitle, back = true, onBack, right }: HeaderPr
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: spacing.md + 2 },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 40 },
+  stack: { gap: spacing.sm },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 44 },
+  // A plain chevron, no grey disc; its glyph lines up with the page gutter.
+  back: { backgroundColor: "transparent", width: 44, height: 44, borderRadius: 22, marginLeft: -12 },
   tabRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 44, paddingTop: spacing.xs },
   title: { flex: 1 },
   titles: { gap: spacing.xs },

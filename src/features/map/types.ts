@@ -19,6 +19,8 @@ export type MapCanvasProps = {
   onSelect: (item: NearbyItem | null) => void;
   /** Add one to move the camera back to `center` ("Recenter"). */
   recenterKey: number;
+  /** The user dot is the demo spot, not a real fix. */
+  userIsDemo?: boolean;
   /** How much of the map is covered by the search bar (top) and the list (bottom), in points. */
   padding: { top: number; bottom: number };
 };
@@ -31,4 +33,6 @@ export type MapSurfaceProps = {
   onSelect: (item: NearbyItem | null) => void;
   /** Bump to move the camera back to `center`. */
   recenterKey: number;
+  /** + / − buttons: bump `key` to zoom one step in (`dir` 1) or out (-1). */
+  zoom?: { key: number; dir: 1 | -1 };
 };

@@ -34,7 +34,7 @@ export function PlacePhoto({
   const shown = uri && failedUri !== uri ? uri : null;
   return (
     <View style={[styles.frame, { width, height, borderRadius: round }, style]}>
-      <VenuePhoto hue={categoryHue(category)} height={height} style={styles.fallback} />
+      <VenuePhoto hue={categoryHue(category)} height={height} deep={scrim && !shown} style={styles.fallback} />
       {shown ? (
         <Image
           source={{ uri: shown }}

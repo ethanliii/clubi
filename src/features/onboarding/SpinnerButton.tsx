@@ -16,7 +16,7 @@ export function SpinnerButton({
   busy: boolean;
   /** Goes on the box around the button (layout: flex, width). */
   style?: StyleProp<ViewStyle>;
-  /** Goes on the button itself (colour, shape), for the quiz's black pill. */
+  /** Goes on the button itself (colour, shape), for the quiz's taller button. */
   buttonStyle?: StyleProp<ViewStyle>;
 }) {
   return (

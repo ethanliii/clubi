@@ -1,9 +1,9 @@
+import { isLight } from "./mode";
 import { colors } from "./tokens";
 
 /**
  * Palette for the Hinge-style sign-up + taste quiz.
- * The app is dark-only (app.json userInterfaceStyle "dark"), so onboarding follows the dark theme too.
- * `ONBOARDING_LIGHT` is the original cream look, kept for when the app gets a light theme.
+ * Dark mode: the app's dark palette. Light mode: the original cream Hinge look.
  */
 export const ONBOARDING_DARK = {
   bg: colors.bg,
@@ -29,4 +29,4 @@ export const ONBOARDING_LIGHT = {
   starOff: "#d6d2c9",
 } as const;
 
-export const onboardingColors = ONBOARDING_DARK;
+export const onboardingColors = isLight ? ONBOARDING_LIGHT : ONBOARDING_DARK;

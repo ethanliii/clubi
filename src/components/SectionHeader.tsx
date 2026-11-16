@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { colors, spacing } from "../theme";
-import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 export type SectionHeaderProps = {
@@ -27,14 +26,13 @@ export function SectionHeader({
   return (
     <View style={[styles.row, style]}>
       <Text
-        variant="headline"
         accessibilityRole="header"
         accessibilityLabel={count === undefined ? title : `${title} (${count})`}
         style={styles.title}
         numberOfLines={1}
       >
         {title}
-        {count === undefined ? null : <Text variant="headline" style={styles.count}>{`  ${count}`}</Text>}
+        {count === undefined ? null : <Text style={[styles.title, styles.count]}>{`  ${count}`}</Text>}
       </Text>
       {actionLabel && onAction ? (
         <Pressable
@@ -45,7 +43,6 @@ export function SectionHeader({
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >
           <Text style={styles.actionText}>{actionLabel}</Text>
-          <Icon name="chevron" size={13} color={colors.muted} />
         </Pressable>
       ) : null}
     </View>
@@ -53,10 +50,12 @@ export function SectionHeader({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.md, minHeight: 32 },
-  title: { flex: 1 },
-  count: { color: colors.low, fontWeight: "600" },
-  action: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: 32 },
-  actionText: { color: colors.muted, fontWeight: "500" },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 28 },
+  // Small, bold, uppercase and letter-spaced: the label names the section without competing with it.
+  title: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase", color: colors.fg },
+  // The count is quieter than the label: regular weight, grey, not letter-spaced.
+  count: { flex: 0, color: colors.low, fontWeight: "400", letterSpacing: 0 },
+  action: { flexDirection: "row", alignItems: "center", minHeight: 28, paddingLeft: spacing.md },
+  actionText: { fontSize: 14, lineHeight: 18, color: colors.fg, fontWeight: "700", letterSpacing: 0.2 },
   pressed: { opacity: 0.5 },
 });

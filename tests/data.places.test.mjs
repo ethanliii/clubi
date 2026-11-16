@@ -110,16 +110,56 @@ test("periodsToHours writes hours the catalog's own parser reads back", () => {
   assert.equal(periodsToHours([{ open: { day: 9, hour: 1 }, close: { day: 9, hour: 2 } }]), undefined);
 });
 
-test("googleMatch needs both a similar name and 75 metres", () => {
+test("googleMatch needs both a matching name and 120 metres", () => {
   assert.equal(googleMatch(zeitgeist, results)?.id, results[0].id);
   assert.equal(googleMatch({ name: "Zeitgeist Coffee", lat: 37.7799, lng: -122.4101 }, results)?.id, results[1].id, "the namesake 1.5 km away is its own place");
   assert.equal(googleMatch({ ...zeitgeist, name: "Zeitgeist Coffee", lat: 37.775 }, results), null, "right name, 500 m from either");
   assert.equal(googleMatch({ ...zeitgeist, lat: 37.78 }, results), null);
+  assert.equal(googleMatch({ ...zeitgeist, lat: zeitgeist.lat + 0.0009 }, results)?.id, results[0].id, "100 m off is still the place");
+  assert.equal(googleMatch({ ...zeitgeist, lat: zeitgeist.lat + 0.0013 }, results), null, "145 m off is not");
   assert.equal(googleMatch({ ...zeitgeist, name: "Elbo Room" }, results), null, "nearby, but another name");
   assert.equal(googleMatch(zeitgeist, [{ ...results[0], businessStatus: "CLOSED_PERMANENTLY" }]), null);
   assert.equal(googleMatch(zeitgeist, [{ ...results[0], location: undefined }]), null);
   assert.equal(googleMatch(zeitgeist, undefined), null);
   assert.equal(googleMatch(zeitgeist, []), null);
+});
+
+test("nameStrength: a name inside the other or the same first telling word is a match, a shared common word is not", () => {
+  const { nameStrength } = google;
+  assert.equal(nameStrength("Niku", "Niku Steakhouse"), 2);
+  assert.equal(nameStrength("21st Amendment Brewery", "21st Amendment Brewery & Restaurant"), 2);
+  assert.equal(nameStrength("Zeitgeist", "Zeitgeist"), 2);
+  assert.equal(nameStrength("Jackson Park", "Jackson Playground Park"), 1);
+  assert.equal(nameStrength("Harmonic Brewing", "Harmonic Brewing - Dogpatch"), 2);
+  assert.equal(nameStrength("Farley's", "Farleys Coffee"), 2);
+  assert.equal(nameStrength("Bar", "Bar Agricole"), 0);
+  assert.equal(nameStrength("Mission Bar", "Mission Chinese Food"), 0);
+  assert.equal(nameStrength("Mission Creek Park", "Mission Bay Commons Park"), 0);
+  assert.equal(nameStrength("Elbo Room", "Zeitgeist"), 0);
+  assert.equal(nameStrength("The Pub", "The Ramp"), 0);
+  assert.equal(nameStrength("21st Amendment Brewery", "21st Street Coffee"), 0, "a number alone proves nothing");
+  assert.equal(nameStrength("", "Zeitgeist"), 0);
+});
+
+test("googleVerdict: the surest name wins over the nearest, and a surely-matching closed result closes the place", () => {
+  const { googleVerdict } = google;
+  const at = (meters) => ({ latitude: zeitgeist.lat + meters / 111320, longitude: zeitgeist.lng });
+  const result = (id, text, meters, businessStatus = "OPERATIONAL") => ({ id, displayName: { text }, location: at(meters), businessStatus });
+  const place = { ...zeitgeist, name: "Jackson Park" };
+  assert.equal(googleVerdict(place, [result("a", "Jackson Playground Park", 2), result("b", "Jackson Park", 90)]).match.id, "b");
+  assert.equal(googleVerdict(place, [result("a", "Jackson Playground Park", 2)]).match.id, "a");
+  assert.deepEqual(googleVerdict(place, [result("a", "Jackson Park", 5, "CLOSED_PERMANENTLY")]), { match: null, closed: true });
+  assert.deepEqual(googleVerdict(place, [result("a", "Jackson Park", 5, "CLOSED_PERMANENTLY"), result("b", "Jackson Fillmore Trattoria", 20)]), { match: null, closed: true }, "a loose open match does not outweigh the place itself being closed");
+  assert.equal(googleVerdict(place, [result("a", "Jackson Park", 5, "CLOSED_PERMANENTLY"), result("b", "Jackson Park", 20)]).match.id, "b", "reopened under the same name");
+  assert.deepEqual(googleVerdict(place, [result("a", "Jackson Playground Park", 5, "CLOSED_PERMANENTLY")]), { match: null, closed: false }, "a loose match is not enough to close a place");
+  assert.deepEqual(googleVerdict(place, [result("a", "Jackson Park", 500, "CLOSED_PERMANENTLY")]), { match: null, closed: false });
+  // Any telling word in common is enough within 75 m, and only there.
+  const lusk = { ...zeitgeist, name: "Twenty Five Lusk" };
+  assert.equal(googleVerdict(lusk, [result("a", "25 Lusk", 16)]).match.id, "a");
+  assert.equal(googleVerdict(lusk, [result("a", "25 Lusk", 100)]).match, null);
+  assert.equal(googleVerdict({ ...zeitgeist, name: "Rolph Playground" }, [result("a", "James Rolph Jr. Playground", 69)]).match.id, "a");
+  assert.equal(googleVerdict({ ...zeitgeist, name: "Mission Creek Park" }, [result("a", "Mission Creek Basketball Court", 20)]).match, null);
+  assert.equal(googleVerdict({ ...zeitgeist, name: "El Trebol #2" }, [result("a", "El TREBOLITO Resturant bar", 7)]).match, null);
 });
 
 test("similarNames: equal, a typo, or one name inside the other, but not a short fragment", () => {
@@ -204,19 +244,19 @@ test("bestPhoto takes the first wide landscape photo of the leading five, else t
   assert.equal(photoMediaUrl(wide.name), "https://places.googleapis.com/v1/places/g1/photos/c/media?maxWidthPx=800");
 });
 
-test("photoOrder merges the lists best first, each list weighted by how much of it people see", () => {
+test("photoOrder merges the lists best first, position by position", () => {
   const { photoOrder, PHOTO_LISTS } = google;
-  assert.deepEqual(PHOTO_LISTS, { all: 60, bars: 40, food: 40, tonight: 30, outdoors: 20 });
+  assert.deepEqual(PHOTO_LISTS, { all: 60, tonight: 60, bars: 60, food: 60, outdoors: 60, events: 60 });
   // An event (null) holds its position; a place in two lists takes its earlier turn.
-  assert.deepEqual(photoOrder({ all: [null, "a", "b", "c"], bars: ["b", "d"], outdoors: ["e"] }), ["b", "a", "d", "e", "c"]);
+  assert.deepEqual(photoOrder({ all: [null, "a", "b", "c"], bars: ["b", "d"], outdoors: ["e"] }), ["b", "e", "a", "d", "c"]);
   const ids = (prefix, n) => Array.from({ length: n }, (_, i) => prefix + i);
-  const order = photoOrder({ all: ids("all", 200), bars: ids("bar", 200), food: ids("food", 200) });
-  const first140 = order.slice(0, 140);
-  assert.deepEqual(["all", "bar", "food"].map((p) => first140.filter((id) => id.startsWith(p)).length), [60, 40, 40]);
+  const order = photoOrder({ all: ids("all", 60), bars: ids("bar", 60), food: ids("food", 60) });
+  const first90 = order.slice(0, 90);
+  assert.deepEqual(["all", "bar", "food"].map((p) => first90.filter((id) => id.startsWith(p)).length), [30, 30, 30]);
   assert.deepEqual(photoOrder({}), []);
 });
 
-test("photo candidates: seeded places first, then the plan; never one with an image, a demo pop-up, or one already checked", async () => {
+test("photo candidates: the plan, then ranked, seeded and the rest by distance; never one with an image, a demo pop-up, closed for good, or already checked", async () => {
   const ctx = fakeCtx();
   ctx.storage = { deleted: [], delete: async (id) => void ctx.storage.deleted.push(id) };
   const place = (over) => ctx.db.insert("places", { name: "P", category: "food", lat: 37.76, lng: -122.39, source: "osm", ...over });
@@ -226,12 +266,21 @@ test("photo candidates: seeded places first, then the plan; never one with an im
   const searchedBefore = await place({ name: "Searched before, no match" });
   const seeded = await place({ name: "Seeded", source: "seed" });
   await place({ name: "Pop-up (demo pop-up)", source: "seed", tags: ["demo", "party"] });
-  await place({ name: "Not in the plan" });
+  await place({ name: "Crane Cove Sunset DJ Set", source: "seed" });
+  await place({ name: "Far away", lat: 37.8 });
+  await place({ name: "Near the centre", lat: 37.7608, lng: -122.3861 });
+  const ranked = await place({ name: "Ranked", lat: 37.9 });
+  await place({ name: "Closed for good", permanentlyClosed: true });
+  const userId = await ctx.db.insert("users", { homeCity: "San Francisco" });
+  await ctx.db.insert("rankings", { userId, category: "food", bucket: "loved", position: 1, score: 9, placeId: ranked });
+  // A search by the hours enrichment that found nothing no longer holds a place back.
   await run(google.applyEnrichment, ctx, { patches: [], checked: [searchedBefore] });
   const ids = [planned, matched, handSet, searchedBefore];
   const first = await run(google.photoCandidates, ctx, { ids, limit: 2 });
-  assert.deepEqual([first.places.map((c) => c.name), first.waiting], [["Seeded", "Planned"], 3]);
-  assert.equal((await run(google.photoCandidates, ctx, { ids, limit: 10 })).places[2].googlePlaceId, "g7");
+  assert.deepEqual([first.places.map((c) => c.name), first.waiting, first.tiers], [["Planned", "Has a Google id"], 7, { lists: 3, ranked: 1, seeded: 1, rest: 2 }]);
+  const everything = await run(google.photoCandidates, ctx, { ids, limit: 10 });
+  assert.deepEqual(everything.places.map((c) => c.name), ["Planned", "Has a Google id", "Searched before, no match", "Ranked", "Seeded", "Near the centre", "Far away"]);
+  assert.equal(everything.places[1].googlePlaceId, "g7");
 
   const photo = (n) => ({ storageId: `_storage:${n}`, url: `https://files.test/${n}`, attribution: "Photo: Ana Lopez" });
   assert.deepEqual(await run(google.savePhotoResult, ctx, { placeId: planned, searched: true, settled: true, found: { googlePlaceId: "g1", hours: "24/7" }, photo: photo(1) }), { patched: true, stored: true });
@@ -244,21 +293,138 @@ test("photo candidates: seeded places first, then the plan; never one with an im
   // No photo on Google: settled, so not asked again. A failed download (not settled) is tried again.
   await run(google.savePhotoResult, ctx, { placeId: seeded, searched: true, settled: true });
   await run(google.savePhotoResult, ctx, { placeId: matched, searched: false, settled: false });
-  assert.deepEqual((await run(google.photoCandidates, ctx, { ids, limit: 10 })).places.map((c) => c.name), ["Has a Google id"]);
+  assert.deepEqual((await run(google.photoCandidates, ctx, { ids, limit: 3 })).places.map((c) => c.name), ["Has a Google id", "Searched before, no match", "Ranked"]);
+});
+
+test("the lookup logs are stored as lists, so they can pass the 1024 fields a Convex object may hold", async () => {
+  const ctx = fakeCtx();
+  const ids = [];
+  for (let i = 0; i < 3; i++) ids.push(await ctx.db.insert("places", { name: "P" + i, category: "food", lat: 37.76, lng: -122.39 }));
+  // A log written in the old object form is read, and rewritten as a list.
+  await ctx.db.insert("appConfig", { key: "googleChecked", value: { [ids[0]]: 5 } });
+  await run(google.savePhotoResult, ctx, { placeId: ids[1], searched: true, settled: true, miss: "P1: no results" });
+  await run(google.savePhotoResult, ctx, { placeId: ids[2], searched: true, settled: true, miss: "P2: no results" });
+  const stored = Object.fromEntries(ctx.all("appConfig").map((row) => [row.key, row.value]));
+  for (const key of ["googleChecked", "googlePhotoChecked2", "googlePhotoMissNotes"]) assert.ok(Array.isArray(stored[key]), key);
+  assert.deepEqual(stored.googleChecked.map(([id]) => id).sort(), [...ids].sort());
+  assert.deepEqual(stored.googlePhotoMissNotes, [[ids[1], "P1: no results"], [ids[2], "P2: no results"]]);
+  assert.deepEqual((await run(google.photoMisses, ctx, {})).noMatch, ["P1: no results", "P2: no results"]);
+  assert.deepEqual((await run(google.photoCandidates, ctx, { ids, limit: 5 })).places.map((c) => c.name), ["P0"]);
 });
 
 test("the photo budget counts each request before it is made and refuses at the cap", async () => {
   const ctx = fakeCtx();
   const { MAX_PHOTO_LOOKUPS, MAX_PHOTO_FETCHES } = google;
-  assert.deepEqual([MAX_PHOTO_LOOKUPS, MAX_PHOTO_FETCHES], [250, 250]);
-  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 0, photos: 0, maxLookups: 250, maxPhotos: 250 });
+  assert.deepEqual([MAX_PHOTO_LOOKUPS, MAX_PHOTO_FETCHES], [1500, 4800]);
+  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 0, photos: 0, maxLookups: 1500, maxPhotos: 4800 });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "lookup" }), { ok: true });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
   const row = ctx.all("appConfig").find((c) => c.key === "googlePhotoBudget");
-  await ctx.db.patch(row._id, { value: { lookups: 250, photos: 249 } });
+  await ctx.db.patch(row._id, { value: { lookups: 1500, photos: 4799 } });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "lookup" }), { ok: false });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: false });
-  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 250, photos: 250, maxLookups: 250, maxPhotos: 250 });
+  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 1500, photos: 4800, maxLookups: 1500, maxPhotos: 4800 });
+});
+
+test("the dollar ceiling: no Google request is counted that would take the spend past $100", async () => {
+  const ctx = fakeCtx();
+  const { MAX_GOOGLE_USD, MAX_AREA_SEARCHES, googleSpendUsd } = google;
+  assert.deepEqual([MAX_GOOGLE_USD, MAX_AREA_SEARCHES], [100, 600]);
+  assert.equal(Math.round(googleSpendUsd({ lookups: 1500, photos: 1180 }) * 100) / 100, 60.76);
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "search", count: 3 }), { granted: 3 });
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "photo", count: 20 }), { granted: 20 });
+  assert.deepEqual(await run(google.googleSpend, ctx, {}), { lookups: 0, searches: 3, photos: 20, maxLookups: 1500, maxSearches: 600, maxPhotos: 4800, usd: 0.25, maxUsd: 100 });
+  const row = ctx.all("appConfig").find((c) => c.key === "googlePhotoBudget");
+  // $99.988 spent: one more photo fits ($0.007 each), a second would not, and a search ($0.035) does not.
+  await ctx.db.patch(row._id, { value: { lookups: 2000, searches: 298, photos: 2794 } });
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "search", count: 1 }), { granted: 0 });
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "photo", count: 20 }), { granted: 1 });
+  assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: false });
+  assert.ok((await run(google.googleSpend, ctx, {})).usd <= 100);
+  // And each kind has its own cap as well.
+  await ctx.db.patch(row._id, { value: { lookups: 0, searches: 599, photos: 0 } });
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "search", count: 5 }), { granted: 1 });
+});
+
+test("Google area import: a result becomes a row with the app's category, and the grid covers the circle nearest first", async () => {
+  const area = await load("imports/googleArea");
+  const base = { id: "g1", displayName: { text: "Zeitgeist" }, location: { latitude: 37.77, longitude: -122.4221 }, businessStatus: "OPERATIONAL" };
+  const row = area.areaRow({
+    ...base, primaryType: "bar", types: ["bar", "beer_garden", "point_of_interest", "establishment"], formattedAddress: "199 Valencia St, San Francisco, CA 94103, USA",
+    rating: 4.4, userRatingCount: 5312, priceLevel: "PRICE_LEVEL_INEXPENSIVE", websiteUri: "https://www.zeitgeistsf.com/", nationalPhoneNumber: "(415) 255-7505",
+    regularOpeningHours: results[0].regularOpeningHours,
+  });
+  assert.deepEqual(row, {
+    googleId: "g1", name: "Zeitgeist", lat: 37.77, lng: -122.4221, closed: false, category: "nightlife", subcategory: "bar", tags: ["beer garden"],
+    address: "199 Valencia St, San Francisco, CA 94103", city: "San Francisco", hours: "Mo-Su 09:00-02:00", priceLevel: 1,
+    website: "https://www.zeitgeistsf.com/", phone: "(415) 255-7505", rating: 4.4, ratingCount: 5312,
+  });
+  const kind = (primaryType, types) => { const r = area.areaRow({ ...base, primaryType, types }); return r && [r.category, r.subcategory]; };
+  assert.deepEqual(kind("night_club", ["night_club", "bar"]), ["nightlife", "nightclub"]);
+  assert.deepEqual(kind("mexican_restaurant", ["mexican_restaurant", "restaurant", "bar"]), ["food", "mexican restaurant"]);
+  assert.deepEqual(kind("park", ["park"]), ["outdoors", "park"]);
+  assert.equal(kind("tourist_attraction", ["tourist_attraction"]), null);
+  assert.deepEqual(kind("comedy_club", ["comedy_club"]), ["live", "comedy club"]);
+  assert.equal(kind("gas_station", ["gas_station"]), null);
+  assert.equal(area.areaRow({ ...base, primaryType: "bar", businessStatus: "CLOSED_TEMPORARILY" }), null);
+  assert.equal(area.areaRow({ ...base, primaryType: "bar", displayName: undefined }), null);
+
+  const cells = area.areaCells(37.7608, -122.3861, 2500, 450);
+  assert.deepEqual(cells[0], { lat: 37.7608, lng: -122.3861 });
+  assert.ok(cells.length > 50 && cells.length < 80, String(cells.length));
+  const ring = area.areaCells(37.7608, -122.3861, 6000, 800, 2500);
+  assert.ok(ring.length > 50 && ring.length < 110, String(ring.length));
+  assert.deepEqual(area.nearbyBody(cells[0], 450, "nightlife").includedPrimaryTypes.slice(0, 2), ["bar", "night_club"]);
+  assert.deepEqual(area.nearbyBody(cells[0], 450, "food").includedTypes, ["restaurant", "cafe", "bakery"]);
+  assert.equal(area.nearbyBody(cells[0], 450, "food").locationRestriction.circle.radius, 450);
+});
+
+test("Google area import: known places only have their gaps filled, new ones are inserted once, closed ones are hidden", async () => {
+  const area = await load("imports/googleArea");
+  const ctx = fakeCtx();
+  const place = (over) => ctx.db.insert("places", { name: "P", category: "nightlife", lat: 37.77, lng: -122.4221, source: "osm", ...over });
+  const zeitgeist = await place({ name: "Zeitgeist", hours: "Mo-Su 10:00-02:00", imageUrl: "https://hand.example/z.jpg" });
+  const closedDown = await place({ name: "Elbo Room", lat: 37.7701 });
+  const row = (googleId, name, over = {}) => ({ googleId, name, lat: 37.77005, lng: -122.4221, closed: false, category: "nightlife", subcategory: "bar", tags: [], ...over });
+  const rows = [
+    row("g1", "Zeitgeist", { hours: "24/7", rating: 4.4, ratingCount: 10, website: "https://z.example" }),
+    row("g2", "Elbo Room", { closed: true }),
+    row("g3", "Brand New Bar", { address: "1 Main St, San Francisco, CA 94103", city: "San Francisco", rating: 4.8, ratingCount: 240 }),
+    row("g4", "Gone Before We Knew It", { closed: true, ratingCount: 900 }),
+    row("g5", "Lobby Sculpture", { rating: 5, ratingCount: 2 }),
+    row("g6", "Zeitgeist", { ratingCount: 500 }),
+  ];
+  const saved = await run(area.saveAreaResults, ctx, { rows });
+  assert.deepEqual(saved.map((r) => [r.outcome, r.needsPhoto]), [["matched", false], ["closed", false], ["inserted", true], ["skipped", false], ["skipped", false], ["skipped", false]], "few ratings, and a second pin for a place already tied to Google, are left out");
+  const [z, e, fresh] = ctx.all("places");
+  assert.deepEqual([z.hours, z.website, z.externalRating, z.googlePlaceId, z.source, z.imageUrl], ["Mo-Su 10:00-02:00", "https://z.example", 4.4, "g1", "osm", "https://hand.example/z.jpg"]);
+  assert.deepEqual([e.permanentlyClosed, e.googlePlaceId], [true, undefined]);
+  assert.deepEqual([fresh.name, fresh.source, fresh.sourceId, fresh.googlePlaceId, fresh.city, fresh.externalRating, fresh.venueVector.length, fresh.elo], ["Brand New Bar", "google", "g3", "g3", "San Francisco", 4.8, 13, 0]);
+  assert.equal(ctx.all("places").length, 3);
+  // The same results again (a neighbouring cell): nothing is inserted twice.
+  const again = await run(area.saveAreaResults, ctx, { rows });
+  assert.deepEqual(again.map((r) => r.outcome), ["matched", "closed", "known", "skipped", "skipped", "skipped"]);
+  assert.equal(ctx.all("places").length, 3);
+  assert.equal(again[2].placeId, fresh._id);
+  assert.ok(zeitgeist && closedDown);
+});
+
+test("a radius the caller sets is searched as a whole: candidates are spread across it, not just the nearest", async () => {
+  const { spreadCandidates, MAX_CANDIDATES } = await load("lib/discovery");
+  // 1,000 places nearest first; the far half is where the well-known ones are.
+  const pool = Array.from({ length: 1000 }, (_, i) => ({ kind: "place", doc: { _id: "p" + i, externalRating: 4.5, externalRatingCount: i >= 500 ? 2000 : 3 } }));
+  const events = [3, 400, 950].map((at) => ({ kind: "event", doc: { _id: "e" + at } }));
+  for (const [n, at] of [3, 400, 950].entries()) pool.splice(at, 0, events[n]);
+  const picked = spreadCandidates(pool);
+  assert.equal(picked.length, MAX_CANDIDATES);
+  assert.equal(picked[0], pool[0], "the nearest is always in");
+  assert.deepEqual(picked.map((c) => pool.indexOf(c)), picked.map((c) => pool.indexOf(c)).sort((a, b) => a - b), "still nearest first");
+  assert.ok(events.every((event) => picked.includes(event)), "events anywhere in the radius are kept");
+  const far = picked.filter((c) => pool.indexOf(c) >= 500).length;
+  assert.ok(far >= 150, `the well-known far half is represented (${far})`);
+  assert.ok(picked.filter((c) => pool.indexOf(c) < 500).length >= 20, "and so is every ring of the near half");
+  const few = pool.slice(0, 50);
+  assert.equal(spreadCandidates(few), few, "a pool that fits is returned as it is");
 });

@@ -11,14 +11,80 @@ import { colors, fontWeight, layout, palette, ratingColor, spacing } from "../..
 export const GUTTER = layout.gutter;
 
 /** The page background as rgba, for scrims that fade a photo into the page. */
-export const pageFade = (alpha: number) => `rgba(20, 17, 25, ${alpha})`;
+export const pageFade = (alpha: number) => `rgba(255, 255, 255, ${alpha})`;
 
-/** A section's heading: bigger than a card title, smaller than the page's name. */
+const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const OSM_DAYS: Record<string, string> = { Mo: "Mon", Tu: "Tue", We: "Wed", Th: "Thu", Fr: "Fri", Sa: "Sat", Su: "Sun", PH: "Holidays" };
+
+/** An organiser's ALL CAPS title in title case; any other name untouched. */
+export function displayName(name: string): string {
+  const letters = name.replace(/[^A-Za-z]/g, "");
+  if (letters.length < 4) return name;
+  const upper = letters.replace(/[^A-Z]/g, "").length;
+  if (upper / letters.length <= 0.6) return name;
+  return name
+    .toLowerCase()
+    .replace(/(^|[\s\-—(|/"])([a-z])/g, (_m, lead: string, letter: string) => lead + letter.toUpperCase())
+    .replace(/\b(Vs|And|Of|The|At|In|On|For)\b/g, (word, offset: number) => (offset === 0 ? word : word.toLowerCase()))
+    .replace(/\b(\d+)(ers|th|st|nd|rd)\b/gi, (_m, digits: string, tail: string) => digits + tail.toLowerCase())
+    .replace(/\b(dj|nfl|nba|sf|usa|nyc|ai|bbq)\b/gi, (word) => word.toUpperCase());
+}
+
+/** A card's short name: the part before the organiser's " | " or " — " tail, without a closing "!". */
+export function cardName(name: string): string {
+  const head = displayName(name).split(/\s+[|—]\s+/)[0] ?? name;
+  return head.replace(/!+$/, "").trim() || name;
+}
+
+/** An event's day, always with the date: "Sun, Nov 15". */
+export function eventDateLine(ms: number, now: number): string {
+  const date = new Date(ms);
+  const sameYear = date.getFullYear() === new Date(now).getFullYear();
+  return `${DAY_SHORT[date.getDay()]}, ${MONTH_SHORT[date.getMonth()]} ${date.getDate()}${sameYear ? "" : `, ${date.getFullYear()}`}`;
+}
+
+/** The street part of a postal address: the city, state and zip say nothing on a local app. */
+export function streetAddress(address: string): string {
+  const parts = address.split(",").map((part) => part.trim());
+  const first = parts[0] ?? address;
+  // "Pier 70, 420 22nd Street, San Francisco, CA" keeps both leading parts.
+  const second = parts[1] ?? "";
+  return parts.length > 3 && /\d/.test(second) ? `${first}, ${second}` : first || address;
+}
+
+function clock12(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  if (h === undefined || Number.isNaN(h)) return time;
+  const hour = h % 24;
+  const label = `${hour % 12 === 0 ? 12 : hour % 12}${m ? `:${String(m).padStart(2, "0")}` : ""}`;
+  return `${label} ${hour < 12 ? "AM" : "PM"}`;
+}
+
+/** Opening hours in plain words, one line per rule: "Mon to Fri 11 AM to 5 PM". Text it cannot read comes back as is. */
+export function hoursLines(raw: string): string[] {
+  if (/^\s*24\/7\s*$/.test(raw)) return ["Open 24 hours"];
+  if (!/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}/.test(raw)) return [raw];
+  return raw
+    .split(";")
+    .map((rule) => rule.trim())
+    .filter((rule) => rule !== "")
+    .map((rule) =>
+      rule
+        .replace(/\b(Mo|Tu|We|Th|Fr|Sa|Su|PH)\b/g, (day) => OSM_DAYS[day] ?? day)
+        .replace(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/g, (_m, from: string, to: string) => `${clock12(from)} to ${clock12(to)}`)
+        .replace(/([A-Za-z])-([A-Za-z])/g, "$1 to $2")
+        .replace(/,(?=\S)/g, ", ")
+        .replace(/\boff\b/, "closed"),
+    );
+}
+
+/** A section's label: small, bold, uppercase and letter-spaced, as on the home feed. */
 export function SectionTitle({ children, note }: { children: string; note?: string }) {
   return (
     <View style={styles.sectionTitle}>
-      <Text variant="headline" accessibilityRole="header" style={styles.sectionTitleText}>
-        {children}
+      <Text accessibilityRole="header" style={styles.sectionTitleText}>
+        {children.toUpperCase()}
       </Text>
       {note ? (
         <Text muted style={styles.sectionNote}>
@@ -55,15 +121,18 @@ export function Photo({
   category,
   height,
   label,
+  deep,
 }: {
   uri?: string | null;
   category: Category;
   height: number;
   label: string;
+  /** White text sits on it: a deep tint when there is no picture. */
+  deep?: boolean;
 }) {
   return (
     <View accessibilityLabel={uri ? label : undefined}>
-      <VenuePhoto hue={categoryHue(category)} category={category} uri={uri} height={height} style={styles.square} />
+      <VenuePhoto hue={categoryHue(category)} category={category} uri={uri} height={height} deep={deep} style={styles.square} />
     </View>
   );
 }
@@ -134,7 +203,7 @@ export function DetailRow({
   const body = (
     <>
       <View style={styles.detailIcon}>
-        <Glyph name={icon} color={colors.muted} />
+        <Glyph name={icon} color={colors.fg} />
       </View>
       <View style={[styles.detailBody, !last && styles.hairline]}>
         <View style={styles.detailText}>
@@ -147,9 +216,7 @@ export function DetailRow({
         </View>
         {right}
         {action ? (
-          <Text muted style={styles.detailAction}>
-            {action}
-          </Text>
+          <Text style={styles.detailAction}>{action}</Text>
         ) : null}
         {onPress ? <Icon name="chevron" size={14} color={colors.low} /> : null}
       </View>
@@ -170,10 +237,10 @@ export function DetailRow({
 
 const styles = StyleSheet.create({
   sectionTitle: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.md },
-  sectionTitleText: { flexShrink: 1 },
+  sectionTitleText: { flexShrink: 1, color: colors.fg, fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
   sectionNote: { fontSize: 13, lineHeight: 18 },
   tile: { alignItems: "center", justifyContent: "center" },
-  tileText: { color: "#111111", fontWeight: fontWeight.bold, letterSpacing: -0.5, fontVariant: ["tabular-nums"] },
+  tileText: { color: colors.white, fontWeight: fontWeight.bold, letterSpacing: -0.5, fontVariant: ["tabular-nums"] },
   square: { borderRadius: 0 },
   scrim: { position: "absolute", left: 0, right: 0, bottom: 0 },
   detailRow: { flexDirection: "row", alignItems: "stretch", minHeight: 54 },
@@ -182,7 +249,7 @@ const styles = StyleSheet.create({
   detailText: { flex: 1, gap: 2 },
   detailTitle: { fontSize: 15, lineHeight: 21 },
   detailSubtitle: { fontSize: 13, lineHeight: 18 },
-  detailAction: { fontSize: 14, lineHeight: 20 },
-  hairline: { borderBottomWidth: 1, borderBottomColor: palette.hairline },
+  detailAction: { color: colors.accent, fontSize: 14, lineHeight: 20, fontWeight: fontWeight.semibold },
+  hairline: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
   pressed: { opacity: 0.55 },
 });

@@ -19,7 +19,6 @@ type SeedPlace = {
   venueVector: number[];
 };
 
-const DEMO_TAG = "demo";
 const SEED_CITY = "San Francisco";
 
 export const SEED_PLACES: SeedPlace[] = [
@@ -56,11 +55,6 @@ export const SEED_PLACES: SeedPlace[] = [
   { sourceId: "chase-center", name: "Chase Center", category: "live", subcategory: "arena", lat: 37.7679, lng: -122.387422, address: "1 Warriors Way", blurb: "Arena for Warriors games and big touring concerts.", priceLevel: 4, tags: ["arena", "concerts", "sports"], venueVector: vec({ energy: 0.9, loudness: 0.9, crowdAge: 0.55, price: 0.85, dancing: 0.4, liveMusic: 0.9, pop: 0.8, hiphop: 0.6, electronic: 0.3 }) },
   { sourceId: "bottom-of-the-hill", name: "Bottom of the Hill", category: "live", subcategory: "music venue", lat: 37.764962, lng: -122.396411, address: "1233 17th St", blurb: "Long-running small club for indie and rock bands.", priceLevel: 2, tags: ["live music", "indie", "rock"], venueVector: vec({ energy: 0.8, loudness: 0.85, crowdAge: 0.6, price: 0.3, dancing: 0.4, liveMusic: 0.95, indie: 0.95 }) },
 
-  { sourceId: "demo-popup-night-market", name: "Pier 70 Night Market (demo pop-up)", category: "popup", subcategory: "night market", lat: 37.7587, lng: -122.3843, blurb: "Demo pop-up: food stalls and makers outside Building 12.", priceLevel: 2, tags: [DEMO_TAG, "market", "food"], venueVector: vec({ energy: 0.65, loudness: 0.5, crowdAge: 0.65, price: 0.3, liveMusic: 0.3, culture: 0.5, outdoors: 0.5, food: 0.8 }) },
-  { sourceId: "demo-popup-sunset-dj", name: "Crane Cove Sunset DJ Set (demo pop-up)", category: "popup", subcategory: "dj set", lat: 37.7628, lng: -122.3868, blurb: "Demo pop-up: open-air house set on the beach at sunset.", priceLevel: 1, tags: [DEMO_TAG, "dj", "outdoor"], venueVector: vec({ energy: 0.8, loudness: 0.7, crowdAge: 0.75, price: 0.2, dancing: 0.8, electronic: 0.85, outdoors: 0.8 }) },
-  { sourceId: "demo-popup-vinyl-swap", name: "Dogpatch Vinyl Swap (demo pop-up)", category: "popup", subcategory: "record fair", lat: 37.76, lng: -122.3895, blurb: "Demo pop-up: crate digging and local selectors.", priceLevel: 1, tags: [DEMO_TAG, "records"], venueVector: vec({ energy: 0.4, loudness: 0.4, crowdAge: 0.55, price: 0.25, hiphop: 0.4, indie: 0.8, culture: 0.6 }) },
-  { sourceId: "demo-popup-natural-wine", name: "22nd Street Natural Wine Pop-up (demo pop-up)", category: "popup", subcategory: "tasting", lat: 37.7579, lng: -122.388, blurb: "Demo pop-up: small producers pouring by the glass.", priceLevel: 3, tags: [DEMO_TAG, "wine"], venueVector: vec({ energy: 0.4, loudness: 0.3, crowdAge: 0.5, price: 0.55, culture: 0.4, food: 0.5 }) },
-  { sourceId: "demo-popup-hackathon-afterparty", name: "Hackathon Afterparty (demo pop-up)", category: "popup", subcategory: "party", lat: 37.7606, lng: -122.3868, blurb: "Demo pop-up: post-demo party on 20th Street.", priceLevel: 1, tags: [DEMO_TAG, "party"], venueVector: vec({ energy: 0.85, loudness: 0.8, crowdAge: 0.8, price: 0.2, dancing: 0.7, pop: 0.7, hiphop: 0.6, electronic: 0.6 }) },
 ];
 
 export const run = internalMutation({

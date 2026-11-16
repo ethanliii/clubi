@@ -36,6 +36,8 @@ export type NearbyItem = {
   ratingCount?: number;     // how many clubi rankings it has
   // v3, optional: set when imageUrl is a Google Places photo. Show it as small text on or under the image.
   imageAttribution?: string;   // e.g. "Photo: Ana Lopez"
+  // v4, optional: the crowd's average ranking (everyone but me, from the same sample as ratingCount). Totals only.
+  publicScore?: number;
 };
 
 export type NearbyResult = { items: NearbyItem[]; center: { lat: number; lng: number }; algo: string; generatedAt: number; attribution?: string };
