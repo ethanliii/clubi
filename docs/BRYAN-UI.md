@@ -92,6 +92,9 @@ Branch `merge-ui-overhaul` = `main` + `origin/ui-overhaul`. Rule agreed by Bryan
 - `tokens.ts`: `colors` / `palette` = light or dark set (light values = the prototype's light mode). `onboardingColors` = cream Hinge look in light, dark palette in dark. Status bar, both native maps and `app.json` (`userInterfaceStyle: automatic`) follow.
 - Buttons: sun/moon `ThemeToggle` next to the gear on the Profile tab, and Settings → Appearance (Dark / Light).
 
+## Pass 14 (stand-in photos)
+- `src/constants/placeholderPhotos.ts`: free Unsplash photos per category (nightlife, live, food, culture, outdoors, popup), picked per place with a stable seed. Used by `VenueCard`'s `Photo`, `VenuePhoto` (hue-only callers with a category hue), map pins, Spotlight, profile. Real `imageUrl` (Google Places, backend) always wins; the glow placeholder sits underneath if a stand-in fails to load. Quiz covers stay glow-only.
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 
