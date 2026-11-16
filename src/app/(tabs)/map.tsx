@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { FlatList, Keyboard, Platform, Pressable, StyleSheet, Switch, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -156,7 +156,7 @@ export default function MapScreen() {
 
       {searching ? null : (
         <View style={[styles.filters, { top: searchBottom + FILTER_GAP }]}>
-          <FilterChips value={filter} onChange={chooseFilter} />
+          <FilterChips value={filter} onChange={chooseFilter} onFriends={() => router.push("/group-map" as Href)} />
         </View>
       )}
 
@@ -341,7 +341,15 @@ const styles = StyleSheet.create({
   roundPressed: { backgroundColor: palette.field },
 
   sheetHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md, height: SHEET_HEADER - 28 },
-  title: { fontSize: 20, lineHeight: 25, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: colors.fg },
+  // The small bold capitals of a section label, as over the feed.
+  title: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    color: colors.fg,
+  },
   detail: { marginTop: 2, fontSize: 13, lineHeight: 17, color: colors.muted },
   option: {
     flexDirection: "row",

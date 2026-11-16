@@ -5,15 +5,16 @@
  */
 import { useEffect, useState } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
-import { Icon, ScoreBadge, Text } from "../../components";
+import { Icon, Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { formatDistance, formatEventTime, formatScore } from "../../lib/format";
-import { colors, fontWeight, palette, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 import { MapPhoto } from "./MapPhoto";
-import { metaLine } from "./MapRow";
+import { ScoreRing, metaLine } from "./MapRow";
 
-const PHOTO = 132;
-const TEXT = 92;
+const PHOTO = 148;
+const ROUND = 16;
+const TEXT = 88;
 /** The card's height, for the map to keep the picked pin clear of it. */
 export const PEEK_CARD_HEIGHT = PHOTO + TEXT;
 
@@ -54,7 +55,7 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
                 {item.why}
               </Text>
             </View>
-            <ScoreBadge score={item.score} size="lg" />
+            <ScoreRing score={item.score} />
           </View>
         </Pressable>
         <Pressable
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
   // The shadow sits on an outer box: the card itself clips its photo to the rounded corners.
   shadow: {
     height: PEEK_CARD_HEIGHT,
-    borderRadius: radius.xl,
+    borderRadius: ROUND,
     backgroundColor: colors.bg,
     shadowColor: colors.black,
     shadowOpacity: 0.2,
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 10,
   },
-  card: { flex: 1, borderRadius: radius.xl, overflow: "hidden", backgroundColor: colors.bg },
+  card: { flex: 1, borderRadius: ROUND, overflow: "hidden", backgroundColor: colors.bg },
   pressed: { opacity: 0.88 },
   text: {
     height: TEXT,
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg - 2,
   },
   titles: { flex: 1, minWidth: 0, gap: 2 },
-  name: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: colors.fg },
+  name: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: colors.fg },
   meta: { fontSize: 13, lineHeight: 17, color: colors.muted },
   when: { fontSize: 13, lineHeight: 17, color: colors.accent, fontWeight: fontWeight.semibold },
   why: { fontSize: 13, lineHeight: 17, color: colors.muted },

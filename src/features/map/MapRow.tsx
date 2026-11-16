@@ -3,13 +3,16 @@
  * reason, what and how far, and the score. Everything shown is the `NearbyItem` as returned.
  */
 import { Pressable, StyleSheet, View } from "react-native";
-import { ScoreBadge, Text } from "../../components";
+import { Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
-import { colors, fontSize, fontWeight, palette, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, ratingColor, spacing } from "../../theme";
 import { MapPhoto } from "./MapPhoto";
 
-export const ROW_PHOTO = 68;
+export const ROW_PHOTO = 60;
+/** One rounding for every photo on the map screen. */
+export const PHOTO_ROUND = 10;
+const RING = 44;
 /** Every row is this tall, so the list can be sized to show whole rows. */
 export const ROW_HEIGHT = ROW_PHOTO + spacing.md * 2;
 
@@ -18,6 +21,16 @@ export function metaLine(item: NearbyItem): string {
   return [categoryLabel(item.category, item.subcategory), formatPrice(item.priceLevel), formatDistance(item.distanceMeters)]
     .filter((part) => part !== "")
     .join(" · ");
+}
+
+/** The score as on a feed post: the number in its rating colour inside a thin grey ring. */
+export function ScoreRing({ score }: { score: number }) {
+  const text = formatScore(score);
+  return (
+    <View accessibilityLabel={`Score ${text} out of 10`} style={styles.ring}>
+      <Text style={[styles.ringText, { color: ratingColor(score) }]}>{text}</Text>
+    </View>
+  );
 }
 
 export function MapRow({
@@ -40,7 +53,7 @@ export function MapRow({
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      <MapPhoto item={item} width={ROW_PHOTO} height={ROW_PHOTO} round={radius.lg - 2} />
+      <MapPhoto item={item} width={ROW_PHOTO} height={ROW_PHOTO} round={PHOTO_ROUND} />
       <View style={[styles.body, !last && styles.divider]}>
         <View style={styles.text}>
           <Text numberOfLines={1} style={styles.name}>
@@ -54,10 +67,7 @@ export function MapRow({
             {item.why}
           </Text>
         </View>
-        {/* The badge aligns itself to the top of whatever holds it; this holds it in the middle of the row. */}
-        <View>
-          <ScoreBadge score={item.score} />
-        </View>
+        <ScoreRing score={item.score} />
       </View>
     </Pressable>
   );
@@ -77,7 +87,18 @@ const styles = StyleSheet.create({
   },
   divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
   text: { flex: 1, gap: 2 },
-  name: { fontSize: fontSize.bodyLg, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  ring: {
+    width: RING,
+    height: RING,
+    borderRadius: RING / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: palette.hairline,
+    backgroundColor: colors.bg,
+  },
+  ringText: { fontSize: 15, lineHeight: 19, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
   why: { fontSize: 13, lineHeight: 17, color: colors.muted },
   meta: { fontSize: 13, lineHeight: 17, color: colors.muted },
   when: { fontSize: 13, lineHeight: 17, color: colors.accent, fontWeight: fontWeight.semibold },
