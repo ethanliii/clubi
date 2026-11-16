@@ -3,7 +3,7 @@ import { Image, StyleSheet, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import type { NearbyItem } from "../../../convex/lib/contract";
 import { Text, VenuePhoto } from "../../components/bryan";
-import { colors, ratingColor } from "../../theme";
+import { colors, ratingColor, isLight } from "../../theme";
 import type { MapSurfaceProps } from "./types";
 
 const CATEGORY_ICON: Record<string, string> = { nightlife: "🍸", food: "🍴", culture: "🏛", outdoors: "🌳", live: "🎵", popup: "✨" };
@@ -22,6 +22,7 @@ export function MapSurface({ items, center, selectedId, onSelect, recenterKey }:
       style={StyleSheet.absoluteFill}
       initialRegion={{ latitude: center.lat, longitude: center.lng, latitudeDelta: 0.03, longitudeDelta: 0.03 }}
       showsUserLocation
+      userInterfaceStyle={isLight ? "light" : "dark"}
       onPress={() => onSelect(null)}
     >
       {items.map((item) => (

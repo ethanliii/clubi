@@ -1,4 +1,6 @@
-export const colors = {
+import { isLight } from "./mode";
+
+const DARK = {
   page: "#0b0a0f",
   bg: "#141119",
   surface: "#1e1a26",
@@ -13,7 +15,28 @@ export const colors = {
   ok: "#4fd08f",
   white: "#ffffff",
   black: "#000000",
-} as const;
+};
+
+/** Bryan's light theme (same values as the prototype's light mode). */
+const LIGHT: typeof DARK = {
+  page: "#efede8",
+  bg: "#faf9f6",
+  surface: "#ffffff",
+  raised: "#f0eee9",
+  line: "#e3e0d9",
+  fg: "#1b1a1f",
+  muted: "#7a7680",
+  accent: "#e8457f",
+  accentSoft: "#fde4ee",
+  mid: "#f0a32e",
+  low: "#9a96a0",
+  ok: "#2fae6e",
+  white: "#ffffff",
+  black: "#000000",
+};
+
+/** The colors for the mode picked at startup (see theme/mode.ts). */
+export const colors = isLight ? LIGHT : DARK;
 
 export const spacing = {
   xxs: 2,
@@ -56,7 +79,7 @@ export const fontWeight = {
 // ---------------------------------------------------------------------------------------------
 
 /** Extra colours: quiet fills, the destructive red, and text that sits on photos. */
-export const palette = {
+const PALETTE_DARK = {
   /** A filled control resting on the page: inputs, secondary buttons, unselected chips. */
   field: "#1d1924",
   fieldPressed: "#28222f",
@@ -71,7 +94,22 @@ export const palette = {
   /** Dark glass behind a control that floats on a photo or the map. */
   glass: "rgba(12,10,16,0.62)",
   backdrop: "rgba(0,0,0,0.6)",
-} as const;
+};
+
+const PALETTE_LIGHT: typeof PALETTE_DARK = {
+  field: "#f0eee9",
+  fieldPressed: "#e6e3dc",
+  hairline: "rgba(0,0,0,0.07)",
+  soft: "#4a4652",
+  danger: "#d64545",
+  dangerSoft: "#fde4e4",
+  onPhoto: "#ffffff",
+  onPhotoMuted: "rgba(255,255,255,0.85)",
+  glass: "rgba(250,249,246,0.86)",
+  backdrop: "rgba(0,0,0,0.4)",
+};
+
+export const palette = isLight ? PALETTE_LIGHT : PALETTE_DARK;
 
 /** The type scale. `Text` variants use these; reach for a variant before a raw size. */
 export const type = {

@@ -11,7 +11,7 @@ import { paths } from "../lib/links";
 import { OVERLORD_USERNAMES, setOverlord, useOverlord } from "../lib/overlord";
 import { OnboardingProvider, useOnboarding } from "../state/onboarding";
 import { SessionProvider, useSession } from "../state/session";
-import { colors } from "../theme";
+import { colors, isLight } from "../theme";
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
   unsavedChangesWarning: false,
@@ -46,7 +46,7 @@ export default function RootLayout() {
             </ToastProvider>
           </View>
         </View>
-        <StatusBar style="light" />
+        <StatusBar style={isLight ? "dark" : "light"} />
         </OnboardingProvider>
       </SessionProvider>
     </ConvexAuthProvider>

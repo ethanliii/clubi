@@ -18,7 +18,7 @@ import {
 import { api, type NotifPrefs, type Visibility } from "../lib/api";
 import { useDemoLocation } from "../lib/demoLocation";
 import { errorMessage } from "../lib/errors";
-import { radius, spacing } from "../theme";
+import { radius, setThemeMode, spacing, themeMode } from "../theme";
 
 const VISIBILITY: { value: Visibility; label: string }[] = [
   { value: "friends", label: "Friends" },
@@ -117,6 +117,16 @@ export default function SettingsScreen() {
                   onValueChange={(on) => void toggle({ notifPrefs: { ...settings.notifPrefs, [item.key]: on } })}
                 />
               ))}
+            </SettingsGroup>
+
+            <SettingsGroup title="Appearance" footer="The app restarts to switch.">
+              <View style={{ padding: 12 }}>
+                <Segmented
+                  options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]}
+                  value={themeMode}
+                  onChange={(m) => setThemeMode(m)}
+                />
+              </View>
             </SettingsGroup>
 
             <SettingsGroup

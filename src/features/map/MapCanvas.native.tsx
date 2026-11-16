@@ -10,7 +10,7 @@ import Svg, { Path } from "react-native-svg";
 import { Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
-import { colors, fontWeight } from "../../theme";
+import { colors, fontWeight, isLight } from "../../theme";
 import { DARK_MAP_STYLE } from "./darkMapStyle";
 import { layoutPins, scaleForRegion, type PinMode } from "./pinLayout";
 import { PIN, START_LAT_DELTA, bubbleSize, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_LAT_DELTA } from "./pinLook";
@@ -84,9 +84,9 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       ref={mapRef}
       style={StyleSheet.absoluteFill}
       initialRegion={initialRegion}
-      userInterfaceStyle="dark"
+      userInterfaceStyle={isLight ? "light" : "dark"}
       mapType={Platform.OS === "ios" ? "mutedStandard" : "standard"}
-      customMapStyle={Platform.OS === "android" ? DARK_MAP_STYLE : undefined}
+      customMapStyle={Platform.OS === "android" && !isLight ? DARK_MAP_STYLE : undefined}
       // Keeps the camera's center, and the map maker's own logo and legal link, clear of the search bar and the list.
       mapPadding={{ top: padding.top, right: 0, bottom: padding.bottom, left: 0 }}
       showsPointsOfInterests={false}

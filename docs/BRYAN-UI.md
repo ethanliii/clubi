@@ -87,6 +87,11 @@ Branch `merge-ui-overhaul` = `main` + `origin/ui-overhaul`. Rule agreed by Bryan
 - Two lint-only suppressions in Ethan's `MapCanvas.web.tsx` / `MapSheet.tsx` (React Compiler false positives that also fail on his branch).
 - **Not taken (Bryan's display wins):** Ethan's restyled venue page (`features/venue/VenuePage`: I'm going, Get tickets, performers, More like this) and his precise-pin native map. Worth folding into Bryan's venue page / map later.
 
+## Pass 13 (light / dark mode)
+- `src/theme/mode.ts`: the choice is read synchronously at startup (SecureStore `getItem`, localStorage on web), default dark. Switching saves it and reloads the app (`DevSettings.reload()`; a production build will need `expo-updates` `reloadAsync`), because every StyleSheet is built once at startup.
+- `tokens.ts`: `colors` / `palette` = light or dark set (light values = the prototype's light mode). `onboardingColors` = cream Hinge look in light, dark palette in dark. Status bar, both native maps and `app.json` (`userInterfaceStyle: automatic`) follow.
+- Buttons: sun/moon `ThemeToggle` next to the gear on the Profile tab, and Settings → Appearance (Dark / Light).
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 
