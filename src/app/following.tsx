@@ -1,9 +1,10 @@
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { View } from "react-native";
-import { EmptyState, Screen, SkeletonRows, TextField } from "../components";
+import { EmptyState, Screen, SkeletonRows } from "../components";
+import { ArtistSearch } from "../features/performers/ArtistSearch";
 import { PerformerRow } from "../features/performers/PerformerRow";
-import { ScreenTop } from "../features/trips/ScreenTop";
+import { ScreenTop, SectionLabel } from "../features/trips/ScreenTop";
 import { api } from "../lib/api";
 import { useDebounced } from "../lib/useDebounced";
 import { useNow } from "../lib/useNow";
@@ -20,15 +21,7 @@ export default function FollowingScreen() {
   return (
     <Screen>
       <ScreenTop title="Following" />
-      <TextField
-        placeholder="Search artists"
-        value={input}
-        onChangeText={setInput}
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="search"
-        clearButtonMode="while-editing"
-      />
+      <ArtistSearch value={input} onChangeText={setInput} />
 
       {searching ? (
         results === undefined ? (
@@ -37,6 +30,7 @@ export default function FollowingScreen() {
           <EmptyState title={`No artists found for "${text}".`} body="Try another spelling, or part of the name." icon="search" />
         ) : (
           <View>
+            <SectionLabel title="Artists" count={results.length} />
             {results.map((performer) => (
               <PerformerRow key={performer.performerId} performer={performer} now={now} />
             ))}
@@ -52,6 +46,7 @@ export default function FollowingScreen() {
         />
       ) : (
         <View>
+          <SectionLabel title="Artists you follow" count={following.length} />
           {following.map((performer) => (
             <PerformerRow key={performer.performerId} performer={performer} now={now} />
           ))}

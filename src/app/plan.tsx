@@ -8,20 +8,23 @@ import { Face, FaceRow } from "../features/trips/Faces";
 import { FriendChips, toggleId } from "../features/trips/FriendChips";
 import { MemberScores } from "../features/trips/MemberScores";
 import { PlaceRow } from "../features/trips/PlaceCard";
-import { FieldLabel, ScreenTop } from "../features/trips/ScreenTop";
+import { FieldLabel, ScreenTop, SectionLabel } from "../features/trips/ScreenTop";
 import { VibeChips, type Vibe } from "../features/trips/vibes";
 import { api, type Id, type PlanResult } from "../lib/api";
+import { pluralize } from "../lib/format";
 import { useDemoLocation } from "../lib/demoLocation";
 import { useNow } from "../lib/useNow";
 import { useMe } from "../state/session";
 import { colors, fontWeight, radius, spacing } from "../theme";
 
 /** One step of the night on the timeline: the dot and line on the left, the stop on the right. */
-function Step({ last, children }: { last: boolean; children: ReactNode }) {
+function Step({ last, index, children }: { last: boolean; index: number; children: ReactNode }) {
   return (
     <View style={styles.step}>
       <View style={styles.rail}>
-        <View style={styles.dot} />
+        <View style={styles.dot}>
+          <Text style={styles.dotText}>{index + 1}</Text>
+        </View>
         {last ? null : <View style={styles.line} />}
       </View>
       <View style={[styles.stepBody, !last && styles.stepGap]}>{children}</View>
@@ -33,7 +36,7 @@ function StopsSkeleton() {
   return (
     <View accessibilityRole="progressbar" accessibilityLabel="Loading">
       {[0, 1, 2].map((index) => (
-        <Step key={index} last={index === 2}>
+        <Step key={index} index={index} last={index === 2}>
           <Skeleton width={72} height={14} />
           <Skeleton height={84} round={radius.md + 2} />
         </Step>
@@ -134,6 +137,7 @@ export default function PlanScreen() {
         <VibeChips value={vibe ?? shown?.vibe} onChange={setVibe} />
       </View>
 
+      <SectionLabel title="Tonight" note={shown && shown.stops.length > 0 ? pluralize(shown.stops.length, "stop", "stops") : undefined} />
       {shown === undefined ? (
         <StopsSkeleton />
       ) : shown.stops.length === 0 ? (
@@ -141,7 +145,7 @@ export default function PlanScreen() {
       ) : (
         <View style={updating && styles.updating}>
           {shown.stops.map((stop, index) => (
-            <Step key={stop.id} last={index === shown.stops.length - 1}>
+            <Step key={stop.id} index={index} last={index === shown.stops.length - 1}>
               <Text style={styles.slot}>{stop.slotLabel}</Text>
               <PlaceRow item={stop} now={now}>
                 <MemberScores scores={stop.memberScores} meId={me?.userId} />
@@ -154,8 +158,8 @@ export default function PlanScreen() {
   );
 }
 
-const RAIL = 16;
-const DOT = 10;
+const RAIL = 24;
+const DOT = 24;
 
 const styles = StyleSheet.create({
   group: { gap: spacing.sm + 2 },
@@ -165,10 +169,11 @@ const styles = StyleSheet.create({
   updating: { opacity: 0.5 },
   step: { flexDirection: "row", gap: spacing.md },
   rail: { width: RAIL, alignItems: "center" },
-  // The dot sits on the slot label's line; the line runs from it down to the next dot.
-  dot: { width: DOT, height: DOT, borderRadius: DOT / 2, marginTop: 4, backgroundColor: colors.accent },
-  line: { flex: 1, width: 2, marginTop: 4, marginBottom: -4, borderRadius: 1, backgroundColor: colors.line },
-  stepBody: { flex: 1, gap: spacing.sm },
+  // The numbered dot sits on the slot label's line; the line runs from it down to the next dot.
+  dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: colors.fg, alignItems: "center", justifyContent: "center" },
+  dotText: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, color: colors.white, fontVariant: ["tabular-nums"] },
+  line: { flex: 1, width: 2, marginVertical: 4, borderRadius: 1, backgroundColor: colors.line },
+  stepBody: { flex: 1, gap: spacing.sm + 2 },
   stepGap: { paddingBottom: spacing.xl },
-  slot: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.accent },
+  slot: { fontSize: 15, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.1, color: colors.fg },
 });
