@@ -1,9 +1,10 @@
 import { Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, Loading, Text, useToast } from "../../components";
+import { Button, Loading, Text } from "../../components";
+import { SyncContactsCard } from "../../features/friends/SyncContactsCard";
 import { pickedTags } from "../../features/onboarding/quizCards";
 import { forgetQuizResult, lastQuizResult } from "../../features/onboarding/quizResult";
 import { Rise } from "../../features/onboarding/Rise";
@@ -21,7 +22,6 @@ import { colors, fontWeight, layout, palette, radius } from "../../theme";
 export default function TasteCard() {
   const me = useMe();
   const { finishOnboarding } = useSession();
-  const toast = useToast();
   // Read once: "Let's go" forgets the result, and the card must not change while it closes.
   const [saved] = useState(lastQuizResult);
 
@@ -84,20 +84,7 @@ export default function TasteCard() {
           </Rise>
           {/* Bryan's "Sync your contacts" card. Matching numbers is not built yet, and the card says so. */}
           <Rise delay={600}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Sync your contacts"
-              onPress={() => toast("Contact sync is coming soon. For now, find friends by username.")}
-              style={({ pressed }) => [styles.sync, pressed && styles.syncPressed]}
-            >
-              <View style={styles.syncText}>
-                <Text style={styles.syncTitle}>Sync your contacts</Text>
-                <Text variant="caption" muted>
-                  See which friends are already here. Numbers are matched privately.
-                </Text>
-              </View>
-              <Text style={styles.syncAction}>Sync</Text>
-            </Pressable>
+            <SyncContactsCard />
           </Rise>
         </ScrollView>
       )}
@@ -146,14 +133,6 @@ const styles = StyleSheet.create({
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tag: { height: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: palette.field, justifyContent: "center" },
   tagText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
-  sync: {
-    flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radius.xl,
-    backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line,
-  },
-  syncPressed: { opacity: 0.7 },
-  syncText: { flex: 1, gap: 3 },
-  syncTitle: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
-  syncAction: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold, color: colors.accent },
   footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 12 },
   go: { minHeight: 54 },
 });

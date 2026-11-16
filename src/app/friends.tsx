@@ -8,6 +8,7 @@ import { pluralize } from "../lib/format";
 import { useDebounced } from "../lib/useDebounced";
 import { useMutationToast } from "../lib/useMutationToast";
 import { colors, fontWeight, spacing } from "../theme";
+import { SyncContactsCard } from "../features/friends/SyncContactsCard";
 
 /** How many suggestions show before "See all", so the friends list is not pushed off the screen. */
 const SUGGESTION_PREVIEW = 3;
@@ -222,7 +223,14 @@ export default function FriendsScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        {searching ? <SearchResults text={debounced} /> : <Overview overview={overview} suggestions={suggestions} />}
+        {searching ? (
+          <SearchResults text={debounced} />
+        ) : (
+          <>
+            <SyncContactsCard />
+            <Overview overview={overview} suggestions={suggestions} />
+          </>
+        )}
       </ScrollView>
     </Screen>
   );
