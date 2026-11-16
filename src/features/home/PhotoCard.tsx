@@ -11,8 +11,8 @@ export type CardShape = "large" | "medium";
 
 /** The photo's size. The name and the grey line sit under it at the same width. */
 export const CARD_SIZES: Record<CardShape, { width: number; height: number }> = {
-  large: { width: 286, height: 162 },
-  medium: { width: 224, height: 136 },
+  large: { width: 300, height: 168 },
+  medium: { width: 210, height: 140 },
 };
 export const CARD_ROUND = 14;
 
@@ -48,7 +48,7 @@ export function PhotoCard({ item, shape, now }: { item: NearbyItem; shape: CardS
             </View>
           ) : null}
         </View>
-        <ScoreBadge score={item.score} size={shape === "large" ? "md" : "sm"} />
+        <ScoreBadge score={item.score} size="sm" />
       </View>
     </Pressable>
   );
@@ -57,9 +57,9 @@ export function PhotoCard({ item, shape, now }: { item: NearbyItem; shape: CardS
 const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   flex: { flex: 1 },
-  under: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingTop: 10 },
+  under: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingTop: 8 },
   copy: { flex: 1, gap: 2 },
-  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  name: { fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
   meta: { fontSize: 13, lineHeight: 18, color: colors.muted },
   friends: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
 });

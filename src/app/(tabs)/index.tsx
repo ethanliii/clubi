@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EmptyState, Icon, IconButton, Text } from "../../components";
 import { CardRow } from "../../features/home/CardRow";
@@ -37,17 +37,23 @@ export default function Home() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <View style={styles.flex}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Near you. Open the map"
+            onPress={openMap}
+            style={({ pressed }) => [styles.flex, styles.place, pressed && styles.pressed]}
+          >
             <View style={styles.where}>
-              <Icon name="navigate" size={13} color={colors.muted} />
-              <Text numberOfLines={1} style={styles.date}>
-                Near you · {today}
+              <Icon name="navigate" size={15} color={colors.accent} />
+              <Text numberOfLines={1} style={styles.heading}>
+                Near you
               </Text>
+              <Icon name="chevronDown" size={16} color={colors.fg} />
             </View>
-            <Text accessibilityRole="header" numberOfLines={1} style={styles.heading}>
-              Tonight
+            <Text numberOfLines={1} style={styles.date}>
+              Tonight · {today}
             </Text>
-          </View>
+          </Pressable>
           <IconButton
             icon="bell"
             size={44}
@@ -96,7 +102,6 @@ export default function Home() {
             <CardRow
               title="Events tonight"
               items={tonight?.events}
-              shape="large"
               gutter={GUTTER}
               now={now}
               moreLabel="See tonight's events on the map"
@@ -121,9 +126,11 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: GUTTER, paddingTop: 6, paddingBottom: 32, gap: 10 },
   flex: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 2 },
-  where: { flexDirection: "row", alignItems: "center", gap: 5 },
-  date: { flex: 1, fontSize: 13, lineHeight: 18, color: colors.muted },
-  heading: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.6, color: colors.fg },
-  rows: { gap: 22, marginTop: 8 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 4 },
+  place: { minHeight: 44, justifyContent: "center" },
+  pressed: { opacity: 0.6 },
+  where: { flexDirection: "row", alignItems: "center", gap: 6 },
+  date: { fontSize: 13, lineHeight: 18, color: colors.muted },
+  heading: { flexShrink: 1, fontSize: 18, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: colors.fg },
+  rows: { gap: 26, marginTop: 10 },
 });

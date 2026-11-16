@@ -36,7 +36,7 @@ export function Shortcuts({
 
 function Pill({ label, icon, onPress }: { label: string; icon: IconName; onPress: () => void }) {
   return (
-    // The pill looks 38 tall; the pressable around it is 44.
+    // The pill looks 36 tall; the pressable around it is 44.
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.hit}>
       {({ pressed }) => (
         <View style={[styles.pill, pressed && styles.pressed]}>
@@ -58,8 +58,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    height: 38,
-    borderRadius: 19,
+    height: 36,
+    borderRadius: 18,
     paddingHorizontal: 14,
     backgroundColor: palette.field,
   },
