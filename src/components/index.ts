@@ -21,5 +21,6 @@ export * from "./Meter";
 export * from "./SectionHeader";
 export * from "./Sheet";
 export * from "./Splash";
+export * from "./TabHeader";
 export * from "./TextField";
 export * from "./Toast";
