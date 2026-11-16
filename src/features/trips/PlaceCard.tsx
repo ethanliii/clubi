@@ -100,7 +100,12 @@ export function PlaceCard({
   );
 }
 
-const THUMB = 84;
+const THUMB = 72;
+
+/** The row is narrow, so its grey line is only "Wine bar · 970 m"; the price moves down beside the reason. */
+function rowMeta(item: NearbyItem): string {
+  return [categoryLabel(item.category, item.subcategory), formatDistance(item.distanceMeters)].filter((part) => part !== "").join(" · ");
+}
 
 /**
  * The same place as a compact row: a square photo, the name in bold, one grey line, the reason,
@@ -118,14 +123,14 @@ export function PlaceRow({ item, now, children }: { item: NearbyItem; now: numbe
       >
         <PlacePhoto uri={item.imageUrl} category={item.category} height={THUMB} width={THUMB} round={radius.md + 2} />
         <View style={styles.text}>
-          <Text numberOfLines={2} style={styles.rowName}>
+          <Text numberOfLines={1} style={styles.rowName}>
             {item.name}
           </Text>
           <Text muted numberOfLines={1} style={styles.meta}>
-            {when ? `${when} · ${metaLine(item)}` : metaLine(item)}
+            {when ? `${when} · ${rowMeta(item)}` : rowMeta(item)}
           </Text>
-          <Text numberOfLines={2} style={styles.why}>
-            {item.why}
+          <Text numberOfLines={1} style={styles.why}>
+            {[formatPrice(item.priceLevel), item.why].filter((part) => part !== "").join(" · ")}
           </Text>
         </View>
         <ScoreBadge score={item.score} />
@@ -173,6 +178,6 @@ const styles = StyleSheet.create({
   foot: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 44 },
   people: { flex: 1 },
   rowWrap: { gap: spacing.sm },
-  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   rowName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
 });

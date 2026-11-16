@@ -9,7 +9,7 @@ const SLOT = 68;
 
 /**
  * One person as a face with their first name under it. With `onPress` it is a button; with
- * `selected` set (true or false) it is a tick box: the pink ring and tick mean "picked".
+ * `selected` set (true or false) it is a tick box: the black ring and tick mean "picked".
  */
 export function Face({
   name,
@@ -37,14 +37,14 @@ export function Face({
   const body = (
     <>
       <View style={[styles.ring, selected && styles.ringOn]}>
-        <Avatar name={name} uri={uri} size={FACE} style={dim ? styles.dim : undefined} />
+        <Avatar name={name} uri={uri} size={FACE} style={dim ? styles.dim : selected === false ? styles.off : undefined} />
         {selected ? (
           <View style={styles.tick}>
             <Icon name="check" size={12} color={colors.white} />
           </View>
         ) : null}
       </View>
-      <Text numberOfLines={1} style={[styles.name, dim && styles.nameDim]}>
+      <Text numberOfLines={1} style={[styles.name, (dim || selected === false) && styles.nameDim]}>
         {label ?? name.split(" ")[0]}
       </Text>
       {caption ? (
@@ -126,8 +126,10 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
     marginBottom: 2,
   },
-  ringOn: { borderColor: colors.accent },
+  ringOn: { borderColor: colors.fg },
   dim: { opacity: 0.55 },
+  // A tick box that is not ticked: clearly quieter than the picked faces beside it.
+  off: { opacity: 0.45 },
   tick: {
     position: "absolute",
     right: -2,
@@ -135,7 +137,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.fg,
     borderWidth: 2,
     borderColor: colors.bg,
     alignItems: "center",

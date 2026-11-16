@@ -20,7 +20,7 @@ export default function FollowingScreen() {
 
   return (
     <Screen>
-      <ScreenTop title="Following" />
+      <ScreenTop title="Artists you follow" />
       <ArtistSearch value={input} onChangeText={setInput} />
 
       {searching ? (
@@ -41,12 +41,12 @@ export default function FollowingScreen() {
       ) : following.length === 0 ? (
         <EmptyState
           icon="music"
-          title="Follow an artist and we'll tell you when they're in town."
-          body="Search by name above, or rank a show you loved."
+          title="No artists yet"
+          body="Follow an artist and we'll tell you when they're in town."
         />
       ) : (
         <View>
-          <SectionLabel title="Artists you follow" count={following.length} />
+          <SectionLabel title="Following" count={following.length} />
           {following.map((performer) => (
             <PerformerRow key={performer.performerId} performer={performer} now={now} />
           ))}

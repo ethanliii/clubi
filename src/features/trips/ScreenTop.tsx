@@ -32,8 +32,8 @@ export function FieldLabel({ children }: { children: string }) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "baseline", gap: 8 },
-  title: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
+  title: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.6 },
   aside: { fontSize: 13, lineHeight: 18 },
   // The same small bold capitals as a section label.
-  field: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.8, textTransform: "uppercase", color: colors.fg },
+  field: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.6, textTransform: "uppercase", color: colors.fg },
 });

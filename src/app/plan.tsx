@@ -1,12 +1,13 @@
 import { useQuery } from "convex/react";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useState, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
-import { EmptyState, ErrorBoundary, goBack, Screen, Skeleton, Text } from "../components";
+import { Pressable, Share, StyleSheet, View } from "react-native";
+import { Button, EmptyState, ErrorBoundary, goBack, Icon, Screen, Skeleton, Text } from "../components";
 import { citySpot } from "../features/trips/city";
 import { Face, FaceRow } from "../features/trips/Faces";
 import { FriendChips, toggleId } from "../features/trips/FriendChips";
 import { MemberScores } from "../features/trips/MemberScores";
+import { Page } from "../features/trips/Page";
 import { PlaceRow } from "../features/trips/PlaceCard";
 import { FieldLabel, ScreenTop, SectionLabel } from "../features/trips/ScreenTop";
 import { VibeChips, type Vibe } from "../features/trips/vibes";
@@ -15,7 +16,8 @@ import { pluralize } from "../lib/format";
 import { useDemoLocation } from "../lib/demoLocation";
 import { useNow } from "../lib/useNow";
 import { useMe } from "../state/session";
-import { colors, fontWeight, radius, spacing } from "../theme";
+import { paths } from "../lib/links";
+import { colors, fontWeight, palette, radius, spacing } from "../theme";
 
 /** One step of the night on the timeline: the dot and line on the left, the stop on the right. */
 function Step({ last, index, children }: { last: boolean; index: number; children: ReactNode }) {
@@ -38,7 +40,7 @@ function StopsSkeleton() {
       {[0, 1, 2].map((index) => (
         <Step key={index} index={index} last={index === 2}>
           <Skeleton width={72} height={14} />
-          <Skeleton height={84} round={radius.md + 2} />
+          <Skeleton height={72} round={radius.md + 2} />
         </Step>
       ))}
     </View>
@@ -110,13 +112,44 @@ function PlanLoader() {
 
   const you = me ? <Face name={me.displayName} uri={me.avatarUrl} label="You" selected /> : undefined;
 
+  const stops = shown?.stops ?? [];
+  // The plan as plain words, for the share sheet: "Start: The Plant", one stop per line.
+  const sharePlan = () => {
+    const lines = stops.map((stop) => `${stop.slotLabel}: ${stop.name}`);
+    void Share.share({ message: [trip ? trip.name : "Tonight's plan", ...lines].join("\n") }).catch(() => undefined);
+  };
+
   return (
-    <Screen>
+    <Page
+      footer={
+        stops.length > 0 ? (
+          <View style={styles.footer}>
+            <Button
+              title="Open on the map"
+              accessibilityLabel="Open on the map"
+              icon="map"
+              onPress={() => router.push(tripId ? (`/group-map?tripId=${tripId}` as Href) : paths.groupMap)}
+              style={styles.open}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share this plan"
+              onPress={sharePlan}
+              style={({ pressed }) => [styles.share, pressed && styles.pressed]}
+            >
+              <Icon name="share" size={20} color={colors.fg} />
+            </Pressable>
+          </View>
+        ) : undefined
+      }
+    >
       <View style={styles.top}>
         <ScreenTop title="Plan my night" />
-        <Text muted style={styles.sub}>
-          {tripId && trip ? `Three stops for ${trip.name}` : "Three stops, picked for whoever is coming."}
-        </Text>
+        {tripId && trip ? (
+          <Text muted style={styles.sub}>
+            {`Three stops for ${trip.name}`}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.group}>
@@ -172,7 +205,7 @@ function PlanLoader() {
           ))}
         </View>
       )}
-    </Screen>
+    </Page>
   );
 }
 
@@ -181,6 +214,10 @@ const DOT = 24;
 
 const styles = StyleSheet.create({
   group: { gap: spacing.sm + 2 },
+  footer: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
+  open: { flex: 1, width: "auto", backgroundColor: colors.fg },
+  share: { width: 50, height: 50, borderRadius: 25, backgroundColor: palette.field, alignItems: "center", justifyContent: "center" },
+  pressed: { opacity: 0.6 },
   top: { gap: spacing.xs + 2 },
   sub: { fontSize: 15 },
   loadingFaces: { flexDirection: "row", gap: spacing.md },
@@ -192,6 +229,6 @@ const styles = StyleSheet.create({
   dotText: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, color: colors.white, fontVariant: ["tabular-nums"] },
   line: { flex: 1, width: 2, marginVertical: 4, borderRadius: 1, backgroundColor: colors.line },
   stepBody: { flex: 1, gap: spacing.sm + 2 },
-  stepGap: { paddingBottom: spacing.xl },
+  stepGap: { paddingBottom: spacing.lg + 2 },
   slot: { fontSize: 15, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.1, color: colors.fg },
 });
