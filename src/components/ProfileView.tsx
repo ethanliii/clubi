@@ -81,7 +81,7 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
             {topSpots.map(({ list, item }) => (
               <Pressable key={list.category} onPress={() => openVenue(item!)} style={styles.spot}>
                 <View style={styles.spotImg}>
-                  {item!.imageUrl ? <Image source={{ uri: item!.imageUrl }} style={StyleSheet.absoluteFill} /> : <Photo item={{ category: list.category }} height={110} />}
+                  {item!.imageUrl ? <Image source={{ uri: item!.imageUrl }} style={StyleSheet.absoluteFill} /> : <Photo item={{ category: list.category, id: item!.id }} height={110} />}
                   <View style={styles.cellTag}><Text style={styles.cellText}>{item!.score.toFixed(1)}</Text></View>
                 </View>
                 <Text style={{ fontWeight: "700" }} numberOfLines={1}>{item!.name}</Text>
@@ -112,7 +112,7 @@ export function ProfileView({ profile }: { profile: ProfileResult }) {
               <View style={styles.grid}>
                 {profile.recentPosts.map((p) => (
                   <Pressable key={String(p.postId)} onPress={() => router.push(postPath(String(p.postId)))} onLongPress={user.isMe ? () => togglePin(p.postId) : undefined} style={styles.cell}>
-                    {p.photoUrls[0] ? <Image source={{ uri: p.photoUrls[0] }} style={StyleSheet.absoluteFill} /> : <Photo item={{ category: p.target.category }} height={140} />}
+                    {p.photoUrls[0] ? <Image source={{ uri: p.photoUrls[0] }} style={StyleSheet.absoluteFill} /> : <Photo item={{ category: p.target.category, id: p.target.id }} height={140} />}
                     <View style={styles.cellTag}><Text style={styles.cellText}>{p.score.toFixed(1)}</Text></View>
                   </Pressable>
                 ))}

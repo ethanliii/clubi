@@ -41,7 +41,7 @@ export default function Quiz() {
       body: () =>
         SONGS.map((s, i) => (
           <View key={s.title} style={styles.row}>
-            <VenuePhoto hue={s.hue} height={44} style={styles.cover} />
+            <VenuePhoto hue={s.hue} height={44} glowOnly style={styles.cover} />
             <View style={styles.flex}>
               <Text style={styles.strong}>{s.title}</Text>
               <Text variant="caption" style={styles.muted}>{s.artist} · {s.genre}</Text>
@@ -73,7 +73,7 @@ export default function Quiz() {
             {THIS_OR_THAT[k]!.map((label, j) => (
               <Pressable key={label} accessibilityRole="button" accessibilityLabel={label}
                 onPress={() => update((x) => ({ thisOrThat: [...x.thisOrThat, j as 0 | 1] }))}>
-                <VenuePhoto hue={[320, 40, 20, 265, 290, 10, 330, 160][k * 2 + j]!} height={150} />
+                <VenuePhoto hue={[320, 40, 20, 265, 290, 10, 330, 160][k * 2 + j]!} height={150} glowOnly />
                 <Text style={styles.ttLabel}>{label}</Text>
               </Pressable>
             ))}

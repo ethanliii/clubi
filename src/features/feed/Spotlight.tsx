@@ -80,7 +80,7 @@ export function Spotlight({ posts, onSeeAll, onComments }: { posts: FeedItem[]; 
             {item.photoUrls[0] ? (
               <Image source={{ uri: item.photoUrls[0] }} style={StyleSheet.absoluteFill} />
             ) : (
-              <View style={StyleSheet.absoluteFill}><Photo item={{ category: item.target.category }} height={cardH} /></View>
+              <View style={StyleSheet.absoluteFill}><Photo item={{ category: item.target.category, id: item.target.id }} height={cardH} /></View>
             )}
             <View style={styles.shade} />
             <Pressable style={styles.who} onPress={() => router.push({ pathname: "/user/[userId]", params: { userId: String(item.author.userId) } })}>

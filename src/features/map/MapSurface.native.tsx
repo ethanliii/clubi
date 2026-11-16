@@ -58,7 +58,7 @@ function Pin({ item, selected, onLoaded }: { item: NearbyItem; selected: boolean
         {item.imageUrl ? (
           <Image source={{ uri: item.imageUrl }} style={{ width: "100%", height: "100%" }} onLoad={onLoaded} onError={onLoaded} />
         ) : (
-          <VenuePhoto hue={CATEGORY_HUE[item.category] ?? 300} height={size} style={{ borderRadius: 0 }} />
+          <VenuePhoto hue={CATEGORY_HUE[item.category] ?? 300} category={item.category} seed={String(item.id)} height={size} style={{ borderRadius: 0 }} />
         )}
       </View>
       <View style={styles.iconBubble}>
