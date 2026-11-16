@@ -331,9 +331,11 @@ export default function Quiz() {
           ) : (
             <View style={styles.back} />
           )}
-          <Pressable accessibilityRole="button" accessibilityLabel="Sign out" disabled={busy} onPress={() => void leave()}
-            style={({ pressed }) => [styles.signOut, (pressed || busy) && styles.dimmed]}>
-            <Text style={styles.signOutText}>Sign out</Text>
+          {/* Skip is always here, on every question. */}
+          <Pressable accessibilityRole="button" accessibilityLabel={isLast ? "Skip and finish" : "Skip"} disabled={busy}
+            onPress={() => void next(true)} hitSlop={10}
+            style={({ pressed }) => [styles.skipTop, (pressed || busy) && styles.dimmed]}>
+            <Text style={styles.skipTopText}>{isLast ? "Skip and finish" : "Skip"}</Text>
           </Pressable>
         </View>
         <QuizProgress step={step} total={steps.length} />
@@ -360,13 +362,12 @@ export default function Quiz() {
           buttonStyle={styles.next}
           onPress={() => void next()}
         />
-        {s.done ? (
-          <Text variant="caption" muted center>Shapes your matches, not your profile</Text>
-        ) : (
-          <Pressable accessibilityRole="button" accessibilityLabel="Skip this question" disabled={busy} onPress={() => void next(true)} hitSlop={8}>
-            <Text style={styles.skip}>{isLast ? "Skip and finish" : "Skip this question"}</Text>
+        <View style={styles.footRow}>
+          <Text variant="caption" muted>Shapes your matches, not your profile</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Sign out" disabled={busy} onPress={() => void leave()} hitSlop={8}>
+            <Text style={styles.signOutText}>Sign out</Text>
           </Pressable>
-        )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -444,6 +445,9 @@ const styles = StyleSheet.create({
   footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 10 },
   fade: { position: "absolute", left: 0, right: 0, top: -28, height: 28, pointerEvents: "none" },
   next: { minHeight: 54 },
+  skipTop: { minWidth: 76, height: 44, paddingHorizontal: 14, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: palette.field },
+  skipTopText: { color: colors.fg, fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold },
+  footRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   skip: { color: colors.muted, fontSize: 14, lineHeight: 20, fontWeight: fontWeight.semibold, textAlign: "center", textDecorationLine: "underline" },
   tot: { gap: 10, marginTop: 4 },
   totCard: { minHeight: 120, borderRadius: radius.lg, padding: 20, justifyContent: "center", gap: 6, backgroundColor: palette.field, borderWidth: 2, borderColor: "transparent" },
