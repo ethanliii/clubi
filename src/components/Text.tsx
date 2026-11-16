@@ -1,7 +1,7 @@
 import { Text as RNText, StyleSheet, type TextProps as RNTextProps } from "react-native";
 import { colors, palette, type } from "../theme";
 
-type Variant = "display" | "heading" | "headline" | "title" | "bodyLg" | "body" | "caption" | "label";
+type Variant = "display" | "heading" | "headline" | "title" | "bodyLg" | "body" | "caption" | "label" | "overline";
 
 export type TextProps = RNTextProps & {
   /**
@@ -36,6 +36,8 @@ const styles = StyleSheet.create({
   caption: type.caption,
   // Was tiny, uppercase and letter-spaced. Now a calm sentence-case label.
   label: { ...type.label, color: colors.muted },
+  // The small bold uppercase section label ("YOUR FEED").
+  overline: { fontSize: 13, lineHeight: 18, fontWeight: "800", letterSpacing: 0.7, textTransform: "uppercase" },
   soft: { color: palette.soft },
   muted: { color: colors.muted },
   center: { textAlign: "center" },

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, fontWeight } from "../theme";
+import { colors, fontWeight, palette } from "../theme";
 import { initials } from "../lib/format";
 import { Text } from "./Text";
 
@@ -30,7 +30,7 @@ export function Avatar({ name, uri, size = 40, style }: AvatarProps) {
       style={[styles.base, shape, { backgroundColor: `hsl(${hueOf(name)}, 48%, 90%)` }, style]}
     >
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.image} onError={() => setFailedUri(imageUri)} />
+        <Image source={{ uri: imageUri }} resizeMode="cover" style={[styles.image, { borderRadius: size / 2 }]} onError={() => setFailedUri(imageUri)} />
       ) : (
         <Text
           style={[styles.initials, { fontSize: size * 0.36, lineHeight: size * 0.46, color: `hsl(${hueOf(name)}, 42%, 34%)` }]}
@@ -38,6 +38,7 @@ export function Avatar({ name, uri, size = 40, style }: AvatarProps) {
           {initials(name)}
         </Text>
       )}
+      <View style={[styles.hairline, { borderRadius: size / 2 }]} />
     </View>
   );
 }
@@ -75,8 +76,10 @@ export function AvatarStack({ people, max = 3, size = 24 }: AvatarStackProps) {
 }
 
 const styles = StyleSheet.create({
-  // A photo, or initials on a deep tint of the person's own colour. Only stacks get a ring.
-  base: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  // A photo, or initials on a deep tint of the person's own colour.
+  base: { alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0, flexGrow: 0 },
+  // A hairline drawn over the photo's edge, so a pale photo still reads as a circle on white.
+  hairline: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.hairline, pointerEvents: "none" },
   image: { width: "100%", height: "100%" },
   initials: { fontWeight: fontWeight.semibold, letterSpacing: 0.2 },
   stack: { flexDirection: "row", alignItems: "center" },

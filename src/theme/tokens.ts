@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 export const colors = {
   page: "#ececef",
   bg: "#ffffff",
@@ -58,8 +60,8 @@ export const fontWeight = {
 /** Extra colours: quiet fills, the destructive red, and text that sits on photos. */
 export const palette = {
   /** A filled control resting on the page: inputs, secondary buttons, unselected chips. */
-  field: "#f3f3f5",
-  fieldPressed: "#e8e8ec",
+  field: "#f0f0f2",
+  fieldPressed: "#e6e6ea",
   /** A hairline that is quieter than `colors.line`, for dividers between rows. */
   hairline: "rgba(17,17,20,0.08)",
   /** Second-level text: readable, but clearly below the title. */
@@ -113,3 +115,13 @@ export const scrim = {
 
 /** How long things take to fade or press. */
 export const motion = { fast: 120, base: 220, slow: 360 } as const;
+
+/** The serif used for the wordmark only. Spread into a text style. */
+export const wordmark = {
+  fontFamily: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" }),
+  fontWeight: "700",
+  letterSpacing: -0.6,
+} as const;
+
+/** The reference's post layout: avatar, score ring and the thin lines between posts. */
+export const feed = { avatar: 60, scoreRing: 44, iconSize: 26 } as const;

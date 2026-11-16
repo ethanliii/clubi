@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, palette, spacing } from "../theme";
-import { Icon } from "./Icon";
+import { colors, spacing } from "../theme";
 import { Text } from "./Text";
 
 export type SectionHeaderProps = {
@@ -27,14 +26,13 @@ export function SectionHeader({
   return (
     <View style={[styles.row, style]}>
       <Text
-        variant="headline"
         accessibilityRole="header"
         accessibilityLabel={count === undefined ? title : `${title} (${count})`}
         style={styles.title}
         numberOfLines={1}
       >
         {title}
-        {count === undefined ? null : <Text variant="headline" style={styles.count}>{`  ${count}`}</Text>}
+        {count === undefined ? null : <Text style={[styles.title, styles.count]}>{`  ${count}`}</Text>}
       </Text>
       {actionLabel && onAction ? (
         <Pressable
@@ -45,9 +43,6 @@ export function SectionHeader({
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >
           <Text style={styles.actionText}>{actionLabel}</Text>
-          <View style={styles.arrow}>
-            <Icon name="chevron" size={13} color={colors.fg} />
-          </View>
         </Pressable>
       ) : null}
     </View>
@@ -55,12 +50,11 @@ export function SectionHeader({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 32 },
-  title: { flex: 1 },
-  count: { color: colors.low, fontWeight: "600" },
-  action: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 32 },
-  // The small round arrow that says a row of cards goes on.
-  arrow: { width: 28, height: 28, borderRadius: 14, backgroundColor: palette.field, alignItems: "center", justifyContent: "center", paddingLeft: 1 },
-  actionText: { color: colors.fg, fontWeight: "600" },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 28 },
+  // Small, bold, uppercase and letter-spaced: the label names the section without competing with it.
+  title: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: "800", letterSpacing: 0.7, textTransform: "uppercase", color: colors.fg },
+  count: { flex: 0, color: colors.low, fontWeight: "700" },
+  action: { flexDirection: "row", alignItems: "center", minHeight: 28, paddingLeft: spacing.md },
+  actionText: { fontSize: 14, lineHeight: 18, color: colors.fg, fontWeight: "700", letterSpacing: 0.2 },
   pressed: { opacity: 0.5 },
 });
