@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { EmptyState, Header, Icon, Screen, Text } from "../../components";
 import { SpotRow, SpotRowsSkeleton } from "../../features/rate/SpotRow";
@@ -10,7 +10,7 @@ import { ratePath } from "../../lib/links";
 import { useDebounced } from "../../lib/useDebounced";
 import { useKeptQuery } from "../../lib/useKeptQuery";
 import { useNearby } from "../../lib/useNearby";
-import { colors, fontSize, radius, spacing } from "../../theme";
+import { colors, palette, spacing } from "../../theme";
 
 /** How many nearby places to offer before the user types anything. */
 const SUGGESTIONS = 15;
@@ -25,15 +25,36 @@ export default function RateScreen() {
   const found = useKeptQuery(api.places.search, ready && text.length >= 2 ? { text, lat, lng } : "skip", text);
 
   // While the box and the debounced text disagree, the old results are for something else: show loading.
-  const results: NearbyItem[] | undefined = searching ? (text === input.trim() ? found : undefined) : nearby?.items.slice(0, SUGGESTIONS);
+  // An event that has not started cannot be ranked yet, so it is not offered.
+  const [now] = useState(() => Date.now());
+  const happened = (item: NearbyItem) => item.startsAt === undefined || item.startsAt <= now;
+  const results: NearbyItem[] | undefined = searching
+    ? text === input.trim()
+      ? found?.filter(happened)
+      : undefined
+    : nearby?.items.filter(happened).slice(0, SUGGESTIONS);
 
-  const pick = (item: NearbyItem) => router.push(ratePath(item.kind, item.id));
+  // Coming back to this tab after a flow was opened from it: a clean box, not the last search.
+  const left = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (left.current) {
+        left.current = false;
+        setInput("");
+      }
+    }, []),
+  );
+
+  const pick = (item: NearbyItem) => {
+    left.current = true;
+    router.push(ratePath(item.kind, item.id));
+  };
 
   return (
     <Screen scroll={false}>
       <Header title="Rank a spot" back={false} />
       <View style={styles.search}>
-        <Icon name="search" size={20} color={colors.muted} />
+        <Icon name="search" size={16} color={colors.muted} />
         <TextInput
           placeholder="Where did you go?"
           accessibilityLabel="Where did you go?"
@@ -54,7 +75,7 @@ export default function RateScreen() {
             onPress={() => setInput("")}
             style={({ pressed }) => [styles.clear, pressed && styles.pressed]}
           >
-            <Icon name="close" size={12} color={colors.bg} />
+            <Icon name="close" size={10} color={colors.bg} />
           </Pressable>
         ) : null}
       </View>
@@ -90,24 +111,24 @@ const styles = StyleSheet.create({
   search: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm + 2,
-    height: 50,
-    paddingHorizontal: spacing.md + 2,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+    gap: spacing.sm,
+    height: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: 10,
+    backgroundColor: palette.field,
   },
   // 16 keeps iOS Safari from zooming the page when the box is focused.
-  input: { flex: 1, height: 50, fontSize: fontSize.bodyLg, color: colors.fg },
+  input: { flex: 1, height: 44, fontSize: 16, color: colors.fg },
   clear: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.muted,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.low,
     alignItems: "center",
     justifyContent: "center",
   },
   pressed: { opacity: 0.6 },
   list: { flex: 1 },
   listContent: { paddingBottom: spacing.xl },
-  hint: { fontSize: 13, lineHeight: 17, fontWeight: "800", letterSpacing: 0.9, color: colors.fg, paddingTop: spacing.xs, paddingBottom: spacing.xs },
+  hint: { fontSize: 12, lineHeight: 16, fontWeight: "800", letterSpacing: 0.9, color: colors.fg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
 });

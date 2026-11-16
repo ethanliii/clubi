@@ -2,10 +2,10 @@ import { useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Icon, Text, type IconName } from "../../components";
 import { categoryLabel } from "../../lib/format";
-import type { VenueDetail, Visibility } from "../../lib/api";
+import type { Bucket, VenueDetail, Visibility } from "../../lib/api";
 import { colors, fontWeight, palette, radius, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
-import { noFocusRing, PlacePhoto, type } from "./ui";
+import { BUCKET_LOOK, noFocusRing, PlacePhoto, type } from "./ui";
 import type { DraftPhoto } from "./usePhotoDraft";
 
 /** The suggested tags from docs/UI-SPEC.md section 6, step 4. Tap only, no typing. */
@@ -86,7 +86,7 @@ function Row({
   );
 }
 
-/** Step 4. One sheet of rows: notes, photos, labels, who can see it. Then "Post". */
+/** Step 4. The place and what was said about it, the photo, then rows: notes, labels, who can see it. Then "Post". */
 export function DetailsStep({
   venue,
   draft,
@@ -95,7 +95,7 @@ export function DetailsStep({
   onAddPhoto,
   onRemovePhoto,
   shownVisibility,
-  keepsVisibility,
+  bucket,
   posting,
   onPost,
   onBack,
@@ -108,7 +108,8 @@ export function DetailsStep({
   onRemovePhoto: () => void;
   /** The choice drawn as picked. null on a re-rank the user has not touched: the post keeps its setting. */
   shownVisibility: Visibility | null;
-  keepsVisibility: boolean;
+  /** The answer to "How was it?", shown under the place's name. */
+  bucket: Bucket | null;
   posting: boolean;
   onPost: () => void;
   onBack: () => void;
@@ -144,11 +145,55 @@ export function DetailsStep({
           <Text numberOfLines={1} style={styles.placeName}>
             {venue.name}
           </Text>
-          <Text numberOfLines={1} style={type.meta}>
-            {categoryLabel(venue.category, venue.subcategory)}
-          </Text>
+          <View style={styles.placeMeta}>
+            {bucket ? (
+              <>
+                <View style={[styles.dot, { backgroundColor: BUCKET_LOOK[bucket].color }]} />
+                <Text numberOfLines={1} style={styles.bucket}>
+                  {BUCKET_LOOK[bucket].short}
+                </Text>
+              </>
+            ) : null}
+            <Text numberOfLines={1} style={[type.meta, styles.placeKind]}>
+              {bucket ? `· ${categoryLabel(venue.category, venue.subcategory)}` : categoryLabel(venue.category, venue.subcategory)}
+            </Text>
+          </View>
         </View>
       </View>
+
+      {/* The photo comes first: one square tile to add it, or the photo itself with a small x. */}
+      {photo === null ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add a photo"
+          accessibilityState={{ disabled: posting }}
+          disabled={posting}
+          onPress={onAddPhoto}
+          style={({ pressed }) => [styles.addPhoto, pressed && styles.dimmed]}
+        >
+          <Icon name="camera" size={24} color={colors.muted} />
+          <Text style={styles.addPhotoText}>Add photo</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.photoTile}>
+          <Image source={{ uri: photo.uri }} resizeMode="cover" accessibilityLabel="Your photo" style={styles.photoImage} />
+          {uploading ? (
+            <View style={styles.thumbBusy}>
+              <ActivityIndicator size="small" color={colors.white} />
+            </View>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Remove"
+            disabled={posting}
+            hitSlop={10}
+            onPress={onRemovePhoto}
+            style={({ pressed }) => [styles.remove, pressed && styles.dimmed]}
+          >
+            <Icon name="close" size={12} color={colors.white} />
+          </Pressable>
+        </View>
+      )}
 
       <View style={styles.sheet}>
         <Row
@@ -183,36 +228,8 @@ export function DetailsStep({
           </View>
         ) : null}
 
-        {photo === null ? (
-          <Row icon="camera" label="Add photos" disabled={posting} onPress={onAddPhoto} />
-        ) : (
-          <View style={[styles.row, styles.rowLine]}>
-            <Icon name="camera" size={22} color={colors.fg} />
-            <Text numberOfLines={1} style={styles.rowLabel}>
-              {uploading ? "Uploading photo…" : "1 photo"}
-            </Text>
-            <View style={styles.thumb}>
-              <Image source={{ uri: photo.uri }} resizeMode="cover" accessibilityLabel="Your photo" style={styles.thumbImage} />
-              {uploading ? (
-                <View style={styles.thumbBusy}>
-                  <ActivityIndicator size="small" color={colors.white} />
-                </View>
-              ) : null}
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Remove"
-              disabled={posting}
-              onPress={onRemovePhoto}
-              style={({ pressed }) => [styles.remove, pressed && styles.dimmed]}
-            >
-              <Icon name="close" size={16} color={colors.muted} />
-            </Pressable>
-          </View>
-        )}
-
         <Row
-          icon="check"
+          icon="list"
           label={draft.tags.length === 0 ? "Add labels" : "Labels"}
           value={open === "labels" ? undefined : draft.tags.join(", ")}
           open={open === "labels"}
@@ -220,7 +237,7 @@ export function DetailsStep({
           onPress={() => toggle("labels")}
         />
         {open === "labels" ? (
-          <View style={[styles.panel, styles.tags, styles.rowLine]}>
+          <View style={[styles.tags, styles.rowLine]}>
             {TAGS.map((tag) => {
               const on = draft.tags.includes(tag);
               return (
@@ -243,7 +260,7 @@ export function DetailsStep({
         <Row
           icon={who?.icon ?? "users"}
           label="Who can see this"
-          value={who?.label ?? (keepsVisibility ? "Unchanged" : undefined)}
+          value={who?.label}
           open={open === "who"}
           disabled={posting}
           last
@@ -272,9 +289,6 @@ export function DetailsStep({
                 </Pressable>
               );
             })}
-            {keepsVisibility && shownVisibility === null ? (
-              <Text style={[type.meta, styles.keeps]}>Your post keeps its current setting unless you pick one.</Text>
-            ) : null}
           </View>
         ) : null}
       </View>
@@ -286,12 +300,32 @@ const NOTE_MIN = 88;
 // A browser measures the box's padding with the text; a phone measures the text alone.
 const NOTE_ROOM = Platform.OS === "web" ? 0 : spacing.sm;
 const INDENT = 22 + spacing.md + 2;
+const PHOTO_TILE = 96;
 
 const styles = StyleSheet.create({
   dimmed: { opacity: 0.6 },
 
   place: { flexDirection: "row", alignItems: "center", gap: spacing.md + 2 },
   placeText: { flex: 1, gap: 2 },
+  placeMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
+  placeKind: { flexShrink: 1 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  bucket: { fontSize: 14, lineHeight: 19, fontWeight: fontWeight.semibold, color: colors.fg },
+
+  addPhoto: {
+    width: PHOTO_TILE,
+    height: PHOTO_TILE,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: colors.low,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  addPhotoText: { fontSize: 12, lineHeight: 16, color: colors.muted },
+  photoTile: { width: PHOTO_TILE, height: PHOTO_TILE, borderRadius: 12, overflow: "hidden", backgroundColor: colors.surface },
+  photoImage: { width: PHOTO_TILE, height: PHOTO_TILE },
   placeName: { fontSize: 20, lineHeight: 25, fontWeight: "800", letterSpacing: -0.4, color: colors.fg },
 
   sheet: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
@@ -314,8 +348,6 @@ const styles = StyleSheet.create({
   },
   counter: { textAlign: "right", paddingTop: spacing.xs },
 
-  thumb: { width: 44, height: 44, borderRadius: radius.md, overflow: "hidden", backgroundColor: colors.surface, marginLeft: "auto" },
-  thumbImage: { width: 44, height: 44 },
   thumbBusy: {
     position: "absolute",
     top: 0,
@@ -326,12 +358,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: palette.backdrop,
   },
-  remove: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginRight: -12 },
+  remove: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: palette.backdrop,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  tags: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingBottom: spacing.md + 2 },
   tag: {
-    minHeight: 44,
-    paddingHorizontal: 14,
+    minHeight: 36,
+    paddingHorizontal: 12,
     borderRadius: radius.pill,
     backgroundColor: palette.field,
     alignItems: "center",
@@ -345,5 +387,4 @@ const styles = StyleSheet.create({
   choice: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 48 },
   choiceText: { flex: 1, fontSize: 16, lineHeight: 21, color: colors.fg },
   choiceTextOn: { fontWeight: fontWeight.bold },
-  keeps: { paddingVertical: spacing.sm },
 });

@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Button, Icon, Text } from "../../components";
+import { Button, Text } from "../../components";
 import type { InsightAnswer, InsightQuestion } from "../../lib/api";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
 import { createTapGuard } from "./tapGuard";
 import { Rise } from "./ui";
 
 /**
  * Step 6. One question at a time, tap only. A single-pick question moves on by itself; a
- * multi-pick one waits for "Next". "Skip" leaves a question out. "Done" hands over only what was answered.
+ * multi-pick one waits for "Next". "Skip" (top right) leaves a question out. "Done" hands over only what was answered.
  */
 export function QuestionsStep({
   questions,
@@ -65,11 +65,7 @@ export function QuestionsStep({
     else next();
   };
 
-  const primary = isLast ? (
-    <BusyButton title="Done" accessibilityLabel="Done" busy={sending} onPress={() => onDone(answersFrom(picks))} style={styles.primary} />
-  ) : question.multi ? (
-    <Button title="Next" accessibilityLabel="Next" onPress={next} style={styles.primary} />
-  ) : null;
+  const nothingPicked = picked.length === 0;
 
   return (
     <FlowScreen
@@ -78,19 +74,37 @@ export function QuestionsStep({
       sub={question.multi ? "Pick any that fit." : undefined}
       progress={{ current: index + 1, total: questions.length }}
       back={false}
-      right={<Button title="Skip all" accessibilityLabel="Skip all" variant="link" disabled={sending} onPress={onSkipAll} style={styles.skipAll} />}
+      right={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Skip"
+          accessibilityState={{ disabled: sending }}
+          disabled={sending}
+          hitSlop={8}
+          onPress={skip}
+          style={({ pressed }) => [styles.skip, pressed && styles.pressed]}
+        >
+          <Text style={styles.skipText}>Skip</Text>
+        </Pressable>
+      }
       footer={
-        <View style={styles.buttons}>
-          <Button
-            title="Skip"
-            accessibilityLabel="Skip"
-            variant={primary ? "ghost" : "link"}
+        <>
+          {isLast ? (
+            <BusyButton title="Done" accessibilityLabel="Done" busy={sending} disabled={nothingPicked} onPress={() => onDone(answersFrom(picks))} />
+          ) : (
+            <Button title="Next" accessibilityLabel="Next" disabled={nothingPicked} onPress={next} />
+          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Skip all"
+            accessibilityState={{ disabled: sending }}
             disabled={sending}
-            onPress={skip}
-            style={primary ? styles.skip : styles.skipAlone}
-          />
-          {primary}
-        </View>
+            onPress={onSkipAll}
+            style={({ pressed }) => [styles.skipAll, pressed && styles.pressed]}
+          >
+            <Text style={styles.skipAllText}>Skip all</Text>
+          </Pressable>
+        </>
       }
     >
       {/* The key gives every card fresh buttons and replays the entrance. */}
@@ -108,13 +122,6 @@ export function QuestionsStep({
               style={({ pressed }) => [styles.option, on && styles.optionOn, pressed && styles.pressed]}
             >
               <Text style={[styles.optionLabel, on && styles.optionLabelOn]}>{option.label}</Text>
-              {on ? (
-                <View style={[styles.mark, styles.markOn]}>
-                  <Icon name="check" size={14} color={colors.white} />
-                </View>
-              ) : question.multi ? (
-                <View style={styles.mark} />
-              ) : null}
             </Pressable>
           );
         })}
@@ -124,37 +131,22 @@ export function QuestionsStep({
 }
 
 const styles = StyleSheet.create({
-  pressed: { opacity: 0.7 },
-  buttons: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.md },
-  skip: { flex: 1 },
-  skipAlone: { minHeight: 48, paddingHorizontal: spacing.xl },
-  skipAll: { minHeight: 44, justifyContent: "center" },
-  primary: { flex: 2, width: "auto" },
-  options: { gap: spacing.sm + 2 },
+  pressed: { opacity: 0.6 },
+  skip: { minHeight: 44, justifyContent: "center", paddingLeft: spacing.md },
+  skipText: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.muted },
+  skipAll: { minHeight: 36, alignItems: "center", justifyContent: "center" },
+  skipAllText: { fontSize: 13, lineHeight: 17, color: colors.muted },
+  // Wrapping chips, the same shape as the labels on "Add details".
+  options: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   option: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 14,
-    minHeight: 56,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.surface,
-  },
-  optionOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  optionLabel: { flex: 1, fontSize: 17, lineHeight: 22, fontWeight: fontWeight.semibold, color: colors.fg },
-  optionLabelOn: { color: colors.accent },
-  mark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.low,
+    minHeight: 40,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: palette.field,
     alignItems: "center",
     justifyContent: "center",
   },
-  markOn: { borderColor: colors.accent, backgroundColor: colors.accent },
+  optionOn: { backgroundColor: colors.fg },
+  optionLabel: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.fg },
+  optionLabelOn: { color: colors.bg },
 });

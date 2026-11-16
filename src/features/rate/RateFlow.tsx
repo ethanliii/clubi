@@ -158,6 +158,20 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
     setStep("how");
   };
 
+  // Back from "Add details" reopens the last comparison, so one tap never throws the answers away.
+  // With nothing compared it goes to "How was it?".
+  const backFromDetails = () => {
+    const before = history[history.length - 1];
+    if (before === undefined) {
+      backToHow();
+      return;
+    }
+    guard.mark();
+    setHistory(history.slice(0, -1));
+    setSearch(before);
+    setStep("compare");
+  };
+
   // What "Who sees it" shows. A first ranking starts on the user's default ("Friends" until it loads).
   // A re-rank the user leaves alone sends nothing, so the post keeps the setting it already has.
   const shownVisibility = draft.visibility ?? (isRerank ? null : (settings?.defaultVisibility ?? "friends"));
@@ -218,7 +232,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
     }
   };
 
-  if (step === "how") return <HowStep venue={venue} onPick={pickBucket} onBack={goBack} />;
+  if (step === "how") return <HowStep venue={venue} picked={bucket} onPick={pickBucket} onBack={goBack} />;
 
   if (step === "compare") {
     return (
@@ -246,10 +260,10 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
         onAddPhoto={() => void addPhoto()}
         onRemovePhoto={removePhoto}
         shownVisibility={shownVisibility}
-        keepsVisibility={isRerank}
+        bucket={bucket}
         posting={posting}
         onPost={() => void post()}
-        onBack={backToHow}
+        onBack={backFromDetails}
       />
     );
   }
@@ -278,9 +292,10 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
       >
         <Skeleton height={34} width="80%" />
         <View style={styles.options}>
-          <Skeleton height={64} round={radius.xl} />
-          <Skeleton height={64} round={radius.xl} />
-          <Skeleton height={64} round={radius.xl} />
+          <Skeleton height={40} width={96} round={20} />
+          <Skeleton height={40} width={132} round={20} />
+          <Skeleton height={40} width={84} round={20} />
+          <Skeleton height={40} width={118} round={20} />
         </View>
       </FlowScreen>
     );
@@ -298,5 +313,5 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
 
 const styles = StyleSheet.create({
   centered: { alignSelf: "center" },
-  options: { gap: spacing.sm + 2 },
+  options: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
 });

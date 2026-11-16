@@ -47,6 +47,7 @@ export function PlacePhoto({
   width = "100%",
   round = radius.xxl,
   scrim = false,
+  deep = false,
   children,
   style,
 }: {
@@ -56,6 +57,8 @@ export function PlacePhoto({
   width?: DimensionValue;
   round?: number;
   scrim?: boolean;
+  /** With no picture, draw the deep category tint, not the pale tile: for big cards. */
+  deep?: boolean;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -73,7 +76,7 @@ export function PlacePhoto({
           style={styles.fillImage}
         />
       ) : (
-        <VenuePhoto hue={categoryHue(category)} height={height} style={styles.square} />
+        <VenuePhoto hue={categoryHue(category)} category={category} height={height} deep={deep} style={styles.square} />
       )}
       {scrim ? (
         <LinearGradient
