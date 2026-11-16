@@ -58,8 +58,8 @@ export default function Welcome() {
  * a little shade behind the name at the top, clear in the middle, near-black under the buttons
  * (the clips carry burned-in captions along the foot, which must not show through them).
  */
-const SCRIM = ["rgba(0,0,0,0.3)", "rgba(0,0,0,0)", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.94)", "rgba(0,0,0,1)"] as const;
-const SCRIM_STOPS = [0, 0.22, 0.5, 0.68, 0.8] as const;
+const SCRIM = ["rgba(0,0,0,0.3)", "rgba(0,0,0,0)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.88)", "rgba(0,0,0,0.96)"] as const;
+const SCRIM_STOPS = [0, 0.3, 0.6, 0.84, 1] as const;
 
 /** The wordmark is a bold serif, like the one in the home header; each platform ships one. */
 const SERIF = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" });
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   actions: { gap: 6, paddingBottom: 8 },
-  button: { height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
+  button: { height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center" },
   primary: { backgroundColor: colors.accent },
   primaryPressed: { opacity: 0.85 },
   secondaryPressed: { opacity: 0.6 },

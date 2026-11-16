@@ -16,11 +16,14 @@ type Tone = "accent" | "onPhoto";
 export function AuthButton({
   title,
   busy = false,
+  disabled = false,
   tone = "accent",
   onPress,
 }: {
   title: string;
   busy?: boolean;
+  /** Dimmed and not pressable, while the form is not ready to send. */
+  disabled?: boolean;
   tone?: Tone;
   onPress: () => void;
 }) {
@@ -29,11 +32,11 @@ export function AuthButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
-      accessibilityState={{ busy, disabled: busy }}
+      accessibilityState={{ busy, disabled: busy || disabled }}
       aria-busy={busy}
-      disabled={busy}
+      disabled={busy || disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, onPhoto && styles.onPhoto, pressed && styles.pressed, busy && styles.busy]}
+      style={({ pressed }) => [styles.button, onPhoto && styles.onPhoto, pressed && styles.pressed, busy && styles.busy, disabled && !busy && styles.disabled]}
     >
       <Text style={[styles.label, onPhoto && styles.labelOnPhoto]}>{title}</Text>
       {busy ? (
@@ -57,6 +60,7 @@ const styles = StyleSheet.create({
   onPhoto: { backgroundColor: colors.white },
   pressed: { opacity: 0.85, transform: [{ scale: 0.985 }] },
   busy: { opacity: 0.7 },
+  disabled: { opacity: 0.4 },
   label: { fontSize: 16, lineHeight: 22, fontWeight: "700", color: colors.white },
   labelOnPhoto: { color: INK },
   spinner: { position: "absolute", right: 20, top: 0, bottom: 0, justifyContent: "center", pointerEvents: "none" },

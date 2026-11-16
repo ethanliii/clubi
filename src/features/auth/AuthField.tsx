@@ -6,6 +6,9 @@ import { colors, palette, radius } from "../../theme";
 /** The red of a field that needs fixing, and of the line that says why. */
 export const AUTH_ERROR = palette.danger;
 
+/** The field's grey, one shade darker, while it has the cursor. */
+const FOCUS_FILL = "#e8e8ec";
+
 export type AuthFieldProps = Omit<ComponentProps<typeof TextInput>, "style"> & {
   /** What the box is for: shown above it and read out by screen readers. */
   label: string;
@@ -20,8 +23,8 @@ export type AuthFieldProps = Omit<ComponentProps<typeof TextInput>, "style"> & {
 };
 
 /**
- * A text box for the sign-up and sign-in form: a small label, then a grey rounded box that gets a
- * dark outline while it is being typed in and a red one when it needs fixing.
+ * A text box for the sign-up and sign-in form: a small label, then a grey rounded box that turns a
+ * shade darker while it is being typed in and gets a red outline when it needs fixing.
  */
 export function AuthField({ ref, label, prefix, trailing, error, hint, placeholder, onFocus, onBlur, ...props }: AuthFieldProps) {
   const [focused, setFocused] = useState(false);
@@ -74,8 +77,8 @@ const styles = StyleSheet.create({
     borderColor: palette.field,
     backgroundColor: palette.field,
   },
-  boxFocused: { borderColor: colors.fg },
-  boxError: { borderColor: AUTH_ERROR, backgroundColor: palette.dangerSoft },
+  boxFocused: { borderColor: FOCUS_FILL, backgroundColor: FOCUS_FILL },
+  boxError: { borderColor: AUTH_ERROR },
   prefix: { fontSize: 16, lineHeight: 22, fontWeight: "500", color: colors.muted, marginRight: 1 },
   input: {
     flex: 1,

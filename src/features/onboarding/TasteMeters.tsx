@@ -7,8 +7,8 @@ type Meter = { label: string; pct: number };
 
 /**
  * The taste card's meters. Each bar fills to the percent the backend sent while its number counts
- * up, one after the other: rounded accent bars on a grey track. `highlight` is the label of the strongest
- * meter, whose number is drawn in the accent too.
+ * up, one after the other: thin black bars on a grey track. `highlight` is the label of the strongest
+ * meter, the only one drawn in the accent.
  * Nothing is computed here.
  */
 export function TasteMeters({
@@ -29,7 +29,7 @@ export function TasteMeters({
           label={meter.label}
           pct={meter.pct}
           strong={meter.label === highlight}
-          delay={startDelay + index * 160}
+          delay={startDelay + index * 110}
         />
       ))}
     </View>
@@ -48,7 +48,7 @@ function TasteMeter({ label, pct, strong, delay }: Meter & { strong: boolean; de
       Animated.timing(appear, { toValue: 1, duration: 300, delay, useNativeDriver: false }),
       Animated.timing(fill, {
         toValue: pct,
-        duration: 900,
+        duration: 700,
         delay: delay + 80,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
@@ -70,19 +70,20 @@ function TasteMeter({ label, pct, strong, delay }: Meter & { strong: boolean; de
         <Text style={[styles.value, strong && styles.valueStrong]}>{shown}%</Text>
       </View>
       <View style={styles.track}>
-        <Animated.View style={[styles.fill, { width }]} />
+        <Animated.View style={[styles.fill, strong && styles.fillStrong, { width }]} />
       </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { gap: 20 },
+  list: { gap: 18 },
   meter: { gap: 9 },
   labels: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12 },
   label: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, letterSpacing: -0.2, color: colors.fg },
   value: { fontSize: 15, lineHeight: 21, fontWeight: fontWeight.bold, color: colors.fg, fontVariant: ["tabular-nums"] },
   valueStrong: { color: colors.accent },
-  track: { height: 8, borderRadius: 4, backgroundColor: colors.raised, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 4, backgroundColor: colors.accent },
+  track: { height: 6, borderRadius: 3, backgroundColor: colors.raised, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 3, backgroundColor: colors.fg },
+  fillStrong: { backgroundColor: colors.accent },
 });

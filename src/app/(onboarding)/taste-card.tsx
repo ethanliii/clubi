@@ -28,6 +28,8 @@ export default function TasteCard() {
   if (me !== undefined && !me.onboarded && saved === null) return <Redirect href={paths.quiz} />;
 
   const meters = me?.onboarded ? me.tasteSummary : saved?.tasteSummary;
+  // Strongest first, so the card opens on what the person is, not on the trait they scored lowest in.
+  const ranked = meters ? [...meters].sort((a, b) => b.pct - a.pct) : [];
   const headline = tasteHeadline(meters);
   const tags = pickedTags(saved?.answers);
   const lead = headline.countable ? "you're a" : "here's your taste";
@@ -45,16 +47,16 @@ export default function TasteCard() {
       ) : (
         <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.name}>
-            <Rise delay={80}>
-              <Text style={styles.lead}>{me ? `${me.displayName}, ${lead}` : `${lead.charAt(0).toUpperCase()}${lead.slice(1)}`}</Text>
+            <Rise>
+              <Text style={styles.lead}>{me ? `${firstName(me.displayName)}, ${lead}` : `${lead.charAt(0).toUpperCase()}${lead.slice(1)}`}</Text>
             </Rise>
-            <Rise delay={220} from={22} duration={520}>
+            <Rise delay={60} from={18} duration={420}>
               <Text accessibilityRole="header" style={styles.title}>
                 {headline.title}
               </Text>
             </Rise>
           </View>
-          <Rise delay={480} from={18}>
+          <Rise delay={120} from={14}>
             <View style={styles.card}>
               <View style={styles.cardHead}>
                 <Text style={styles.section}>Your taste</Text>
@@ -62,9 +64,9 @@ export default function TasteCard() {
                   From your answers
                 </Text>
               </View>
-              <TasteMeters meters={meters} highlight={headline.top} startDelay={650} />
+              <TasteMeters meters={ranked} highlight={headline.top} startDelay={180} />
               {tags.length > 0 ? (
-                <Rise delay={1400}>
+                <Rise delay={520}>
                   <View style={styles.into}>
                     <Text style={styles.section}>{"You're into"}</Text>
                     <View accessible accessibilityLabel={`Into ${listOf(tags)}`} style={styles.tags}>
@@ -97,6 +99,11 @@ export default function TasteCard() {
   );
 }
 
+/** "Newc" from "Newc Tester": the eyebrow greets by first name. */
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
 /** "House, Techno and Food", in lower case after the first word of the sentence. */
 function listOf(words: readonly string[]): string {
   const lower = words.map((word) => word.toLowerCase());
@@ -120,7 +127,7 @@ const styles = StyleSheet.create({
   into: { gap: 14, marginTop: 6, paddingTop: 22, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tag: { height: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: palette.field, justifyContent: "center" },
-  tagText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.fg },
+  tagText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
   footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 12 },
   go: { minHeight: 54 },
 });

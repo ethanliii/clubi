@@ -87,7 +87,7 @@ export default function SignIn() {
     const found: Errors = {};
     if (username.trim() === "") found.username = isSignUp ? "Pick a username." : "Enter your username.";
     if (password === "") found.password = isSignUp ? "Pick a password." : "Enter your password.";
-    else if (isSignUp && password.length < PASSWORD_MIN) found.password = `Make it at least ${PASSWORD_MIN} characters.`;
+    else if (isSignUp && password.length < PASSWORD_MIN) found.password = `${PASSWORD_MIN} characters or more`;
     return found;
   };
 
@@ -154,9 +154,11 @@ export default function SignIn() {
   };
 
   const passwordReady = password.length >= PASSWORD_MIN;
-  const primaryTitle = !isSignUp ? "Sign in" : onDetails ? "Create account" : "Continue";
+  // The main button wakes up once the form could be sent, so the red error state is rarely seen.
+  const accountReady = username.trim() !== "" && (isSignUp ? passwordReady : password !== "");
+  const primaryTitle = !isSignUp ? "Log in" : onDetails ? "Create account" : "Continue";
   const primaryPress = !isSignUp ? () => void submitSignIn() : onDetails ? () => void submitSignUp(true) : continueToDetails;
-  const secondaryLabel = onDetails ? "Skip for now" : isSignUp ? "Have an account? Sign in" : `New to ${APP_NAME}? Sign up`;
+  const secondaryLabel = onDetails ? "Skip for now" : isSignUp ? "Have an account? Log in" : `New to ${APP_NAME}? Sign up`;
 
   return (
     <AuthScreen>
@@ -196,7 +198,7 @@ export default function SignIn() {
           </Text>
           <Text style={styles.sub}>
             {!isSignUp
-              ? "Sign in to pick up where you left off."
+              ? "Log in to pick up where you left off."
               : onDetails
                 ? "All optional. Change any of it later in settings."
                 : "Friends find you by your username."}
@@ -320,7 +322,7 @@ export default function SignIn() {
               {errors.form}
             </Text>
           ) : null}
-          <AuthButton title={primaryTitle} busy={busy} onPress={primaryPress} />
+          <AuthButton title={primaryTitle} busy={busy} disabled={!onDetails && !accountReady} onPress={primaryPress} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={secondaryLabel}
@@ -333,7 +335,7 @@ export default function SignIn() {
             ) : (
               <Text style={styles.secondaryText}>
                 {isSignUp ? "Have an account? " : `New to ${APP_NAME}? `}
-                <Text style={styles.secondaryStrong}>{isSignUp ? "Sign in" : "Sign up"}</Text>
+                <Text style={styles.secondaryStrong}>{isSignUp ? "Log in" : "Sign up"}</Text>
               </Text>
             )}
           </Pressable>

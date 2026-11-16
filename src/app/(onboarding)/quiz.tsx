@@ -38,7 +38,6 @@ export default function Quiz() {
   const picked = answers[step];
   const isLast = step === QUIZ_CARDS.length - 1;
   const busy = pending || leaving;
-  const compact = card.options.length > 4;
 
   const toggle = (option: number) =>
     setAnswers((current) =>
@@ -129,13 +128,12 @@ export default function Quiz() {
           </Text>
           <Text style={styles.hint}>{card.many ? "Select all that apply" : "Choose one"}</Text>
         </Rise>
-        <View accessibilityRole={card.many ? undefined : "radiogroup"} style={styles.options}>
+        <View accessibilityRole={card.many ? undefined : "radiogroup"} style={card.many ? styles.chips : styles.options}>
           {card.options.map((option, index) => (
-            <Rise key={option} delay={70 + index * 45} from={18}>
+            <Rise key={option} delay={index * 30} from={10} duration={260}>
               <QuizOption
                 label={option}
                 many={card.many}
-                compact={compact}
                 selected={picked.includes(index)}
                 disabled={busy}
                 onPress={() => toggle(index)}
@@ -185,7 +183,7 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   signOut: { width: 76, height: 44, alignItems: "flex-end", justifyContent: "center" },
-  signOutText: { color: colors.fg, fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold },
+  signOutText: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   dimmed: { opacity: 0.5 },
   // The question, then the answers straight under it; a short screen scrolls.
   content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 30, paddingBottom: 30, gap: 26 },
@@ -193,6 +191,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 34, lineHeight: 39, fontWeight: "800", letterSpacing: -0.8, color: colors.fg },
   hint: { color: colors.muted, fontSize: 15, lineHeight: 21 },
   options: { gap: 10 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 10 },
   fade: { position: "absolute", left: 0, right: 0, top: -28, height: 28, pointerEvents: "none" },
   next: { minHeight: 54 },
