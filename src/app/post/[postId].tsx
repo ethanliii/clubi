@@ -65,13 +65,15 @@ function Post({ postId }: { postId: Id<"posts"> }) {
               onComments={() => commentBox.current?.focus()}
               onMenu={mine ? () => setMenuOpen(true) : undefined}
             />
-            <Text accessibilityRole="header" style={styles.comments}>
-              {comments === undefined || comments.length === 0
-                ? "Comments"
-                : comments.length === 1
-                  ? "1 comment"
-                  : `${comments.length} comments`}
-            </Text>
+            <View style={styles.comments}>
+              <View style={styles.handle} />
+              <Text accessibilityRole="header" style={styles.commentsTitle}>
+                Comments
+              </Text>
+              {comments !== undefined && comments.length > 0 ? (
+                <Text style={styles.count}>{comments.length}</Text>
+              ) : null}
+            </View>
           </View>
         }
         ListEmptyComponent={comments === undefined ? <SkeletonRows count={2} /> : <NoComments />}
@@ -95,20 +97,35 @@ const styles = StyleSheet.create({
   list: { flex: 1, marginHorizontal: -spacing.lg },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg + 2 },
   header: { gap: spacing.xl },
-  // A hairline over the thread sets it apart from the post without boxing it.
+  // Like the comment sheet: a hairline, a grab handle and the "Comments" title set the thread apart.
   comments: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: fontWeight.semibold,
-    paddingTop: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xs,
+    marginHorizontal: -spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.line,
   },
+  handle: {
+    position: "absolute",
+    top: spacing.sm,
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+  },
+  commentsTitle: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold },
+  count: { fontSize: 15, lineHeight: 20, color: colors.low },
   // The comment box stays over the thread, with a hairline where the list scrolls under it.
   composer: {
     marginHorizontal: -spacing.lg,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.line,
   },
