@@ -7,7 +7,7 @@ import { notificationLook } from "./notificationLook";
 
 /**
  * One notification: who or what it is about, the backend's `title` and `body` as they came, and how
- * long ago. Unread reads at a glance: white, heavier title and a dot. Read rows step back to grey.
+ * long ago. The actor's name is bold; an unread row carries a small accent dot at the right.
  */
 export function NotificationRow({
   item,
@@ -21,6 +21,9 @@ export function NotificationRow({
   const look = notificationLook(item.type);
   const { actor } = item;
   const unread = !item.read;
+  // The actor's name leads the backend's sentence when it is there; it is set bold, the rest as written.
+  const lead = actor && item.title.startsWith(actor.displayName) ? actor.displayName : "";
+  const rest = item.title.slice(lead.length);
   return (
     <Pressable
       accessibilityRole="button"
@@ -32,25 +35,26 @@ export function NotificationRow({
       <View style={styles.lead}>
         {actor ? (
           <>
-            <Avatar name={actor.displayName} uri={actor.avatarUrl} size={44} />
+            <Avatar name={actor.displayName} uri={actor.avatarUrl} size={48} />
             <View style={styles.badge}>
               <Icon name={look.icon} size={11} color={look.tint} />
             </View>
           </>
         ) : (
           <View style={styles.icon}>
-            <Icon name={look.icon} size={20} color={look.tint} />
+            <Icon name={look.icon} size={22} color={look.tint} />
           </View>
         )}
       </View>
       <View style={styles.text}>
         {/* One sentence, the way Instagram and Beli write it: what happened, then how long ago in grey. */}
         <Text numberOfLines={3} style={[styles.title, unread ? styles.unreadTitle : styles.readTitle]}>
-          {item.title}
+          {lead ? <Text style={styles.actor}>{lead}</Text> : null}
+          {rest}
           <Text style={styles.time}>  {formatRelativeTime(item.createdAt, now)}</Text>
         </Text>
         {item.body ? (
-          <Text muted numberOfLines={1} style={styles.body}>
+          <Text muted numberOfLines={2} style={styles.body}>
             {item.body}
           </Text>
         ) : null}
@@ -61,14 +65,13 @@ export function NotificationRow({
 }
 
 const styles = StyleSheet.create({
-  // No lines between rows: the round leads and the space keep them apart.
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 68, paddingVertical: spacing.md },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 72, paddingVertical: spacing.md },
   pressed: { opacity: 0.6 },
-  lead: { width: 44, height: 44 },
+  lead: { width: 48, height: 48 },
   icon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
@@ -88,8 +91,9 @@ const styles = StyleSheet.create({
   },
   text: { flex: 1, gap: 2 },
   title: { fontSize: 15, lineHeight: 20 },
-  unreadTitle: { fontWeight: fontWeight.semibold, color: colors.fg },
+  unreadTitle: { fontWeight: fontWeight.regular, color: colors.fg },
   readTitle: { fontWeight: fontWeight.regular, color: colors.fg },
+  actor: { fontWeight: fontWeight.bold, color: colors.fg },
   body: { fontSize: 13, lineHeight: 18 },
   side: { width: 10, alignItems: "center", justifyContent: "center" },
   time: { fontSize: 13, lineHeight: 20, fontWeight: fontWeight.regular, color: colors.muted },

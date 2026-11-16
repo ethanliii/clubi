@@ -1,14 +1,13 @@
 import { useMutation, useQuery } from "convex/react";
-import { StyleSheet, View } from "react-native";
-import { Button, EmptyState, Header, Screen, SkeletonRows, Text, useToast } from "../components";
-import { dayLabel } from "../features/feed/dayLabel";
+import { Pressable, StyleSheet, View } from "react-native";
+import { EmptyState, Header, Screen, SkeletonRows, Text, useToast } from "../components";
 import { NotificationRow } from "../features/feed/NotificationRow";
 import { api, type NotificationItem } from "../lib/api";
 import { errorMessage } from "../lib/errors";
 import { openLink } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
-import { fontWeight, palette, spacing } from "../theme";
+import { colors, fontWeight, palette, spacing } from "../theme";
 
 export default function NotificationsScreen() {
   const items = useQuery(api.notifications.list, {});
@@ -27,6 +26,8 @@ export default function NotificationsScreen() {
     if (item.link && !openLink(item.link)) toast("That link can't be opened in this version of the app.");
   };
 
+  const groups = groupNotifications(items ?? [], now);
+
   return (
     <Screen>
       <Header
@@ -34,14 +35,16 @@ export default function NotificationsScreen() {
         right={
           // Only there while something is unread: a button that would do nothing is not shown.
           hasUnread ? (
-            <Button
-              title="Mark all read"
+            <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Mark all read"
-              variant="link"
               disabled={pending}
+              hitSlop={8}
               onPress={() => void markAllRead({})}
-              style={styles.markAll}
-            />
+              style={({ pressed }) => [styles.markAll, (pressed || pending) && styles.dim]}
+            >
+              <Text style={styles.markAllText}>Mark all read</Text>
+            </Pressable>
           ) : undefined
         }
       />
@@ -51,32 +54,62 @@ export default function NotificationsScreen() {
         <EmptyState icon="bell" title="Nothing yet" body="Rank a place and your friends will hear about it." />
       ) : (
         <View>
-          {items.map((item, index) => {
-            const previous = items[index - 1];
-            const day = dayLabel(item.createdAt, now);
-            const showDay = !previous || dayLabel(previous.createdAt, now) !== day;
-            return (
-              <View key={item.id}>
-                {showDay ? (
-                  <Text accessibilityRole="header" style={[styles.day, index > 0 && styles.nextDay]}>
-                    {day}
-                  </Text>
-                ) : null}
-                {showDay ? null : <View style={styles.rule} />}
-                <NotificationRow item={item} now={now} onPress={() => open(item)} />
-              </View>
-            );
-          })}
+          {groups.map((group, groupIndex) => (
+            <View key={group.label}>
+              <Text accessibilityRole="header" style={[styles.label, groupIndex > 0 && styles.nextGroup]}>
+                {group.label}
+              </Text>
+              {group.items.map((item, index) => (
+                <View key={item.id}>
+                  {index > 0 ? <View style={styles.rule} /> : null}
+                  <NotificationRow item={item} now={now} onPress={() => open(item)} />
+                </View>
+              ))}
+            </View>
+          ))}
         </View>
       )}
     </Screen>
   );
 }
 
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Instagram's activity sections: everything unread under "New", then what was already seen by age.
+ * The order inside a section is the backend's (newest first).
+ */
+function groupNotifications(items: NotificationItem[], now: number): { label: string; items: NotificationItem[] }[] {
+  const startOfToday = new Date(now).setHours(0, 0, 0, 0);
+  const sections: { label: string; items: NotificationItem[] }[] = [
+    { label: "New", items: [] },
+    { label: "Today", items: [] },
+    { label: "This week", items: [] },
+    { label: "Earlier", items: [] },
+  ];
+  for (const item of items) {
+    const index = !item.read ? 0 : item.createdAt >= startOfToday ? 1 : item.createdAt >= startOfToday - 6 * DAY ? 2 : 3;
+    sections[index]!.items.push(item);
+  }
+  return sections.filter((section) => section.items.length > 0);
+}
+
 const styles = StyleSheet.create({
-  markAll: { minHeight: 44, justifyContent: "center" },
-  day: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2, paddingBottom: spacing.xs },
+  markAll: { minHeight: 44, justifyContent: "center", paddingLeft: spacing.sm },
+  markAllText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.fg },
+  dim: { opacity: 0.5 },
+  // The reference's section label: small, bold, uppercase, spaced.
+  label: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    color: colors.fg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  nextGroup: { marginTop: spacing.lg },
   // The hairline starts under the text, past the avatar, like a contacts list.
-  rule: { height: StyleSheet.hairlineWidth, backgroundColor: palette.hairline, marginLeft: 44 + spacing.md },
-  nextDay: { marginTop: spacing.xl },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: palette.hairline, marginLeft: 48 + spacing.md },
 });
