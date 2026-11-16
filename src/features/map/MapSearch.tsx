@@ -10,7 +10,7 @@ import { api } from "../../lib/api";
 import { venuePath } from "../../lib/links";
 import { useDebounced } from "../../lib/useDebounced";
 import { useKeptQuery } from "../../lib/useKeptQuery";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, spacing } from "../../theme";
 import { MapRow } from "./MapRow";
 
 export const SEARCH_PLACEHOLDER = "Search places and events";
@@ -57,7 +57,7 @@ export function SearchBox({ value, onChangeText }: { value: string; onChangeText
             }}
             style={({ pressed }) => [styles.clear, pressed && styles.pressed]}
           >
-            <Icon name="close" size={11} color={colors.surface} />
+            <Icon name="close" size={11} color={colors.white} />
           </Pressable>
         ) : null}
       </Pressable>
@@ -111,6 +111,7 @@ export function SearchResults({
       ) : results.length === 0 ? (
         <View accessibilityRole="text" style={styles.padded}>
           <Text style={styles.none}>No matches</Text>
+          <Text style={styles.noneBody}>Try a different name or a shorter word.</Text>
         </View>
       ) : (
         <ScrollView keyboardShouldPersistTaps="handled">
@@ -136,15 +137,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     height: SEARCH_HEIGHT,
-    paddingLeft: 14,
     paddingRight: spacing.md,
-    borderRadius: radius.xl - 2,
-    backgroundColor: colors.surface,
+    paddingLeft: 16,
+    borderRadius: SEARCH_HEIGHT / 2,
+    backgroundColor: colors.bg,
     shadowColor: colors.black,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
   },
   input: {
     flex: 1,
@@ -163,21 +164,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.muted,
+    backgroundColor: colors.low,
   },
   cancel: { height: SEARCH_HEIGHT, justifyContent: "center" },
-  cancelText: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.medium, color: colors.fg },
+  cancelText: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.medium, color: colors.accent },
   pressed: { opacity: 0.6 },
   results: {
-    borderRadius: radius.xl,
+    // The page behind is white while searching: the results are a plain list on it, edge to edge.
+    marginHorizontal: -(spacing.lg - 2),
     backgroundColor: colors.bg,
     overflow: "hidden",
-    shadowColor: colors.black,
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
   },
   padded: { padding: spacing.lg, gap: 4 },
   none: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, color: colors.fg },
+  noneBody: { fontSize: 14, lineHeight: 20, color: colors.muted },
 });

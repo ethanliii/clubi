@@ -147,13 +147,13 @@ const styles = StyleSheet.create({
   sheet: {
     flex: 1,
     backgroundColor: colors.bg,
-    borderTopLeftRadius: radius.xxl + 4,
-    borderTopRightRadius: radius.xxl + 4,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
     overflow: "hidden",
     shadowColor: colors.black,
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
     elevation: 16,
   },
   grab: {
@@ -162,6 +162,6 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { cursor: "grab", userSelect: "none" } as object, default: {} }),
   },
   handleButton: { alignSelf: "center", width: 80, height: 20, alignItems: "center", justifyContent: "center" },
-  handle: { width: 36, height: 5, borderRadius: 3, backgroundColor: colors.line },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.low, opacity: 0.45 },
   body: { flex: 1 },
 });

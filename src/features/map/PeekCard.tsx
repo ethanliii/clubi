@@ -1,19 +1,19 @@
 /**
- * The card that comes up when a pin is tapped: the photo with the name and score on it, and the
- * backend's reason underneath. Tapping it opens the place or event; the cross puts the list back.
+ * The card that comes up when a pin is tapped, as on Google Maps: a white card with the photo on
+ * top, then the name, one grey line of detail, the backend's reason and the score. Tapping it opens
+ * the place or event; the cross puts the list back.
  */
-import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Icon, ScoreBadge, Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { formatDistance, formatEventTime, formatScore } from "../../lib/format";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, radius, spacing } from "../../theme";
 import { MapPhoto } from "./MapPhoto";
 import { metaLine } from "./MapRow";
 
-const PHOTO = 148;
-const TEXT = 74;
+const PHOTO = 132;
+const TEXT = 92;
 /** The card's height, for the map to keep the picked pin clear of it. */
 export const PEEK_CARD_HEIGHT = PHOTO + TEXT;
 
@@ -29,108 +29,90 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
   return (
     <Animated.View
       style={[
-        styles.card,
+        styles.shadow,
         { opacity: shown, transform: [{ translateY: shown.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }] },
       ]}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${item.name}, ${formatScore(item.score)} for you. ${item.why}`}
-        onPress={onOpen}
-        style={({ pressed }) => pressed && styles.pressed}
-      >
-        <View>
+      <View style={styles.card}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${item.name}, ${formatScore(item.score)} for you. ${item.why}`}
+          onPress={onOpen}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
           <MapPhoto item={item} height={PHOTO} />
-          <LinearGradient
-            colors={["rgba(11,10,15,0)", "rgba(11,10,15,0.62)", "rgba(11,10,15,0.96)"]}
-            locations={[0.12, 0.55, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.onPhoto}>
+          <View style={styles.text}>
             <View style={styles.titles}>
-              <Text numberOfLines={2} style={styles.name}>
+              <Text numberOfLines={1} style={styles.name}>
                 {item.name}
               </Text>
-              <Text numberOfLines={1} style={when ? styles.when : styles.meta}>
-                {when ? `${when} · ${formatDistance(item.distanceMeters)}` : metaLine(item)}
+              <Text numberOfLines={1} style={styles.meta}>
+                {when ? <Text style={styles.when}>{when}</Text> : null}
+                {when ? ` · ${formatDistance(item.distanceMeters)}` : metaLine(item)}
+              </Text>
+              <Text numberOfLines={1} style={styles.why}>
+                {item.why}
               </Text>
             </View>
             <ScoreBadge score={item.score} size="lg" />
           </View>
-        </View>
-        <View style={styles.text}>
-          <Text numberOfLines={2} style={styles.why}>
-            {item.why}
-          </Text>
-          <Icon name="chevron" size={18} color={colors.muted} />
-        </View>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Close"
-        hitSlop={8}
-        onPress={onClose}
-        style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
-      >
-        <Icon name="close" size={16} color={colors.white} />
-      </Pressable>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          hitSlop={8}
+          onPress={onClose}
+          style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
+        >
+          <Icon name="close" size={16} color={colors.fg} />
+        </Pressable>
+      </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  // The shadow sits on an outer box: the card itself clips its photo to the rounded corners.
+  shadow: {
     height: PEEK_CARD_HEIGHT,
-    borderRadius: radius.xxl,
-    overflow: "hidden",
-    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    backgroundColor: colors.bg,
     shadowColor: colors.black,
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 14,
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
   },
+  card: { flex: 1, borderRadius: radius.xl, overflow: "hidden", backgroundColor: colors.bg },
   pressed: { opacity: 0.88 },
-  onPhoto: {
-    position: "absolute",
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.md,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.md,
-  },
-  titles: { flex: 1, gap: 2 },
-  name: {
-    fontSize: 21,
-    lineHeight: 25,
-    fontWeight: fontWeight.bold,
-    color: colors.white,
-    letterSpacing: -0.2,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowRadius: 8,
-    textShadowOffset: { width: 0, height: 1 },
-  },
-  meta: { fontSize: 13, lineHeight: 17, color: "rgba(255,255,255,0.78)" },
-  when: { fontSize: 13, lineHeight: 17, color: colors.mid, fontWeight: fontWeight.semibold },
   text: {
     height: TEXT,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.lg - 2,
   },
-  why: { flex: 1, fontSize: 15, lineHeight: 21, color: colors.fg },
+  titles: { flex: 1, minWidth: 0, gap: 2 },
+  name: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: colors.fg },
+  meta: { fontSize: 13, lineHeight: 17, color: colors.muted },
+  when: { fontSize: 13, lineHeight: 17, color: colors.accent, fontWeight: fontWeight.semibold },
+  why: { fontSize: 13, lineHeight: 17, color: colors.muted },
+  // A white disc on the photo, as the cross on a Google Maps place card.
   close: {
     position: "absolute",
-    top: spacing.md,
-    right: spacing.md,
+    top: spacing.sm + 2,
+    right: spacing.sm + 2,
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(11,10,15,0.6)",
+    backgroundColor: palette.glass,
+    shadowColor: colors.black,
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
   },
-  closePressed: { backgroundColor: "rgba(11,10,15,0.85)" },
+  closePressed: { backgroundColor: palette.fieldPressed },
 });

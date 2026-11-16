@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { FlatList, Keyboard, Platform, Pressable, StyleSheet, Switch, View, useWindowDimensions } from "react-native";
@@ -16,7 +15,7 @@ import { useDemoLocation } from "../../lib/demoLocation";
 import { pluralize } from "../../lib/format";
 import { openUrl, venuePath } from "../../lib/links";
 import { useNearby } from "../../lib/useNearby";
-import { colors, fontWeight, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
 const NO_ITEMS: NearbyItem[] = [];
 /** Shown even before the first answer arrives: the credit is a licence requirement. */
@@ -131,7 +130,7 @@ export default function MapScreen() {
         onPress={() => setRecenterKey((key) => key + 1)}
         style={({ pressed }) => [styles.round, pressed && styles.roundPressed]}
       >
-        <Icon name="navigate" size={20} color={colors.fg} />
+        <Icon name="navigate" size={20} color={colors.accent} />
       </Pressable>
     </View>
   );
@@ -141,7 +140,7 @@ export default function MapScreen() {
       ? "Finding what's good…"
       : items.length === 0
         ? "Nothing here yet"
-        : `${pluralize(items.length, "spot")}, ranked for your taste`;
+        : `${pluralize(items.length, "spot")} · Ranked for you`;
 
   return (
     <View style={styles.screen} onLayout={(event) => setMeasured(event.nativeEvent.layout.height)}>
@@ -153,12 +152,6 @@ export default function MapScreen() {
         onSelect={pick}
         recenterKey={recenterKey}
         padding={padding}
-      />
-
-      <LinearGradient
-        colors={["rgba(11,10,15,0.85)", "rgba(11,10,15,0.4)", "rgba(11,10,15,0)"]}
-        locations={[0, 0.55, 1]}
-        style={[styles.scrim, { height: filtersBottom + spacing.xl }]}
       />
 
       {searching ? null : (
@@ -202,7 +195,7 @@ export default function MapScreen() {
                 Demo location
               </Text>
               <Text aria-hidden style={styles.optionBody}>
-                Browse San Francisco instead of where you are.
+                Browse San Francisco instead.
               </Text>
             </View>
             <Switch
@@ -306,11 +299,10 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { overflow: "clip" } as object, default: {} }),
   },
   flex: { flex: 1, minWidth: 0 },
-  scrim: { position: "absolute", top: 0, left: 0, right: 0, pointerEvents: "none" },
 
   filters: { position: "absolute", left: 0, right: 0 },
   // While searching, everything but the field and its results steps back.
-  dim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 3, backgroundColor: "rgba(11,10,15,0.78)" },
+  dim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 3, backgroundColor: colors.bg },
   // The results drop down over the filters, the list and the pin's card.
   search: { position: "absolute", left: GUTTER, right: GUTTER, gap: spacing.sm, zIndex: 3, elevation: 20 },
 
@@ -323,33 +315,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: GUTTER,
     paddingBottom: spacing.md,
   },
-  // A dark backing, so the credit can be read whatever pin or street name slides under it.
+  // A white backing, so the credit can be read whatever pin or street name slides under it.
   credit: {
     flexShrink: 1,
     minWidth: 0,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: "rgba(11,10,15,0.66)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: palette.glass,
   },
-  creditText: { fontSize: 9, lineHeight: 12, color: "rgba(242,238,247,0.8)" },
+  creditText: { fontSize: 9, lineHeight: 12, color: colors.muted },
   round: {
     width: 44,
     height: 44,
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg,
     shadowColor: colors.black,
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.18,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
-  roundPressed: { backgroundColor: colors.raised },
+  roundPressed: { backgroundColor: palette.field },
 
   sheetHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md, height: SHEET_HEADER - 28 },
-  title: { fontSize: 22, lineHeight: 27, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  title: { fontSize: 20, lineHeight: 25, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: colors.fg },
   detail: { marginTop: 2, fontSize: 13, lineHeight: 17, color: colors.muted },
   option: {
     flexDirection: "row",
@@ -357,9 +349,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: 14,
+    backgroundColor: palette.field,
   },
   optionTitle: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.fg },
   optionBody: { fontSize: 13, lineHeight: 17, color: colors.muted },
