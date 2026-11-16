@@ -17,9 +17,9 @@ export type PinPlacement = { mode: PinMode; name: boolean; /** Drawn as its phot
 
 /**
  * Photos show from this zoom in (MapLibre's number; the map opens one level closer than this).
- * Further out there is no room for pictures: pins are score pills, then dots.
+ * Further out there is no room for pictures: every pin scales down to a small circle in its score's colour.
  */
-export const PHOTO_ZOOM = 13.3;
+export const PHOTO_ZOOM = 12.9;
 export const photosAt = (scale: number) => scale >= scaleForZoom(PHOTO_ZOOM);
 
 type Box = { left: number; top: number; right: number; bottom: number };
@@ -73,7 +73,8 @@ export function layoutPins(items: readonly NearbyItem[], scale: number, selected
       bottom: at.y,
     };
     const room = grow(box, item.tier === "other" ? OTHER_GAP : BUBBLE_GAP);
-    if (selected || !bubbles.some((other) => touches(room, other.box))) {
+    // Zoomed out there is no room for pictures or scores: every pin but the picked one is a small circle.
+    if (selected || (photos && !bubbles.some((other) => touches(room, other.box)))) {
       bubbles.push({ id: item.id, box });
       placed.set(item.id, { mode: "bubble", name: false, photo: hasPhoto(item) });
     } else {

@@ -51,6 +51,9 @@ function sheetHeights(screen: number, searchBottom: number): SheetHeights {
   return { peek, mid, full };
 }
 
+/** A phone redraws every pin as a view, so it gets fewer than the browser map does. */
+const MAP_ITEMS = Platform.OS === "web" ? 150 : 70;
+
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
@@ -59,7 +62,7 @@ export default function MapScreen() {
   const { lat, lng, ready, isDemo } = useDemoLocation();
   const [filter, setFilter] = useState<Filter>(DEFAULT_FILTER);
   // Many more than a list needs: zooming in makes room for them, each with its photo.
-  const nearby = useNearby(filter, 150);
+  const nearby = useNearby(filter, MAP_ITEMS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
   const [snap, setSnap] = useState<SheetSnap>("peek");
