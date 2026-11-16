@@ -62,25 +62,25 @@ export function AuthField({ ref, label, prefix, trailing, error, hint, placehold
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 7 },
-  label: { fontSize: 14, lineHeight: 18, fontWeight: "600", color: colors.fg },
+  wrap: { gap: 8 },
+  label: { fontSize: 12, lineHeight: 16, fontWeight: "700", letterSpacing: 0.9, textTransform: "uppercase", color: colors.fg },
   box: {
     flexDirection: "row",
     alignItems: "center",
-    height: 52,
+    height: 50,
     paddingHorizontal: 14,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: 1.5,
     borderColor: palette.field,
     backgroundColor: palette.field,
   },
-  boxFocused: { borderColor: colors.fg, backgroundColor: colors.bg },
+  boxFocused: { borderColor: colors.fg },
   boxError: { borderColor: AUTH_ERROR, backgroundColor: palette.dangerSoft },
   prefix: { fontSize: 16, lineHeight: 22, fontWeight: "500", color: colors.muted, marginRight: 1 },
   input: {
     flex: 1,
     minWidth: 0,
-    height: 49,
+    height: 47,
     paddingVertical: 0,
     paddingHorizontal: 0,
     color: colors.fg,

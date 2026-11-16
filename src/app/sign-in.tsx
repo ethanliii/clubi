@@ -171,12 +171,17 @@ export default function SignIn() {
         >
           <Icon name="back" size={22} color={colors.fg} />
         </Pressable>
-        {isSignUp ? (
-          <View accessibilityLabel={onDetails ? "Step 2 of 2" : "Step 1 of 2"} style={styles.steps}>
-            <View style={[styles.stepMark, styles.stepDone]} />
-            <View style={[styles.stepMark, onDetails && styles.stepDone]} />
-          </View>
-        ) : null}
+        <Text accessibilityLabel={APP_NAME} style={styles.wordmark}>
+          {APP_NAME.toLowerCase()}
+        </Text>
+        <View style={styles.barEnd}>
+          {isSignUp ? (
+            <View accessibilityLabel={onDetails ? "Step 2 of 2" : "Step 1 of 2"} style={styles.steps}>
+              <View style={[styles.stepMark, styles.stepDone]} />
+              <View style={[styles.stepMark, onDetails && styles.stepDone]} />
+            </View>
+          ) : null}
+        </View>
       </View>
 
       <Animated.View
@@ -347,20 +352,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  steps: { flexDirection: "row", gap: 6 },
-  stepMark: { width: 24, height: 4, borderRadius: 2, backgroundColor: colors.line },
+  // The app's name in a bold serif, as on the home screen.
+  wordmark: {
+    fontFamily: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" }),
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: "700",
+    letterSpacing: -0.6,
+    color: colors.accent,
+  },
+  barEnd: { width: 44, alignItems: "flex-end", justifyContent: "center" },
+  steps: { flexDirection: "row", gap: 4 },
+  stepMark: { width: 18, height: 4, borderRadius: 2, backgroundColor: colors.line },
   stepDone: { backgroundColor: colors.accent },
-  form: { paddingTop: 12 },
-  intro: { gap: 8 },
+  form: { paddingTop: 20 },
+  intro: { gap: 6 },
   headline: { ...typeScale.heading, color: colors.fg },
-  sub: { fontSize: 16, lineHeight: 22, color: colors.muted },
-  fields: { marginTop: 26, gap: 18 },
+  sub: { fontSize: 15, lineHeight: 21, color: colors.muted },
+  fields: { marginTop: 28, gap: 20 },
   hintRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   hint: { fontSize: 13, lineHeight: 18, color: colors.muted },
   hintOk: { color: colors.ok },
   reveal: { minHeight: 44, minWidth: 44, alignItems: "flex-end", justifyContent: "center" },
-  revealText: { fontSize: 14, fontWeight: "600", color: colors.fg },
-  actions: { marginTop: 32, gap: 8 },
+  revealText: { fontSize: 14, fontWeight: "700", color: colors.fg },
+  actions: { marginTop: 28, gap: 6 },
   formError: {
     color: AUTH_ERROR,
     fontSize: 14,
@@ -374,6 +389,6 @@ const styles = StyleSheet.create({
   },
   secondary: { alignSelf: "center", minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
   secondaryText: { fontSize: 15, color: colors.muted },
-  secondaryStrong: { fontSize: 15, fontWeight: "700", color: colors.accent },
+  secondaryStrong: { fontSize: 15, fontWeight: "700", color: colors.fg },
   pressed: { opacity: 0.55 },
 });

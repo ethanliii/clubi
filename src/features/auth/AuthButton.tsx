@@ -48,8 +48,8 @@ export function AuthButton({
 const styles = StyleSheet.create({
   button: {
     width: "100%",
-    height: 52,
-    borderRadius: 26,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
