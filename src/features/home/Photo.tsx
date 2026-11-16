@@ -15,6 +15,7 @@ export function Photo({
   height,
   round,
   dark = false,
+  glyph = 30,
   style,
   children,
 }: {
@@ -24,6 +25,8 @@ export function Photo({
   round: number;
   /** White text sits on this picture: with no picture, draw a deep tint of the category's colour, never a pale tile. */
   dark?: boolean;
+  /** The size of the category glyph on that tint; a small tile centres it. */
+  glyph?: number;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }) {
@@ -39,8 +42,8 @@ export function Photo({
           style={{ width, height }}
         />
       ) : dark ? (
-        <View style={[styles.deep, { width, height, backgroundColor: `hsl(${DEEP_HUE[item.category] ?? categoryHue(item.category)}, 30%, 28%)` }]}>
-          <Icon name={GLYPH[item.category] ?? "spark"} size={30} color="rgba(255,255,255,0.55)" />
+        <View style={[glyph < 30 ? styles.deepSmall : styles.deep, { width, height, backgroundColor: `hsl(${DEEP_HUE[item.category] ?? categoryHue(item.category)}, 30%, 28%)` }]}>
+          <Icon name={GLYPH[item.category] ?? "ticket"} size={glyph} color="rgba(255,255,255,0.55)" />
         </View>
       ) : (
         <VenuePhoto hue={categoryHue(item.category)} height={height} style={styles.fallback} />
@@ -60,12 +63,13 @@ const GLYPH: Partial<Record<NearbyItem["category"], IconName>> = {
   culture: "landmark",
   outdoors: "tree",
   live: "music",
-  popup: "spark",
+  popup: "ticket",
 };
 
 const styles = StyleSheet.create({
   // The glyph sits in the upper part, clear of the title along the bottom.
   deep: { alignItems: "center", paddingTop: 34 },
+  deepSmall: { alignItems: "center", justifyContent: "center" },
   frame: { overflow: "hidden", backgroundColor: colors.surface },
   fallback: { borderRadius: 0 },
 });

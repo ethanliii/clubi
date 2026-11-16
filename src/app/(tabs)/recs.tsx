@@ -1,35 +1,33 @@
 import { router, type Href } from "expo-router";
-import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { EmptyState, Icon, Text, type IconName } from "../../components";
+import { EmptyState, ScoreBadge, Text } from "../../components";
 import { CardRow, SectionLabel } from "../../features/home/CardRow";
+import { cardFacts, cardLabel, displayName, friendsLine } from "../../features/home/itemText";
+import { Photo } from "../../features/home/Photo";
+import { Pills } from "../../features/home/Pills";
 import { SearchField } from "../../features/home/SearchField";
-import { api } from "../../lib/api";
+import { api, type NearbyItem } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
-import { paths, planPath } from "../../lib/links";
+import { paths, planPath, venuePath } from "../../lib/links";
 import { useKeptQuery } from "../../lib/useKeptQuery";
 import { useNow } from "../../lib/useNow";
-import { colors, fontWeight, palette } from "../../theme";
+import { colors, fontWeight } from "../../theme";
 
 /** The screen's side padding. Carousels run through it to both edges. */
 const GUTTER = 16;
-/** The title's bold serif, the same face as the wordmark on the Feed tab. */
-const SERIF = Platform.select({ android: "serif", default: "Georgia" });
+/** The most cards a sideways row holds, and the most rows a list holds. */
+const ROW_MAX = 10;
+const HERO_MAX = 4;
+const LIST_MAX = 5;
+const THUMB = 56;
 
-type Way = { key: string; icon: IconName; title: string; body: string; href: Href };
-
-/** The ways in to planning: each opens its own screen. */
-const WAYS: Way[] = [
-  { key: "plan", icon: "navigate", title: "Plan my night", body: "A route for tonight, built from your taste", href: planPath() },
-  { key: "trips", icon: "calendar", title: "Plans with friends", body: "Pick a night and a place together", href: paths.trips },
-  { key: "group", icon: "map", title: "Group map", body: "Where your friends would all like to go", href: paths.groupMap },
-  { key: "saved", icon: "bookmark", title: "Saved", body: "Places and events you kept for later", href: paths.saved },
-];
+const keyOf = (item: NearbyItem) => `${item.kind}:${item.id}`;
 
 /**
- * The "For you" tab: everything the app recommends. Photo carousels of what suits you tonight,
- * tonight's events, what is coming up and where friends go (`discover.tonight`, `discover.upcoming`),
- * then the ways in to Plan my night, Plans with friends, the group map and Saved.
+ * The "For you" tab: everything the app recommends, each section in its own shape. A paged row of
+ * wide cards for the top picks, a plain list of places, small carousels for tonight's events and
+ * what is coming up, and a list of where friends go (`discover.tonight`, `discover.upcoming`).
  * Friends' posts are not here: they are the Feed, the first tab.
  */
 export default function ForYou() {
@@ -45,9 +43,30 @@ export default function ForYou() {
   const openMap = () => router.push(paths.map);
   // The Map tab's search field takes the keyboard each time this number changes.
   const openSearch = () => router.push(`/map?search=${Date.now()}` as Href);
-  // "Events tonight" leaves out what "Top picks" already shows, so the two rows are never the same cards.
-  const picked = new Set((tonight?.topPicks ?? []).map((item) => `${item.kind}:${item.id}`));
-  const eventsTonight = (tonight?.events ?? []).filter((item) => !picked.has(`${item.kind}:${item.id}`));
+
+  // Each section leaves out what a section above it already shows, so no card appears twice.
+  const seen = new Set<string>();
+  const take = (items: NearbyItem[], max: number) => {
+    const fresh: NearbyItem[] = [];
+    for (const item of items) {
+      if (fresh.length === max) break;
+      if (seen.has(keyOf(item))) continue;
+      seen.add(keyOf(item));
+      fresh.push(item);
+    }
+    return fresh;
+  };
+  const hero = tonight ? take(tonight.topPicks, HERO_MAX) : undefined;
+  const rest = tonight ? [...tonight.topPicks, ...tonight.events] : [];
+  const places = take(rest.filter((item) => item.kind === "place"), LIST_MAX);
+  let eventsTonight = take(rest.filter((item) => item.kind === "event"), ROW_MAX);
+  // One card is not a row: a lone event goes back in the pool, so "Coming up" can show it.
+  if (eventsTonight.length === 1) {
+    seen.delete(keyOf(eventsTonight[0]));
+    eventsTonight = [];
+  }
+  const comingUp = take(upcoming ?? [], ROW_MAX);
+  const friendsGo = (tonight?.friendsGoing ?? []).filter((item) => item.friends.length > 0).slice(0, LIST_MAX);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -59,103 +78,104 @@ export default function ForYou() {
         </View>
 
         <SearchField label="Search places and events" onPress={openSearch} />
+        <View style={styles.pills}>
+          <Pills
+            gutter={GUTTER}
+            pills={[
+              { key: "plan", label: "Plan my night", icon: "navigate", onPress: () => router.push(planPath()) },
+              { key: "trips", label: "With friends", icon: "users", onPress: () => router.push(paths.trips) },
+              { key: "group", label: "Group map", icon: "map", onPress: () => router.push(paths.groupMap) },
+              { key: "saved", label: "Saved", icon: "bookmark", onPress: () => router.push(paths.saved) },
+            ]}
+          />
+        </View>
 
         {nothingNearby ? (
           <EmptyState icon="map" title="Nothing nearby yet. Try the map." actionLabel="Open map" onAction={openMap} />
         ) : (
           <>
-            {tonight === undefined || tonight.topPicks.length > 0 ? (
+            <CardRow large title="Top picks for you" items={hero} gutter={GUTTER} now={now} moreLabel="See top picks on the map" onMore={openMap} />
+
+            {places.length > 0 ? (
               <View style={styles.section}>
-                <CardRow
-                  title="Top picks for you"
-                  items={tonight?.topPicks}
-                  gutter={GUTTER}
-                  now={now}
-                  moreLabel="See top picks on the map"
-                  onMore={openMap}
-                />
+                <SectionLabel title="Places for you" moreLabel="See places on the map" onMore={openMap} />
+                {places.map((item, index) => (
+                  <PlaceRow key={keyOf(item)} item={item} line={item.why} first={index === 0} now={now} />
+                ))}
               </View>
             ) : null}
+
             {eventsTonight.length > 0 ? (
               <View style={styles.section}>
-                <CardRow
-                  title="Events tonight"
-                  items={eventsTonight}
-                  gutter={GUTTER}
-                  now={now}
-                  moreLabel="See tonight's events on the map"
-                  onMore={openMap}
-                />
+                <CardRow title="Events tonight" items={eventsTonight} gutter={GUTTER} now={now} moreLabel="See tonight's events on the map" onMore={openMap} />
               </View>
             ) : null}
-            {upcoming !== undefined && upcoming.length > 0 ? (
+
+            {friendsGo.length > 0 ? (
               <View style={styles.section}>
-                <CardRow
-                  title="Coming up for you"
-                  items={upcoming}
-                  gutter={GUTTER}
-                  now={now}
-                  moreLabel="See upcoming events on the map"
-                  onMore={openMap}
-                />
-              </View>
-            ) : null}
-            {tonight !== undefined && tonight.friendsGoing.length > 0 ? (
-              <View style={styles.section}>
-                <CardRow
+                <SectionLabel
                   title="Where friends go"
-                  items={tonight.friendsGoing}
-                  gutter={GUTTER}
-                  now={now}
                   moreLabel="See where the group should go on the map"
                   onMore={() => router.push(paths.groupMap)}
                 />
+                {friendsGo.map((item, index) => (
+                  <PlaceRow key={keyOf(item)} item={item} line={friendsLine(item)} first={index === 0} now={now} />
+                ))}
+              </View>
+            ) : null}
+
+            {comingUp.length > 0 ? (
+              <View style={styles.section}>
+                <CardRow title="Coming up" items={comingUp} gutter={GUTTER} now={now} moreLabel="See upcoming events on the map" onMore={openMap} />
               </View>
             ) : null}
           </>
         )}
-
-        <View style={styles.section}>
-          <SectionLabel title="Make a plan" />
-          {WAYS.map((way, index) => (
-            <Pressable
-              key={way.key}
-              accessibilityRole="button"
-              accessibilityLabel={way.title}
-              onPress={() => router.push(way.href)}
-              style={({ pressed }) => [styles.way, index > 0 && styles.wayLine, pressed && styles.pressed]}
-            >
-              <View style={styles.wayIcon}>
-                <Icon name={way.icon} size={18} color={colors.fg} />
-              </View>
-              <View style={styles.wayText}>
-                <Text numberOfLines={1} style={styles.wayTitle}>
-                  {way.title}
-                </Text>
-                <Text numberOfLines={1} style={styles.wayBody}>
-                  {way.body}
-                </Text>
-              </View>
-              <Icon name="chevron" size={18} color={colors.muted} />
-            </Pressable>
-          ))}
-        </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/** One place in a list: a small photo, the name in bold, two grey lines and the score for you in a thin ring. */
+function PlaceRow({ item, line, first, now }: { item: NearbyItem; line: string; first: boolean; now: number }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={cardLabel(item)}
+      onPress={() => router.push(venuePath(item.kind, item.id))}
+      style={({ pressed }) => [styles.row, !first && styles.rowLine, pressed && styles.pressed]}
+    >
+      <Photo item={item} width={THUMB} height={THUMB} round={8} dark glyph={22} />
+      <View style={styles.rowText}>
+        <Text numberOfLines={1} style={styles.rowName}>
+          {displayName(item.name)}
+        </Text>
+        <Text numberOfLines={1} style={styles.rowMeta}>
+          {cardFacts(item, now)}
+        </Text>
+        {line !== "" ? (
+          <Text numberOfLines={1} style={styles.rowMeta}>
+            {line}
+          </Text>
+        ) : null}
+      </View>
+      <ScoreBadge score={item.score} size="md" style={styles.rowScore} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: GUTTER, paddingTop: 2, paddingBottom: 32 },
-  header: { flexDirection: "row", alignItems: "center", height: 52 },
-  title: { fontFamily: SERIF, fontSize: 28, lineHeight: 36, fontWeight: fontWeight.bold, letterSpacing: -0.6, color: colors.fg },
-  section: { marginTop: 8 },
+  header: { flexDirection: "row", alignItems: "center", height: 48 },
+  title: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.5, color: colors.fg },
+  pills: { marginTop: 6, marginBottom: 2 },
+  section: { marginTop: 12 },
   pressed: { opacity: 0.6 },
-  way: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
-  wayLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
-  wayIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: palette.field, alignItems: "center", justifyContent: "center" },
-  wayText: { flex: 1, gap: 2 },
-  wayTitle: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, color: colors.fg },
-  wayBody: { fontSize: 13, lineHeight: 18, color: colors.muted },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11 },
+  rowLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  rowText: { flex: 1, gap: 1 },
+  rowName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  rowMeta: { fontSize: 13, lineHeight: 18, color: colors.muted },
+  rowScore: { alignSelf: "center" },
 });
