@@ -16,7 +16,7 @@ const FIELDS: Field[] = ["displayName", "bio", "homeCity", "birthday"];
 const DISPLAY_NAME_MAX = 40;
 const BIO_MAX = 160;
 const HOME_CITY_MAX = 60;
-const AVATAR = 88;
+const AVATAR = 76;
 
 /** The photo at the top; tapping it is "Change photo": pick, upload to Convex storage, then `settings.setAvatar`. */
 function AvatarPicker({ settings }: { settings: SettingsResult }) {
@@ -41,14 +41,14 @@ function AvatarPicker({ settings }: { settings: SettingsResult }) {
   };
 
   return (
-    <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Change photo"
-        disabled={uploading}
-        onPress={() => void change()}
-        style={({ pressed }) => pressed && styles.pressed}
-      >
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Change photo"
+      disabled={uploading}
+      onPress={() => void change()}
+      style={({ pressed }) => [styles.header, pressed && styles.pressed]}
+    >
+      <View>
         <Avatar name={settings.displayName} uri={settings.avatarUrl} size={AVATAR} />
         {uploading ? (
           <View style={styles.avatarBusy}>
@@ -56,17 +56,18 @@ function AvatarPicker({ settings }: { settings: SettingsResult }) {
           </View>
         ) : (
           <View style={styles.camera}>
-            <Icon name="camera" size={15} color={colors.white} />
+            <Icon name="camera" size={13} color={colors.white} />
           </View>
         )}
-      </Pressable>
+      </View>
       <View style={styles.who}>
-        <Text variant="headline" center numberOfLines={1}>
+        <Text variant="headline" numberOfLines={1}>
           {settings.displayName}
         </Text>
-        <Text muted center numberOfLines={1}>{`@${settings.username}`}</Text>
+        <Text muted numberOfLines={1}>{`@${settings.username}`}</Text>
+        <Text style={styles.change}>Change photo</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -155,7 +156,7 @@ export function ProfileForm({ settings }: { settings: SettingsResult }) {
 
 const styles = StyleSheet.create({
   form: { gap: spacing.xl },
-  header: { alignItems: "center", gap: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.sm },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.lg, paddingTop: spacing.xs },
   pressed: { opacity: 0.7 },
   avatarBusy: {
     position: "absolute",
@@ -172,14 +173,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: -2,
     bottom: -2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.fg,
     borderWidth: 3,
     borderColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
   },
-  who: { alignItems: "center", gap: 2, alignSelf: "stretch" },
+  who: { flex: 1, gap: 1 },
+  change: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: colors.accent, paddingTop: 3 },
 });

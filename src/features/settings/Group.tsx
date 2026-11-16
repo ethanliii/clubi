@@ -1,14 +1,14 @@
 import { Children, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text } from "../../components";
-import { colors, fontWeight, palette, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
 /** The inset every row shares inside a group's card: labels, hairlines and the group's name all start here. */
-export const ROW_INSET = 16;
+export const ROW_INSET = 0;
 
 /**
- * One group of a settings screen: a small grey name, the rows in one rounded light-grey card with an
- * inset hairline between them (the phone's own Settings), and at most one line of explanation under it.
+ * One group of a settings screen: a small bold uppercase name, the rows flat on the white page with a
+ * hairline between them, and at most one line of explanation under it.
  */
 export function SettingsGroup({ title, footer, children }: { title?: string; footer?: string; children: ReactNode }) {
   const rows = Children.toArray(children);
@@ -89,28 +89,29 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: fontWeight.regular,
-    letterSpacing: 0.3,
+    fontWeight: "800",
+    letterSpacing: 0.7,
     textTransform: "uppercase",
-    color: colors.muted,
+    color: colors.fg,
     paddingHorizontal: ROW_INSET,
-    paddingBottom: 7,
+    paddingBottom: 4,
   },
-  panel: { borderRadius: radius.lg - 2, backgroundColor: colors.surface, overflow: "hidden" },
-  hairline: { height: StyleSheet.hairlineWidth, marginLeft: ROW_INSET, backgroundColor: colors.line },
+  // Flat on the white page: only hairlines separate the rows.
+  panel: {},
+  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
   footer: { paddingHorizontal: ROW_INSET, paddingTop: 7 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    minHeight: 50,
+    minHeight: 52,
     paddingHorizontal: ROW_INSET,
     paddingVertical: spacing.sm,
   },
-  pressed: { backgroundColor: colors.raised },
+  pressed: { opacity: 0.55 },
   dimmed: { opacity: 0.4 },
   label: { flex: 1 },
-  danger: { color: palette.danger, textAlign: "center" },
-  action: { textAlign: "center", fontWeight: fontWeight.medium },
+  danger: { color: palette.danger, fontWeight: fontWeight.semibold },
+  action: { fontWeight: fontWeight.semibold },
   value: { flexShrink: 1, maxWidth: "62%", textAlign: "right" },
 });

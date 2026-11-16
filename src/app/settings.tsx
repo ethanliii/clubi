@@ -18,7 +18,7 @@ import {
 import { api, type NotifPrefs, type Visibility } from "../lib/api";
 import { useDemoLocation } from "../lib/demoLocation";
 import { errorMessage } from "../lib/errors";
-import { radius, spacing } from "../theme";
+import { colors, radius, spacing } from "../theme";
 
 const VISIBILITY: { value: Visibility; label: string }[] = [
   { value: "friends", label: "Friends" },
@@ -74,7 +74,7 @@ export default function SettingsScreen() {
         {settings === undefined || settings === null ? (
           <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
             <View style={styles.loadingFace}>
-              <Skeleton width={96} height={96} round={48} />
+              <Skeleton width={76} height={76} round={38} />
               <Skeleton width={140} height={20} />
             </View>
             <Skeleton height={200} round={radius.lg} />
@@ -129,6 +129,7 @@ export default function SettingsScreen() {
             <SettingsGroup title="Account">
               <SettingsRow label="Username" value={`@${settings.username}`} />
               <SettingsRow label="Change password" onPress={() => setPasswordOpen(true)} />
+              <SettingsRow label="Sign out" tone="action" chevron={false} disabled={signingOut} onPress={() => void onSignOut()} />
             </SettingsGroup>
 
             {VERSION ? (
@@ -136,10 +137,6 @@ export default function SettingsScreen() {
                 <SettingsRow label="Version" value={VERSION} />
               </SettingsGroup>
             ) : null}
-
-            <SettingsGroup>
-              <SettingsRow label="Sign out" tone="action" chevron={false} disabled={signingOut} onPress={() => void onSignOut()} />
-            </SettingsGroup>
 
             <View style={styles.apart}>
               <SettingsGroup footer="Removes your rankings, posts and friends for good.">
@@ -162,10 +159,10 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   scroller: { flex: 1 },
-  content: { gap: spacing.xl + spacing.sm, paddingBottom: spacing.xxl * 2 },
+  content: { gap: spacing.xl + spacing.xs, paddingBottom: spacing.xxl * 2 },
   loading: { gap: spacing.xl },
-  loadingFace: { alignItems: "center", gap: spacing.md, paddingBottom: spacing.sm },
+  loadingFace: { flexDirection: "row", alignItems: "center", gap: spacing.lg, paddingBottom: spacing.sm },
   choice: { gap: spacing.md, paddingHorizontal: ROW_INSET, paddingTop: spacing.md, paddingBottom: spacing.md + 2 },
   choiceText: { gap: 2 },
-  apart: { marginTop: spacing.lg },
+  apart: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: spacing.sm },
 });
