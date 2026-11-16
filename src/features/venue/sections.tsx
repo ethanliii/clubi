@@ -301,7 +301,7 @@ function SimilarCard({ item, now }: { item: NearbyItem; now: number }) {
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
       <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${item.name}`} />
-      <Scrim from="rgba(0, 0, 0, 0)" to="rgba(0, 0, 0, 0.72)" height="62%" />
+      <Scrim from="rgba(0, 0, 0, 0)" to="rgba(0, 0, 0, 0.82)" height="70%" />
       <ScoreBadge score={item.score} size="sm" style={styles.cardScore} />
       <View style={styles.cardText}>
         <Text numberOfLines={2} style={styles.cardName}>
