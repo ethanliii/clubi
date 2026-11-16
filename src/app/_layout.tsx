@@ -122,8 +122,8 @@ const styles = StyleSheet.create({
   page: { flex: 1, alignItems: "center", backgroundColor: colors.page },
   app: { flex: 1, width: "100%", maxWidth: 520, backgroundColor: colors.bg },
   overlordButton: {
-    position: "absolute", right: 6, top: "46%", width: 32, height: 32, borderRadius: 16,
-    alignItems: "center", justifyContent: "center", backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, opacity: 0.75,
+    position: "absolute", top: 6, alignSelf: "center", width: 22, height: 22, borderRadius: 11,
+    alignItems: "center", justifyContent: "center", backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, opacity: 0.5,
   },
-  overlordIcon: { fontSize: 14 },
+  overlordIcon: { fontSize: 10 },
 });
