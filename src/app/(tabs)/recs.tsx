@@ -11,6 +11,7 @@ import { api, type NearbyItem } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { paths, planPath, venuePath } from "../../lib/links";
 import { useKeptQuery } from "../../lib/useKeptQuery";
+import { useNearby } from "../../lib/useNearby";
 import { useNow } from "../../lib/useNow";
 import { colors, fontWeight } from "../../theme";
 
@@ -20,6 +21,11 @@ const GUTTER = 16;
 const ROW_MAX = 10;
 const HERO_MAX = 4;
 const LIST_MAX = 5;
+/** How many places the "Places for you" list and each by-kind row recommend. */
+const PLACES_MAX = 12;
+const KIND_ROW_MAX = 14;
+/** Asked of the backend per list: more than is shown, since a section leaves out what one above it has. */
+const ASKED = 40;
 const THUMB = 56;
 
 const keyOf = (item: NearbyItem) => `${item.kind}:${item.id}`;
@@ -34,6 +40,11 @@ export default function ForYou() {
   const { lat, lng, ready } = useDemoLocation();
   const tonight = useKeptQuery(api.discover.tonight, ready ? { lat, lng } : "skip", "tonight");
   const upcoming = useKeptQuery(api.discover.upcoming, ready ? { lat, lng } : "skip", "upcoming");
+  // The recommendations themselves, ranked for this person: everything nearby, then by kind.
+  const forYou = useNearby("all", ASKED);
+  const bars = useNearby("bars", ASKED);
+  const food = useNearby("food", ASKED);
+  const outdoors = useNearby("outdoors", ASKED);
   const now = useNow();
 
   const nothingNearby =
@@ -58,7 +69,11 @@ export default function ForYou() {
   };
   const hero = tonight ? take(tonight.topPicks, HERO_MAX) : undefined;
   const rest = tonight ? [...tonight.topPicks, ...tonight.events] : [];
-  const places = take(rest.filter((item) => item.kind === "place"), LIST_MAX);
+  const placesOf = (list: { items: NearbyItem[] } | undefined) => (list?.items ?? []).filter((item) => item.kind === "place");
+  const places = take([...rest.filter((item) => item.kind === "place"), ...placesOf(forYou)], PLACES_MAX);
+  const barRow = take(placesOf(bars), KIND_ROW_MAX);
+  const foodRow = take(placesOf(food), KIND_ROW_MAX);
+  const outdoorRow = take(placesOf(outdoors), KIND_ROW_MAX);
   let eventsTonight = take(rest.filter((item) => item.kind === "event"), ROW_MAX);
   // One card is not a row: a lone event goes back in the pool, so "Coming up" can show it.
   if (eventsTonight.length === 1) {
@@ -105,6 +120,18 @@ export default function ForYou() {
               </View>
             ) : null}
 
+            {barRow.length > 1 ? (
+              <View style={styles.section}>
+                <CardRow title="Bars and clubs for you" items={barRow} gutter={GUTTER} now={now} moreLabel="See bars on the map" onMore={openMap} />
+              </View>
+            ) : null}
+
+            {foodRow.length > 1 ? (
+              <View style={styles.section}>
+                <CardRow title="Food for you" items={foodRow} gutter={GUTTER} now={now} moreLabel="See food on the map" onMore={openMap} />
+              </View>
+            ) : null}
+
             {eventsTonight.length > 0 ? (
               <View style={styles.section}>
                 <CardRow title="Events tonight" items={eventsTonight} gutter={GUTTER} now={now} moreLabel="See tonight's events on the map" onMore={openMap} />
@@ -121,6 +148,12 @@ export default function ForYou() {
                 {friendsGo.map((item, index) => (
                   <PlaceRow key={keyOf(item)} item={item} line={friendsLine(item)} first={index === 0} now={now} />
                 ))}
+              </View>
+            ) : null}
+
+            {outdoorRow.length > 1 ? (
+              <View style={styles.section}>
+                <CardRow title="Outdoors for you" items={outdoorRow} gutter={GUTTER} now={now} moreLabel="See outdoor spots on the map" onMore={openMap} />
               </View>
             ) : null}
 
