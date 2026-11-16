@@ -5,6 +5,9 @@ import { Icon, Text } from "../../components";
 import { TabIcon, type TabIconName } from "../../features/home/TabIcon";
 import { colors, fontWeight } from "../../theme";
 
+/** Idle tabs: a grey a step lighter than body-muted text, so the open tab reads at a glance. */
+const IDLE = "#7b7b86";
+
 const TABS: Record<string, { label: string; icon: TabIconName | null }> = {
   index: { label: "Home", icon: "home" },
   map: { label: "Map", icon: "map" },
@@ -31,11 +34,11 @@ export default function TabsLayout() {
 function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
   return (
     // A phone with a home indicator already leaves room under the bar; one without gets a little.
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom - 8, 8) }]}>
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom - 10, 6) }]}>
       {state.routes.map((route, index) => {
         const tab = TABS[route.name];
         const focused = state.index === index;
-        const color = focused ? colors.fg : colors.muted;
+        const color = focused ? colors.fg : IDLE;
         const onPress = () => {
           const event = emitter.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
           if (!focused && !event.defaultPrevented) navigateToTab(route.key);
@@ -54,12 +57,14 @@ function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
               tab.icon === null ? (
                 // The one accented thing in the bar: rank a place.
                 <View style={[styles.rank, pressed && styles.rankPressed]}>
-                  <Icon name="plus" size={22} color={colors.white} />
+                  <Icon name="plus" size={24} color={colors.white} />
                 </View>
               ) : (
                 <View style={[styles.tab, pressed && styles.tabPressed]}>
                   <TabIcon name={tab.icon} active={focused} color={color} />
-                  <Text style={[styles.label, { color }, focused && styles.labelOn]}>{tab.label}</Text>
+                  <Text numberOfLines={1} allowFontScaling={false} style={[styles.label, { color }, focused && styles.labelOn]}>
+                    {tab.label}
+                  </Text>
                 </View>
               )
             }
@@ -74,21 +79,21 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 4,
-    paddingHorizontal: 4,
+    paddingTop: 6,
+    paddingHorizontal: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.line,
     backgroundColor: colors.bg,
   },
-  item: { flex: 1, height: 52, alignItems: "center", justifyContent: "center" },
-  tab: { alignItems: "center", gap: 2 },
+  item: { flex: 1, height: 50, alignItems: "center", justifyContent: "center" },
+  tab: { alignItems: "center", gap: 3 },
   tabPressed: { opacity: 0.55 },
-  label: { fontSize: 11, lineHeight: 14, fontWeight: fontWeight.medium },
-  labelOn: { fontWeight: fontWeight.bold },
+  label: { fontSize: 10.5, lineHeight: 13, fontWeight: fontWeight.medium, letterSpacing: 0.1 },
+  labelOn: { fontWeight: fontWeight.semibold },
   rank: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
