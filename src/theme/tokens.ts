@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { isLight } from "./mode";
 
 const DARK = {
@@ -151,3 +152,13 @@ export const scrim = {
 
 /** How long things take to fade or press. */
 export const motion = { fast: 120, base: 220, slow: 360 } as const;
+
+/** The serif used for the wordmark only (main's screens). Spread into a text style. */
+export const wordmark = {
+  fontFamily: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" }),
+  fontWeight: "700",
+  letterSpacing: -0.6,
+} as const;
+
+/** Post layout sizes used by main's feed pieces. */
+export const feed = { avatar: 60, scoreRing: 44, iconSize: 26 } as const;

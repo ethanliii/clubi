@@ -19,6 +19,8 @@ export type MapCanvasProps = {
   onSelect: (item: NearbyItem | null) => void;
   /** Add one to move the camera back to `center` ("Recenter"). */
   recenterKey: number;
+  /** The user dot is the demo spot, not a real fix. */
+  userIsDemo?: boolean;
   /** How much of the map is covered by the search bar (top) and the list (bottom), in points. */
   padding: { top: number; bottom: number };
 };

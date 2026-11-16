@@ -95,7 +95,7 @@ export function InviteSheet({
     const result = await invite.run({ tripId: trip.tripId, userIds: selected });
     if (result === undefined) return;
     toast(
-      result.invited > 0 ? `Invited ${pluralize(result.invited, "friend")}` : "They are already on this trip",
+      result.invited > 0 ? `Invited ${pluralize(result.invited, "friend")}` : "They are already on this plan",
       result.invited > 0 ? "success" : "info",
     );
     close();

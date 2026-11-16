@@ -291,20 +291,23 @@ test("Google photos: one lookup and one download per place, stored in file stora
 
   const { result, requests } = await online(googleWithPhotos, () => run(google.enrichPhotos, ctx, {}), KEYS);
   assert.deepEqual(result, {
-    planned: 3, waiting: 3, searches: 2, details: 1, photoFetches: 2, stored: 2, noMatch: 1, noPhoto: 0,
+    planned: 3, waiting: 3, searches: 2, details: 1, photoFetches: 2, stored: 2, noMatch: 1, noPhoto: 0, closed: 0,
+    tiers: { lists: 2, ranked: 0, seeded: 1, rest: 0 },
     misses: ['Elbo Room: nearest is "Zeitgeist" at 7 m'],
-    budget: { lookups: 3, photos: 2, maxLookups: 250, maxPhotos: 250 },
+    budget: { lookups: 3, photos: 2, maxLookups: 1500, maxPhotos: 4800 },
   });
+  // What the lists show comes first, then the hand-seeded place.
   assert.deepEqual(requests.map((r) => r.url), [
-    "https://places.googleapis.com/v1/places:searchText",
-    "https://places.googleapis.com/v1/places/ChIJexample0000000000000001/photos/wide/media?maxWidthPx=800",
     "https://places.googleapis.com/v1/places/g-known",
     "https://places.googleapis.com/v1/places/ChIJexample0000000000000001/photos/tall/media?maxWidthPx=800",
     "https://places.googleapis.com/v1/places:searchText",
+    "https://places.googleapis.com/v1/places:searchText",
+    "https://places.googleapis.com/v1/places/ChIJexample0000000000000001/photos/wide/media?maxWidthPx=800",
   ]);
   assert.ok(requests.every((r) => r.headers["X-Goog-Api-Key"] === "test-google-key" && !r.url.includes("test-google-key")));
-  assert.ok(requests[0].headers["X-Goog-FieldMask"].split(",").includes("places.photos"));
-  assert.equal(requests[2].headers["X-Goog-FieldMask"], "id,photos");
+  assert.ok(requests[2].headers["X-Goog-FieldMask"].split(",").includes("places.photos"));
+  assert.ok(requests[2].headers["X-Goog-FieldMask"].split(",").includes("places.businessStatus"));
+  assert.equal(requests[0].headers["X-Goog-FieldMask"], "id,photos,businessStatus");
 
   const [zeitgeist, ...rest] = db.all("places");
   // The search that found the photo also filled in what the hours enrichment fills in.
@@ -329,12 +332,12 @@ test("Google photos: one lookup and one download per place, stored in file stora
 
 test("Google photos stop at the budget, skip when frozen or without a key, and retry a failed download", async () => {
   const spent = await seededDb();
-  await spent.db.insert("appConfig", { key: "googlePhotoBudget", value: { lookups: 250, photos: 0 } });
+  await spent.db.insert("appConfig", { key: "googlePhotoBudget", value: { lookups: google.MAX_PHOTO_LOOKUPS, photos: 0 } });
   const capped = await online(googleWithPhotos, () => run(google.enrichPhotos, photoCtx(spent, []), {}), KEYS);
   assert.deepEqual([capped.requests.length, capped.result.stopped, capped.result.stored], [0, "lookup budget spent", 0]);
 
   const noPhotosLeft = await seededDb();
-  await noPhotosLeft.db.insert("appConfig", { key: "googlePhotoBudget", value: { lookups: 0, photos: 250 } });
+  await noPhotosLeft.db.insert("appConfig", { key: "googlePhotoBudget", value: { lookups: 0, photos: google.MAX_PHOTO_FETCHES } });
   const searchOnly = await online(googleWithPhotos, () => run(google.enrichPhotos, photoCtx(noPhotosLeft, []), {}), KEYS);
   assert.deepEqual([searchOnly.requests.length, searchOnly.result.stopped, searchOnly.result.photoFetches], [1, "photo budget spent", 0]);
   assert.deepEqual([noPhotosLeft.all("places")[0].hours, noPhotosLeft.all("places")[0].imageUrl], ["Mo-Su 09:00-02:00", undefined]);
@@ -358,4 +361,34 @@ test("Google photos stop at the budget, skip when frozen or without a key, and r
   const third = await online(googleWithPhotos, () => run(google.enrichPhotos, ctx, {}), KEYS);
   assert.deepEqual([third.result.stored, third.result.budget.lookups, third.result.budget.photos], [1, 3, 3]);
   assert.ok(flaky.all("places")[0].imageUrl.startsWith("https://files.test/"));
+});
+
+test("Google photos: a place Google says is closed for good is flagged, kept, hidden from discovery and never looked up again", async () => {
+  const { isVisibleTo } = await load("lib/discovery");
+  const db = await seededDb();
+  const earlier = await db.db.insert("places", { name: "Earlier Miss", category: "food", lat: 37.77, lng: -122.4221, source: "osm" });
+  // The first matcher's log no longer holds anything back: its misses get one more lookup.
+  await db.db.insert("appConfig", { key: "googlePhotoChecked", value: { [earlier]: 1 } });
+  await db.db.insert("appConfig", { key: "googleChecked", value: { [earlier]: 1 } });
+  const ctx = photoCtx(db, []);
+  const closedDown = (request) => {
+    if (!request.url.endsWith("places:searchText")) return googleWithPhotos(request);
+    const body = jsonFixture("google-textsearch.json");
+    body.places[0].businessStatus = "CLOSED_PERMANENTLY";
+    body.places[0].photos = photos;
+    return page(200, body);
+  };
+  const { result, requests } = await online(closedDown, () => run(google.enrichPhotos, ctx, {}), KEYS);
+  assert.deepEqual([result.planned, result.closed, result.noMatch, result.stored, result.photoFetches, requests.length], [2, 1, 1, 0, 0, 2]);
+  assert.deepEqual(result.misses.sort(), ['Earlier Miss: nearest is "Zeitgeist" at 7 m, closed for good', "Zeitgeist: closed for good on Google"]);
+  const [zeitgeist, miss] = db.all("places");
+  assert.deepEqual([zeitgeist.permanentlyClosed, zeitgeist.imageUrl, zeitgeist.googlePlaceId, miss.permanentlyClosed], [true, undefined, undefined, undefined]);
+  const viewer = { userId: null, taste: [], under21: false };
+  assert.equal(isVisibleTo({ kind: "place", doc: zeitgeist }, viewer, NOW), false);
+  assert.equal(isVisibleTo({ kind: "place", doc: miss }, viewer, NOW), true);
+  assert.deepEqual((await run(google.photoMisses, db, {})).closed, ["Zeitgeist"]);
+  const coverage = await run(google.photoCoverage, db, { ids: [zeitgeist._id, miss._id] });
+  assert.deepEqual([coverage.permanentlyClosed, coverage.without], [1, ["Zeitgeist [nightlife]: closed for good", 'Earlier Miss [food]: nearest is "Zeitgeist" at 7 m, closed for good']]);
+  const again = await online(closedDown, () => run(google.enrichPhotos, ctx, {}), KEYS);
+  assert.deepEqual([again.requests.length, again.result.planned], [0, 0]);
 });

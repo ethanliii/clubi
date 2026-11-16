@@ -15,7 +15,7 @@ export function PlacePhoto({
   hue,
   height,
   width,
-  round = radius.xl,
+  round = radius.lg,
   style,
 }: {
   uri?: string | null;

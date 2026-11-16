@@ -23,4 +23,3 @@ export * from "./Sheet";
 export * from "./Splash";
 export * from "./TextField";
 export * from "./Toast";
-export * from "./ThemeToggle";

@@ -15,7 +15,9 @@ export function Screen({
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+          {children}
+        </ScrollView>
       ) : (
         <View style={[styles.content, styles.fill]}>{children}</View>
       )}

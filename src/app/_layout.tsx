@@ -97,6 +97,7 @@ function RootNavigator() {
         <Stack.Screen name="plan" />
         <Stack.Screen name="following" />
         <Stack.Screen name="performer/[performerId]" />
+        <Stack.Screen name="group-map" />
       </Stack.Protected>
       <Stack.Protected guard={overlord || !onboarded} redirectTo={home}>
         <Stack.Screen name="(onboarding)" />

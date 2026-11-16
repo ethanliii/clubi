@@ -17,6 +17,8 @@ export function VenuePhoto({ hue, height, style, uri, category, scrim, children,
   seed?: string | number;
   /** Only the glow (no stand-in photo), e.g. under a real photo or for album covers. */
   glowOnly?: boolean;
+  /** Main's screens: white text sits on it (Bryan's glow is already dark, so nothing changes). */
+  deep?: boolean;
 }) {
   if (!uri && !glowOnly) {
     const stand = placeholderPhoto(category ?? categoryForHue(hue), seed ?? height);

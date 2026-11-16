@@ -39,6 +39,6 @@ const styles = StyleSheet.create({
   labels: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
   label: { color: colors.fg },
   value: { color: colors.muted, fontWeight: fontWeight.medium, fontVariant: ["tabular-nums"] },
-  track: { height: 4, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
+  track: { height: 6, borderRadius: radius.pill, backgroundColor: colors.raised, overflow: "hidden" },
   fill: { height: "100%", borderRadius: radius.pill },
 });

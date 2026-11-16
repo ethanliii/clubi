@@ -1,20 +1,22 @@
 /**
- * A dark look for Google Maps (Android), in the app's purple-black. Apple Maps on iOS goes dark
- * through `userInterfaceStyle="dark"` and needs none of this.
+ * The map's look on Google Maps (Android): the standard light street map with the clutter taken out
+ * (no business icons, no transit), so the score pins are the only coloured things on it. Apple Maps
+ * on iOS is light through `userInterfaceStyle="light"` and needs none of this.
+ * (The file keeps its old name; it used to hold the dark style.)
  */
-export const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#17141d" }] },
+export const LIGHT_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#f5f5f3" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8d869b" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#141119" }] },
-  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#2f2a3a" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#6d6d78" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#d9d9de" }] },
   { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ visibility: "on" }, { color: "#182219" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2a2533" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1b1822" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3a3346" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9a92a9" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ visibility: "on" }, { color: "#dcefd9" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#e6e6ea" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ececef" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8f8f9a" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0c1420" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4a5a70" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#cfe3f2" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#6f8ea8" }] },
 ];

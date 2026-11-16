@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from "convex/react";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { Button, EmptyState, goBack, IconButton, Screen, Sheet, Skeleton, Text } from "../../components";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Button, EmptyState, ErrorBoundary, goBack, Icon, IconButton, Screen, Sheet, Skeleton, Text, type IconName } from "../../components";
 import { citySpot } from "../../features/trips/city";
 import { InviteSheet } from "../../features/trips/InviteSheet";
 import { Page } from "../../features/trips/Page";
@@ -20,13 +20,31 @@ import { paths, planPath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { useNow } from "../../lib/useNow";
 import { useMe } from "../../state/session";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, radius, spacing } from "../../theme";
 
 /** Same grid as `useNearby`: one "import places here" request per cell while the app is open. */
 const AREA_DEGREES = 0.02;
 const requestedAreas = new Set<string>();
 
 export default function TripScreen() {
+  const { tripId } = useLocalSearchParams<{ tripId: string }>();
+  return (
+    // A link with an id the backend does not recognise throws; show it as a plan that is gone.
+    <ErrorBoundary
+      key={tripId}
+      fallback={() => (
+        <Screen>
+          <ScreenTop title="Plan" />
+          <EmptyState title="This plan was deleted" icon="users" actionLabel="Back" onAction={goBack} />
+        </Screen>
+      )}
+    >
+      <TripLoader />
+    </ErrorBoundary>
+  );
+}
+
+function TripLoader() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const trip = useQuery(api.trips.get, { tripId: tripId as Id<"trips"> });
   // Set once I leave, decline or delete: the trip is about to vanish from under this screen,
@@ -43,7 +61,7 @@ export default function TripScreen() {
             <Skeleton key={index} width={56} height={56} round={28} />
           ))}
         </View>
-        <Skeleton height={196} round={radius.xl} />
+        <Skeleton height={188} round={radius.lg} />
         <Skeleton width="60%" height={18} />
       </Screen>
     );
@@ -51,8 +69,8 @@ export default function TripScreen() {
   if (trip === null) {
     return (
       <Screen>
-        <ScreenTop title="Trip" />
-        <EmptyState title="This trip was deleted" icon="users" actionLabel="Back" onAction={goBack} />
+        <ScreenTop title="Plan" />
+        <EmptyState title="This plan was deleted" icon="users" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
   }
@@ -148,7 +166,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
   const leaveTrip = async () => {
     const sure = await confirm({
-      title: "Leave trip?",
+      title: "Leave plan?",
       message: `You will stop seeing ${trip.name} and your votes are removed.`,
       confirmLabel: "Leave",
       destructive: true,
@@ -162,7 +180,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
   const deleteTrip = async () => {
     const sure = await confirm({
-      title: "Delete trip?",
+      title: "Delete plan?",
       message: `${trip.name} is removed for everyone in it.`,
       confirmLabel: "Delete",
       destructive: true,
@@ -188,12 +206,22 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
     <Page
       footer={
         isIn ? (
-          <Button
-            title="Plan the night"
-            accessibilityLabel="Plan the night"
-            onPress={() => router.push(planPath(tripId))}
-            style={styles.plan}
-          />
+          <View style={styles.footer}>
+            <Button
+              title="Plan the night"
+              accessibilityLabel="Plan the night"
+              onPress={() => router.push(planPath(tripId))}
+              style={styles.plan}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="See our picks on the map"
+              onPress={() => router.push(`/group-map?tripId=${tripId}` as Href)}
+              style={({ pressed }) => [styles.mapButton, pressed && styles.pressed]}
+            >
+              <Icon name="map" size={22} color={colors.fg} />
+            </Pressable>
+          </View>
         ) : undefined
       }
     >
@@ -202,7 +230,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
           title={trip.name}
           right={
             isIn ? (
-              <IconButton icon="more" accessibilityLabel="Trip options" size={36} onPress={openMenu} />
+              <IconButton icon="more" accessibilityLabel="Plan options" size={36} onPress={openMenu} />
             ) : undefined
           }
         />
@@ -213,25 +241,24 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
       {trip.myStatus === "invited" ? (
         <View style={styles.invite}>
-          <Text style={styles.inviteTitle}>{`${trip.ownerName} invited you`}</Text>
-          <Text muted>Join to vote on where the group goes.</Text>
-          <View style={styles.buttons}>
-            <Button
-              title="Join"
-              accessibilityLabel="Join"
-              disabled={respond.pending}
-              onPress={() => void answer(true)}
-              style={styles.flex}
-            />
-            <Button
-              title="Decline"
-              accessibilityLabel="Decline"
-              variant="ghost"
-              disabled={respond.pending}
-              onPress={() => void answer(false)}
-              style={styles.flex}
-            />
-          </View>
+          <Text numberOfLines={2} style={styles.inviteTitle}>{`${trip.ownerName} invited you`}</Text>
+          <Button
+            title="Decline"
+            accessibilityLabel="Decline"
+            variant="quiet"
+            size="sm"
+            disabled={respond.pending}
+            onPress={() => void answer(false)}
+            style={styles.decline}
+          />
+          <Button
+            title="Join"
+            accessibilityLabel="Join"
+            size="sm"
+            disabled={respond.pending}
+            onPress={() => void answer(true)}
+            style={styles.join}
+          />
         </View>
       ) : null}
 
@@ -253,55 +280,54 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
       <InviteSheet trip={trip} visible={inviteOpen} onClose={() => setInviteOpen(false)} />
 
-      <Sheet visible={menuOpen} onClose={closeMenu} title={menuShows === "edit" ? "Edit trip" : trip.name}>
+      <Sheet visible={menuOpen} onClose={closeMenu} title={menuShows === "edit" ? "Edit plan" : trip.name}>
         {menuShows === "edit" ? (
           <TripForm trip={trip} onSaved={closeMenu} />
         ) : isOwner ? (
-          <>
-            <Button
-              title="Edit trip"
-              accessibilityLabel="Edit trip"
-              variant="ghost"
-              disabled={busy}
-              onPress={() => setMenuShows("edit")}
-            />
-            <Button
-              title="Delete trip"
-              accessibilityLabel="Delete trip"
-              variant="ghost"
-              disabled={busy}
-              onPress={() => void deleteTrip()}
-            />
-          </>
+          <View>
+            <MenuRow icon="edit" title="Edit plan" disabled={busy} onPress={() => setMenuShows("edit")} />
+            <View style={styles.rule} />
+            <MenuRow icon="trash" title="Delete plan" danger disabled={busy} onPress={() => void deleteTrip()} />
+          </View>
         ) : (
-          <Button
-            title="Leave trip"
-            accessibilityLabel="Leave trip"
-            variant="ghost"
-            disabled={busy}
-            onPress={() => void leaveTrip()}
-          />
+          <MenuRow icon="close" title="Leave plan" danger disabled={busy} onPress={() => void leaveTrip()} />
         )}
       </Sheet>
     </Page>
   );
 }
 
+/** One line of the options sheet: a line icon and the words, no button chrome. */
+function MenuRow({ icon, title, danger = false, disabled, onPress }: { icon: IconName; title: string; danger?: boolean; disabled?: boolean; onPress: () => void }) {
+  const ink = danger ? palette.danger : colors.fg;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.menuRow, (pressed || disabled) && styles.pressed]}
+    >
+      <Icon name={icon} size={20} color={ink} />
+      <Text style={[styles.menuText, { color: ink }]}>{title}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  footer: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
+  mapButton: { width: 50, height: 50, borderRadius: 25, backgroundColor: palette.field, alignItems: "center", justifyContent: "center" },
+  pressed: { opacity: 0.6 },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 52 },
+  menuText: { flex: 1, fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
+  decline: { width: "auto", paddingHorizontal: spacing.sm },
+  join: { width: "auto", borderRadius: 10 },
   top: { gap: spacing.xs + 2 },
   facts: { fontSize: 15 },
   loadingFaces: { flexDirection: "row", gap: spacing.md },
-  invite: { gap: spacing.xs, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface },
-  inviteTitle: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold },
-  buttons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
-  // The payoff: a full pill with a soft pink glow, so it reads as the one thing to do next.
-  plan: {
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md + 4,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-  },
+  invite: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  inviteTitle: { flex: 1, fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  plan: { flex: 1, width: "auto", backgroundColor: colors.fg },
 });

@@ -56,7 +56,8 @@ export function IconButton({
       >
         <Icon name={icon} size={Math.round(size * 0.5)} color={color} />
         {badge ? (
-          <View style={styles.badge}>
+          // Without the grey circle the count hugs the icon's corner, not the edge of the tap area.
+          <View style={[styles.badge, plain && { top: Math.round(size * 0.25) - 5, right: Math.round(size * 0.25) - 8 }]}>
             <Text style={styles.badgeText}>{badge}</Text>
           </View>
         ) : null}

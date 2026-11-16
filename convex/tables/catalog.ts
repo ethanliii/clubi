@@ -51,6 +51,9 @@ export const catalogTables = {
     // (imports/google.ts): the credit Google requires, and the stored file.
     imageAttribution: v.optional(v.string()),
     imageStorageId: v.optional(v.id("_storage")),
+    // Google Places says the business is closed for good (imports/google.ts). The row is kept, and
+    // discovery hides it (lib/discovery.ts, isVisibleTo).
+    permanentlyClosed: v.optional(v.boolean()),
     // v2 (Brain writes it): venueVector blended with what visitors answered. Imports must never clear it.
     learnedVector: v.optional(v.array(v.number())),
   })

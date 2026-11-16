@@ -42,7 +42,7 @@ export function TripForm({
   const { lat, lng, ready } = useDemoLocation();
   const friends = useQuery(api.friends.list, editing ? "skip" : {});
   const create = useMutationToast(api.trips.create);
-  const update = useMutationToast(api.trips.update, { success: "Trip updated" });
+  const update = useMutationToast(api.trips.update, { success: "Plan updated" });
   const pending = create.pending || update.pending;
 
   const pickVibe = (next: Vibe) => {
@@ -55,7 +55,7 @@ export function TripForm({
     const cleanName = name.trim();
     const cleanCity = city.trim();
     if (cleanName === "") {
-      setNameError("Give your trip a name.");
+      setNameError("Give your plan a name.");
       return;
     }
     setNameError(null);
@@ -135,8 +135,8 @@ export function TripForm({
       </View>
       <DateRangeField value={dates} onChange={setDates} allowClear={!editing} />
       <Button
-        title={editing ? "Save" : "Create trip"}
-        accessibilityLabel={editing ? "Save" : "Create trip"}
+        title={editing ? "Save" : "Create plan"}
+        accessibilityLabel={editing ? "Save" : "Create plan"}
         disabled={pending}
         onPress={() => void submit()}
         style={styles.submit}

@@ -1,6 +1,7 @@
 import { useState, type ComponentProps } from "react";
 import { Platform, StyleSheet, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { colors, palette, radius, spacing } from "../theme";
+import { Icon, type IconName } from "./Icon";
 import { Text } from "./Text";
 
 export type TextFieldProps = Omit<ComponentProps<typeof TextInput>, "style"> & {
@@ -10,6 +11,10 @@ export type TextFieldProps = Omit<ComponentProps<typeof TextInput>, "style"> & {
   error?: string | null;
   /** Shown under the box in grey when there is no error. */
   hint?: string;
+  /** A small grey line icon at the left edge, e.g. "search". */
+  leadingIcon?: IconName;
+  /** The compact search field: a magnifier, one line, 44 tall. */
+  search?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -17,7 +22,7 @@ export type TextFieldProps = Omit<ComponentProps<typeof TextInput>, "style"> & {
 const noOutline = Platform.OS === "web" ? ({ outlineStyle: "none" } as unknown as TextStyle) : null;
 
 /**
- * A calm filled text box. The label sits inside the box above the text, so a form reads as a short
+ * A grey rounded text box with no border until it is focused. The label sits inside the box above the text, so a form reads as a short
  * list of fields rather than a stack of captions and boxes. Takes every `TextInput` prop
  * (placeholder, secureTextEntry, ref, …).
  */
@@ -25,6 +30,8 @@ export function TextField({
   label,
   error,
   hint,
+  leadingIcon,
+  search,
   style,
   multiline,
   accessibilityLabel,
@@ -36,13 +43,19 @@ export function TextField({
   const [focused, setFocused] = useState(false);
   // A placeholder that only repeats the label says the same thing twice inside one box.
   const hintText = label && placeholder && placeholder.trim().toLowerCase() === label.trim().toLowerCase() ? undefined : placeholder;
+  const iconName = leadingIcon ?? (search ? "search" : undefined);
   return (
     <View style={[styles.wrap, style]}>
-      <View style={[styles.box, focused && styles.boxFocused, error ? styles.boxError : null]}>
+      <View style={[styles.box, search && styles.boxSearch, focused && styles.boxFocused, error ? styles.boxError : null]}>
+        {iconName ? (
+          <View style={styles.icon}>
+            <Icon name={iconName} size={18} color={colors.muted} />
+          </View>
+        ) : null}
         <TextInput
           accessibilityLabel={accessibilityLabel ?? label ?? placeholder}
           placeholder={hintText}
-          placeholderTextColor="#857d94"
+          placeholderTextColor={colors.muted}
           selectionColor={colors.accent}
           multiline={multiline}
           onFocus={(event) => {
@@ -53,11 +66,11 @@ export function TextField({
             setFocused(false);
             onBlur?.(event);
           }}
-          style={[styles.input, label ? styles.inputLabelled : null, multiline && styles.multiline, noOutline]}
+          style={[styles.input, search && styles.inputSearch, label ? styles.inputLabelled : null, iconName ? styles.inputWithIcon : null, multiline && styles.multiline, noOutline]}
           {...props}
         />
         {label ? (
-          <Text variant="caption" numberOfLines={1} style={[styles.label, error ? styles.labelError : null]}>
+          <Text variant="caption" numberOfLines={1} style={[styles.label, iconName ? styles.labelWithIcon : null, error ? styles.labelError : null]}>
             {label}
           </Text>
         ) : null}
@@ -78,13 +91,18 @@ export function TextField({
 const styles = StyleSheet.create({
   wrap: { gap: 6, width: "100%" },
   box: {
-    borderRadius: radius.lg,
+    borderRadius: radius.md + 2,
     backgroundColor: palette.field,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "transparent",
     overflow: "hidden",
   },
-  boxFocused: { borderColor: "rgba(242,238,247,0.38)", backgroundColor: palette.fieldPressed },
+  boxSearch: { borderRadius: radius.md },
+  boxFocused: { borderColor: colors.low },
+  icon: { position: "absolute", left: spacing.md, top: 0, bottom: 0, justifyContent: "center", pointerEvents: "none" },
+  inputWithIcon: { paddingLeft: spacing.md + 26 },
+  inputSearch: { minHeight: 42, paddingVertical: spacing.sm },
+  labelWithIcon: { left: spacing.md + 26 },
   boxError: { borderColor: palette.danger },
   // The label is drawn over the input and lets taps through, so the whole box focuses the input.
   label: {

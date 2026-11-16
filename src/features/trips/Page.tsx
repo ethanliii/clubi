@@ -39,7 +39,7 @@ export function Page({
         <View pointerEvents="box-none" style={styles.footer}>
           <LinearGradient
             pointerEvents="none"
-            colors={["rgba(20,17,25,0)", colors.bg]}
+            colors={["rgba(255,255,255,0)", colors.bg]}
             locations={[0, 0.45]}
             style={StyleSheet.absoluteFill}
           />

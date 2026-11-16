@@ -1,26 +1,24 @@
 import { useEffect, useState } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Pressable, StyleSheet } from "react-native";
 import { Icon, Text } from "../../components";
-import { colors, fontWeight } from "../../theme";
+import { colors, fontWeight, palette, radius } from "../../theme";
 import { NATIVE_DRIVER } from "./Rise";
 
 /**
- * One answer on a quiz card: a big row that dips under the thumb and flips to light when picked.
- * `many` cards are checkboxes, the rest are radios; the screen owns which options are picked.
+ * One answer on a quiz card. A "pick many" card draws its answers as wrapping chips; a "pick one"
+ * card draws rows, with a check on the picked row only. Both are light grey and turn black when
+ * picked. The screen owns which options are picked.
  */
 export function QuizOption({
   label,
   selected,
   many,
-  compact,
   disabled,
   onPress,
 }: {
   label: string;
   selected: boolean;
   many: boolean;
-  /** Shorter rows for the card with six options. */
-  compact?: boolean;
   disabled?: boolean;
   onPress: () => void;
 }) {
@@ -53,45 +51,41 @@ export function QuizOption({
         onPressIn={() => dip(0.97)}
         onPressOut={() => dip(1)}
         onPress={onPress}
-        style={[styles.option, compact && styles.compact, selected && styles.optionOn]}
+        style={[many ? styles.chip : styles.row, selected && styles.on]}
       >
-        <Text style={[styles.label, selected && styles.labelOn]} numberOfLines={1}>
+        <Text style={[styles.label, !many && styles.rowLabel, selected && styles.labelOn]} numberOfLines={1}>
           {label}
         </Text>
-        <View style={[styles.mark, many && styles.markMany, selected && styles.markOn]}>
+        {many ? null : (
           <Animated.View style={{ opacity: tick, transform: [{ scale: tick }] }}>
-            <Icon name="check" size={16} color={colors.fg} />
+            <Icon name="check" size={18} color={colors.white} />
           </Animated.View>
-        </View>
+        )}
       </Pressable>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  option: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    height: 68,
-    paddingLeft: 22,
-    paddingRight: 18,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-  },
-  compact: { height: 58, borderRadius: 18 },
-  optionOn: { backgroundColor: colors.fg },
-  label: { flex: 1, fontSize: 18, lineHeight: 24, fontWeight: fontWeight.semibold, color: colors.fg },
-  labelOn: { color: colors.bg },
-  mark: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1.5,
-    borderColor: colors.line,
+  chip: {
+    height: 44,
+    paddingHorizontal: 18,
+    borderRadius: radius.pill,
+    backgroundColor: palette.field,
     alignItems: "center",
     justifyContent: "center",
   },
-  markMany: { borderRadius: 8 },
-  markOn: { borderColor: colors.bg, backgroundColor: colors.bg },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    height: 56,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    backgroundColor: palette.field,
+  },
+  on: { backgroundColor: colors.fg },
+  label: { fontSize: 16, lineHeight: 22, fontWeight: fontWeight.semibold, letterSpacing: -0.2, color: colors.fg },
+  rowLabel: { flex: 1 },
+  labelOn: { color: colors.white },
 });

@@ -104,6 +104,12 @@ Branch `merge-ui-overhaul` = `main` + `origin/ui-overhaul`. Rule agreed by Bryan
 - **Add a photo** in the rank flow (Details step): pick from the library (`lib/photos.pickPhoto`), uploaded on Post via `posts.generateUploadUrl`, sent as `rankings.rank({ photoStorageId })`.
 - **Light / dark button** (sun/moon) now also on Home, Search, Map and Welcome (top right), not only Profile / Settings.
 
+## Pass 16 (second ui-overhaul merge: Ethan's newest backend, Bryan's screens)
+- From `ui-overhaul` (up to `ef119d3`): all `convex/` changes (Google **area import** with a $100 spend ceiling and caller-set radius, catalog/discover/rankings updates), tests, his new **group map** (`/group-map`, `features/groupmap`), and his own screens/components.
+- Kept Bryan's: every tab, onboarding, profile, friends, compare, rankings, venue, sign-in, settings, root layout, theme (dark default; his `isDark` / `toggleThemeMode` names now map onto Bryan's `mode.ts`, same storage key), links, map surface/peek, foundation components.
+- Not taken: his `(tabs)/recs` "For you" tab (Bryan's Search covers it; `paths.recs` → `/search`), his removed `home/Hero` / `Shortcuts`.
+- Three lint suppressions in his `feed/Comments.tsx` (React Compiler rules; same code as on his branch).
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 

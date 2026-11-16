@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "rea
 import type { NearbyItem } from "../../convex/lib/contract";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../lib/format";
 import { venuePath } from "../lib/links";
-import { colors, elevation, fontWeight, layout, palette, radius, ratingColor, spacing } from "../theme";
+import { colors, fontWeight, layout, palette, radius, ratingColor, spacing } from "../theme";
 import { AvatarStack } from "./Avatar";
 import { Photo } from "./Photo";
 import { ScoreBadge } from "./ScoreBadge";
@@ -13,13 +13,19 @@ import { Text } from "./Text";
 export type ItemCardProps = {
   /** Anything shaped like a `NearbyItem`: map and home items, plan stops, group picks, search results. */
   item: NearbyItem;
-  /** `row` (default): one line of a list. `card`: a photo card for sideways rows. */
-  variant?: "row" | "card";
+  /**
+   * `row` (default): one line of a list. `card`: a borderless photo card for carousels, name and one
+   * grey line under the photo. `overlay`: a tall photo card with the name and one line in white over
+   * a dark fade, for featured carousels.
+   */
+  variant?: "row" | "card" | "overlay";
+  /** Overlay only: its height. Default is 1.2 times the width. */
+  height?: number;
   /** Defaults to opening the venue page for this item. */
   onPress?: () => void;
-  /** Row only: show the backend's `rank` in front ("1", "2", …). */
+  /** Row only: number the row with the backend's `rank` ("1. Name"). */
   showRank?: boolean;
-  /** Card only: its width. Default 240. */
+  /** Card and overlay: the width. Default 240 (overlay 160). */
   width?: number;
   /** Extra content at the bottom: each member's score, vote buttons, a "Start" label. */
   children?: ReactNode;
@@ -67,50 +73,84 @@ function Friends({ item }: { item: NearbyItem }) {
  * One place or event, drawn from a `NearbyItem` exactly as the backend returned it: its photo, name,
  * what it is, the score with its `why` line, distance, the friends who ranked it, and for events
  * the start time and who is playing.
+ *
+ * `card` is the browsing card: a borderless photo, the name in bold under it, one grey line of
+ * facts, and the score ring at the right. `row` is the ranked-list row: a small photo, "1. Name",
+ * a grey line, and the same ring at the right.
  */
-export function ItemCard({ item, variant = "row", onPress, showRank = false, width = 240, children, style }: ItemCardProps) {
+export function ItemCard({ item, variant = "row", onPress, showRank = false, width, height, children, style }: ItemCardProps) {
   const open = onPress ?? (() => router.push(venuePath(item.kind, item.id)));
   const label = `${item.name}, ${formatScore(item.score)} for you. ${item.why}`;
   const when = item.startsAt !== undefined ? formatEventTime(item.startsAt) : null;
   const performers = item.performers && item.performers.length > 0 ? item.performers.join(", ") : null;
 
-  if (variant === "card") {
+  if (variant === "overlay") {
+    const w = width ?? 160;
+    const sub = when ?? metaLine(item, false);
     return (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
         onPress={open}
-        style={({ pressed }) => [styles.card, { width }, pressed && styles.pressed, style]}
+        style={({ pressed }) => [{ width: w }, pressed && styles.pressed, style]}
       >
-        {/* The photo carries the name and the score; the reason reads underneath it. */}
-        <Photo uri={item.imageUrl} category={item.category} height={Math.round(width * 1.08)} scrim="bottom">
-          <View style={styles.onPhoto}>
-            <ScoreBadge score={item.score} style={styles.cardScore} />
-            <View style={styles.cardTitles}>
-              <Text numberOfLines={2} style={styles.cardName}>
-                {item.name}
+        <Photo uri={item.imageUrl} category={item.category} height={height ?? Math.round(w * 1.2)} round={radius.md} scrim="bottom">
+          <View style={styles.overlayScore}>
+            <ScoreBadge score={item.score} size="sm" />
+          </View>
+          <View style={styles.overlayText}>
+            <Text numberOfLines={2} style={styles.overlayName}>
+              {item.name}
+            </Text>
+            {sub !== "" ? (
+              <Text numberOfLines={1} style={styles.overlaySub}>
+                {sub}
               </Text>
-              <Text variant="caption" numberOfLines={1} style={styles.cardMeta}>
-                {when ?? metaLine(item, false)}
-              </Text>
-            </View>
+            ) : null}
           </View>
         </Photo>
-        <View style={styles.cardBody}>
-          <Text soft numberOfLines={2}>
-            {item.why}
-          </Text>
-          <Text variant="caption" muted numberOfLines={1}>
-            {when ? metaLine(item, true) : `${item.matchPct}% match`}
-          </Text>
-          {performers ? (
-            <Text variant="caption" muted numberOfLines={1}>
-              {performers}
+        {children}
+      </Pressable>
+    );
+  }
+
+  if (variant === "card") {
+    const cardWidth = width ?? 240;
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={open}
+        style={({ pressed }) => [styles.card, { width: cardWidth }, pressed && styles.pressed, style]}
+      >
+        <Photo uri={item.imageUrl} category={item.category} height={Math.round(cardWidth * 0.66)} round={radius.md} />
+        <View style={styles.cardFoot}>
+          <View style={styles.cardTitles}>
+            <Text numberOfLines={1} style={styles.cardName}>
+              {item.name}
             </Text>
-          ) : null}
-          <Friends item={item} />
-          {children}
+            <Text variant="caption" muted numberOfLines={1}>
+              {metaLine(item, false)}
+            </Text>
+            {when ? (
+              <Text variant="caption" numberOfLines={1} style={styles.when}>
+                {performers ? `${when} · ${performers}` : when}
+              </Text>
+            ) : null}
+            {item.why !== "" ? (
+              <Text variant="caption" muted numberOfLines={1}>
+                {item.why}
+              </Text>
+            ) : null}
+          </View>
+          <ScoreBadge score={item.score} size="md" />
         </View>
+        {item.friends.length > 0 || children ? (
+          <View style={styles.cardExtra}>
+            <Friends item={item} />
+            {children}
+          </View>
+        ) : null}
       </Pressable>
     );
   }
@@ -122,39 +162,35 @@ export function ItemCard({ item, variant = "row", onPress, showRank = false, wid
       onPress={open}
       style={({ pressed }) => [styles.row, pressed && styles.pressed, style]}
     >
-      {showRank ? (
-        <Text style={styles.rank} muted>
-          {item.rank}
-        </Text>
-      ) : null}
       <Photo
         uri={item.imageUrl}
         category={item.category}
         width={layout.rowThumb}
         height={layout.rowThumb}
-        round={radius.lg}
+        round={radius.md}
       />
       <View style={styles.rowBody}>
-        <View style={styles.rowTop}>
-          <Text numberOfLines={1} style={styles.rowName}>
-            {item.name}
-          </Text>
-          <ScoreBadge score={item.score} />
-        </View>
-        <Text soft numberOfLines={2} style={styles.why}>
-          {item.why}
+        <Text numberOfLines={1} style={styles.rowName}>
+          {showRank ? `${item.rank}. ` : ""}
+          {item.name}
         </Text>
         <Text variant="caption" muted numberOfLines={1}>
-          {metaLine(item, true)}
+          {metaLine(item, false)}
         </Text>
         {when ? (
           <Text variant="caption" numberOfLines={1} style={styles.when}>
             {performers ? `${when} · ${performers}` : when}
           </Text>
         ) : null}
+        {item.why !== "" ? (
+          <Text variant="caption" muted numberOfLines={2}>
+            {item.why}
+          </Text>
+        ) : null}
         <Friends item={item} />
         {children}
       </View>
+      <ScoreBadge score={item.score} size="md" style={styles.rowScore} />
     </Pressable>
   );
 }
@@ -165,29 +201,31 @@ const styles = StyleSheet.create({
   friends: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   friendScore: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
 
-  // Card: no box. A tall photo with the name on it, the reason under it.
-  card: { gap: spacing.sm + 2 },
-  onPhoto: { flex: 1, justifyContent: "space-between", padding: spacing.md },
-  cardScore: { ...elevation.card },
-  cardTitles: { gap: 2 },
-  cardName: { fontSize: 19, lineHeight: 23, fontWeight: fontWeight.bold, letterSpacing: -0.4, color: palette.onPhoto },
-  cardMeta: { color: palette.onPhotoMuted },
-  cardBody: { gap: spacing.xs, paddingHorizontal: 2 },
+  // Card: no box and no border. A wide photo, then the name, one grey line, and the score ring.
+  card: { gap: spacing.sm },
+  cardFoot: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  cardTitles: { flex: 1, gap: 2 },
+  cardName: { fontSize: 15.5, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  cardExtra: { gap: spacing.xs },
 
-  // Row: photo, then name and score on one line, the reason, and the facts.
+  // Overlay: the photo is the card. A dark fade, a bold white two-line name and a small white line.
+  overlayScore: { position: "absolute", top: spacing.sm, right: spacing.sm },
+  overlayText: { position: "absolute", left: spacing.md, right: spacing.md, bottom: spacing.md, gap: 3 },
+  overlayName: { color: palette.onPhoto, fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  overlaySub: { color: palette.onPhotoMuted, fontSize: 12.5, lineHeight: 16, fontWeight: fontWeight.medium },
+
+  // Row: small photo, "1. Name", a grey line of facts, the reason, and the score ring at the right.
   row: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: spacing.md,
-    paddingVertical: spacing.md + 2,
+    paddingVertical: spacing.md,
     minHeight: 72,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: palette.hairline,
   },
-  rank: { width: 22, textAlign: "center", fontWeight: fontWeight.semibold, fontVariant: ["tabular-nums"], lineHeight: layout.rowThumb, color: colors.low },
-  rowBody: { flex: 1, gap: 3, minHeight: layout.rowThumb, justifyContent: "center" },
-  rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  rowName: { flex: 1, fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, letterSpacing: -0.2 },
-  why: { lineHeight: 19 },
+  rowBody: { flex: 1, gap: 2, minHeight: layout.rowThumb, justifyContent: "center" },
+  rowName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  rowScore: { alignSelf: "center" },
   when: { color: colors.fg, fontWeight: fontWeight.semibold },
 });

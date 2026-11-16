@@ -17,7 +17,7 @@ import { usePhotoDraft } from "./usePhotoDraft";
 
 type Step = "how" | "compare" | "details" | "result" | "questions";
 
-/** The flow is over: back to the tabs, on the Feed, where the new post is. */
+/** The flow is over: back to the tabs, on the Feed (the first tab), where the new post is on top. */
 function goToFeed() {
   if (router.canDismiss()) router.dismissAll();
   router.replace(paths.feed);
@@ -40,6 +40,8 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const [step, setStep] = useState<Step>("how");
   const [bucket, setBucket] = useState<Bucket | null>(null);
   const [search, setSearch] = useState<Search | null>(null);
+  // The searches before each answer of this run, newest last, so "Undo" can step back one.
+  const [history, setHistory] = useState<Search[]>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [posting, setPosting] = useState(false);
   const [result, setResult] = useState<RankResult | null>(null);
@@ -71,7 +73,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   );
 
   // The steps are one route, so the iOS swipe from the left edge would leave the whole flow: past
-  // "Would you go back?" that throws away the draft, or skips the questions once the ranking is posted.
+  // "How was it?" that throws away the draft, or skips the questions once the ranking is posted.
   // Only the first step, where on-screen Back leaves too, keeps the swipe.
   const navigation = useNavigation();
   const canSwipeBack = step === "how";
@@ -117,10 +119,11 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const isRerank = venue.myRanking !== undefined;
 
   const pickBucket = (picked: Bucket) => {
-    // A double tap on "Absolutely" must not also answer the first "Which was better?".
+    // A double tap on "Loved it" must not also answer the first "Which was better?".
     guard.mark();
     setBucket(picked);
     setSearch(null);
+    setHistory([]);
     setStep("compare");
   };
 
@@ -132,12 +135,41 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const onAnswer = (newWon: boolean) => {
     if (search === null || guard.justMoved()) return;
     guard.mark();
+    setHistory([...history, search]);
     settle(answer(search, venue.id, newWon));
+  };
+
+  const undo = () => {
+    const before = history[history.length - 1];
+    if (before === undefined || guard.justMoved()) return;
+    guard.mark();
+    setHistory(history.slice(0, -1));
+    setSearch(before);
+  };
+
+  // "Too tough" and "Skip" both stop asking and keep the comparisons made so far.
+  const stop = () => {
+    if (search !== null) settle(stopEarly(search));
   };
 
   const backToHow = () => {
     setSearch(null);
+    setHistory([]);
     setStep("how");
+  };
+
+  // Back from "Add details" reopens the last comparison, so one tap never throws the answers away.
+  // With nothing compared it goes to "How was it?".
+  const backFromDetails = () => {
+    const before = history[history.length - 1];
+    if (before === undefined) {
+      backToHow();
+      return;
+    }
+    guard.mark();
+    setHistory(history.slice(0, -1));
+    setSearch(before);
+    setStep("compare");
   };
 
   // What "Who sees it" shows. A first ranking starts on the user's default ("Friends" until it loads).
@@ -200,7 +232,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
     }
   };
 
-  if (step === "how") return <HowStep venue={venue} onPick={pickBucket} onBack={goBack} />;
+  if (step === "how") return <HowStep venue={venue} picked={bucket} onPick={pickBucket} onBack={goBack} />;
 
   if (step === "compare") {
     return (
@@ -208,8 +240,11 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
         venue={venue}
         search={search}
         photos={ranked}
+        canUndo={history.length > 0}
         onAnswer={onAnswer}
-        onTooClose={() => search !== null && settle(stopEarly(search))}
+        onTooClose={stop}
+        onUndo={undo}
+        onSkip={stop}
         onBack={backToHow}
       />
     );
@@ -225,10 +260,10 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
         onAddPhoto={() => void addPhoto()}
         onRemovePhoto={removePhoto}
         shownVisibility={shownVisibility}
-        keepsVisibility={isRerank}
+        bucket={bucket}
         posting={posting}
         onPost={() => void post()}
-        onBack={backToHow}
+        onBack={backFromDetails}
       />
     );
   }
@@ -257,9 +292,10 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
       >
         <Skeleton height={34} width="80%" />
         <View style={styles.options}>
-          <Skeleton height={64} round={radius.xl} />
-          <Skeleton height={64} round={radius.xl} />
-          <Skeleton height={64} round={radius.xl} />
+          <Skeleton height={40} width={96} round={20} />
+          <Skeleton height={40} width={132} round={20} />
+          <Skeleton height={40} width={84} round={20} />
+          <Skeleton height={40} width={118} round={20} />
         </View>
       </FlowScreen>
     );
@@ -277,5 +313,5 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
 
 const styles = StyleSheet.create({
   centered: { alignSelf: "center" },
-  options: { gap: spacing.sm + 2 },
+  options: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
 });

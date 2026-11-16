@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, elevation, fontWeight, palette, radius, spacing } from "../theme";
+import { colors, elevation, fontWeight, radius, spacing } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -129,8 +129,8 @@ function ToastCard({ toast, onPress }: { toast: ToastState; onPress: () => void 
         onPress={onPress}
         style={styles.card}
       >
-        {toast.kind === "success" ? <Icon name="check" size={16} color={colors.ok} /> : null}
-        {toast.kind === "error" ? <Icon name="alert" size={17} color={palette.danger} /> : null}
+        {toast.kind === "success" ? <Icon name="check" size={16} color="#5fd693" /> : null}
+        {toast.kind === "error" ? <Icon name="alert" size={17} color="#ff8a80" /> : null}
         <Text style={styles.text}>{toast.message}</Text>
       </Pressable>
     </Animated.View>
@@ -157,9 +157,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.xxl + 2,
-    backgroundColor: "#2b2634",
+    borderRadius: radius.xxl + 1,
+    backgroundColor: colors.fg,
     ...elevation.floating,
   },
-  text: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, flexShrink: 1 },
+  text: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, flexShrink: 1, color: colors.white },
 });

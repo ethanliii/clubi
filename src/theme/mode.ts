@@ -32,3 +32,9 @@ export function setThemeMode(next: ThemeMode) {
   if (Platform.OS === "web") globalThis.location?.reload();
   else DevSettings.reload();
 }
+
+/** Names main's screens use for the same thing. */
+export const isDark = !isLight;
+export function toggleThemeMode() {
+  setThemeMode(isLight ? "dark" : "light");
+}

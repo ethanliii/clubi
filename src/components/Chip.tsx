@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { colors, fontWeight, palette, radius, spacing } from "../theme";
+import { Icon, type IconName } from "./Icon";
 import { Text } from "./Text";
 
 export type ChipProps = {
   label: string;
-  /** Filled light (the page's text colour) with dark text when true. */
+  /** Filled with the accent and white text when true. */
   selected?: boolean;
   /** Leave out for a chip that only shows a fact ("Packed", "Mostly 20s"). */
   onPress?: () => void;
@@ -16,6 +17,8 @@ export type ChipProps = {
   size?: "sm" | "md";
   /** Something in front of the label, e.g. an `Avatar`. */
   leading?: ReactNode;
+  /** A small line icon in front of the label ("Trending", "Friend recs"). */
+  icon?: IconName;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -28,11 +31,13 @@ export function Chip({
   disabled,
   size = "md",
   leading,
+  icon,
   style,
 }: ChipProps) {
   const content = (
     <>
       {leading}
+      {icon ? <Icon name={icon} size={size === "sm" ? 13 : 16} color={selected ? colors.white : colors.fg} /> : null}
       <Text
         numberOfLines={1}
         style={[styles.label, size === "sm" && styles.labelSm, selected && styles.labelSelected]}
@@ -92,24 +97,24 @@ export function ChipRow({
 }
 
 const styles = StyleSheet.create({
-  // No outline: an unselected chip is a quiet fill, the selected one is the only bright thing in the row.
+  // No outline: an unselected chip is a light grey pill, the selected one is the only black thing in the row.
   chip: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs + 2,
     minHeight: 36,
     paddingVertical: 7,
-    paddingHorizontal: 15,
+    paddingHorizontal: 14,
     borderRadius: radius.pill,
     backgroundColor: palette.field,
   },
-  chipSm: { minHeight: 24, paddingVertical: 3, paddingHorizontal: spacing.sm + 2, backgroundColor: "rgba(255,255,255,0.06)" },
-  selected: { backgroundColor: colors.fg },
+  chipSm: { minHeight: 24, paddingVertical: 3, paddingHorizontal: spacing.sm + 2, backgroundColor: palette.field },
+  selected: { backgroundColor: colors.accent },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   dimmed: { opacity: 0.4 },
-  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.medium, color: palette.soft },
-  labelSm: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.regular },
-  labelSelected: { color: colors.bg, fontWeight: fontWeight.semibold },
+  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.fg },
+  labelSm: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.semibold, color: palette.soft },
+  labelSelected: { color: colors.white, fontWeight: fontWeight.bold },
   scroller: { flexGrow: 0 },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   wrap: { flexWrap: "wrap" },

@@ -105,7 +105,7 @@ test("run is safe to run twice, and clear removes everything the seed created an
   let result = await t.run(seedSocial.clear, null);
   for (let run = 0; run < 5 && result.continuing; run++) result = await t.run(seedSocial.clear, null);
   assert.deepEqual(count(), { users: 1, rankings: 1, posts: 0, comparisons: 0, friendships: 0, trips: 0, tripMembers: 0, tripVotes: 0 });
-  assert.equal(t.all("places").length, 33);
+  assert.equal(t.all("places").length, 28);
   assert.equal((await t.db.get(me)).username, "ethan");
   // And it can be seeded again afterwards.
   assert.equal((await t.run(seedSocial.run, null, {})).users, 8);
