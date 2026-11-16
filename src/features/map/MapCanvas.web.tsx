@@ -215,7 +215,7 @@ const TINT: Record<string, [string, string]> = {
 function tintStyle(map: GLMap) {
   for (const [layer, [property, value]] of Object.entries(TINT)) {
     try {
-      if (map.getLayer(layer)) map.setPaintProperty(layer, property, value);
+      if (map.getLayer(layer)) map.setPaintProperty(layer, property as Parameters<GLMap["setPaintProperty"]>[1], value);
     } catch {
       // A layer this style no longer has, or a property it does not take: the map keeps its own colour.
     }
