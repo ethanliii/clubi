@@ -30,24 +30,7 @@ export const QUIZ_CARDS: readonly QuizCard[] = [
   },
 ];
 
-const CROWD_CARD = 1;
-const PEAK_CARD = 3;
-/** One word per "When does your night peak?" option. */
-const PEAK_WORD = ["Golden Hour", "Rooftop", "Late-Night", "Afterhours"];
-/** One word per "Your ideal crowd?" option. */
-const CROWD_WORD = ["Romantic", "Socialite", "Wildcard", "Free Spirit"];
-
-/**
- * The name on the taste card, e.g. "Late-Night Socialite". It is copy made from two of the user's
- * own answers (UI-SPEC: the persona title stays local); every number on the card is the backend's.
- */
-export function personaTitle(answers: readonly (readonly number[])[] | undefined): string | null {
-  const peak = PEAK_WORD[answers?.[PEAK_CARD]?.[0] ?? -1];
-  const crowd = CROWD_WORD[answers?.[CROWD_CARD]?.[0] ?? -1];
-  return peak && crowd ? `${peak} ${crowd}` : null;
-}
-
-/** The words the user picked on the "pick many" cards (music, other interests), for the tags under the card. */
+/** The words the user picked on the "pick many" cards (music, other interests), for the line under the taste card. */
 export function pickedTags(answers: readonly (readonly number[])[] | undefined): string[] {
   if (!answers) return [];
   return QUIZ_CARDS.flatMap((card, index) =>

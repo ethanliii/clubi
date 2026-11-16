@@ -1,33 +1,45 @@
 import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-import { Avatar, Chip, ChipRow, EmptyState, goBack, ItemCard, Screen, Skeleton, Text } from "../components";
+import { EmptyState, goBack, Screen, Skeleton, Text } from "../components";
 import { citySpot } from "../features/trips/city";
+import { Face, FaceRow } from "../features/trips/Faces";
 import { FriendChips, toggleId } from "../features/trips/FriendChips";
 import { MemberScores } from "../features/trips/MemberScores";
-import { ScreenTop } from "../features/trips/ScreenTop";
+import { PlaceCard } from "../features/trips/PlaceCard";
+import { FieldLabel, ScreenTop } from "../features/trips/ScreenTop";
 import { VibeChips, type Vibe } from "../features/trips/vibes";
 import { api, type Id, type PlanResult } from "../lib/api";
 import { useDemoLocation } from "../lib/demoLocation";
+import { useNow } from "../lib/useNow";
 import { useMe } from "../state/session";
-import { colors, radius, spacing } from "../theme";
+import { colors, fontWeight, radius, spacing } from "../theme";
+
+const PHOTO = 168;
+
+/** One step of the night on the timeline: the dot and line on the left, the stop on the right. */
+function Step({ last, children }: { last: boolean; children: ReactNode }) {
+  return (
+    <View style={styles.step}>
+      <View style={styles.rail}>
+        <View style={styles.dot} />
+        {last ? null : <View style={styles.line} />}
+      </View>
+      <View style={[styles.stepBody, !last && styles.stepGap]}>{children}</View>
+    </View>
+  );
+}
 
 function StopsSkeleton() {
   return (
-    <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.stops}>
+    <View accessibilityRole="progressbar" accessibilityLabel="Loading">
       {[0, 1, 2].map((index) => (
-        <View key={index} style={styles.stop}>
-          <Skeleton width={64} height={11} />
-          <View style={styles.skeletonRow}>
-            <Skeleton width={56} height={56} />
-            <View style={styles.skeletonLines}>
-              <Skeleton width="60%" height={14} />
-              <Skeleton width="85%" height={11} />
-              <Skeleton width="40%" height={11} />
-            </View>
-          </View>
-        </View>
+        <Step key={index} last={index === 2}>
+          <Skeleton width={72} height={16} />
+          <Skeleton height={PHOTO} round={radius.xl} />
+          <Skeleton width="60%" height={16} />
+        </Step>
       ))}
     </View>
   );
@@ -37,6 +49,7 @@ export default function PlanScreen() {
   const params = useLocalSearchParams<{ tripId?: string }>();
   const tripId = params.tripId ? (params.tripId as Id<"trips">) : undefined;
   const me = useMe();
+  const now = useNow();
   const { lat, lng, ready } = useDemoLocation();
 
   const [memberIds, setMemberIds] = useState<Id<"users">[]>([]);
@@ -77,35 +90,37 @@ export default function PlanScreen() {
     );
   }
 
-  const you = <Chip label="You" selected leading={me ? <Avatar name={me.displayName} uri={me.avatarUrl} size={22} /> : undefined} />;
+  const you = me ? <Face name={me.displayName} uri={me.avatarUrl} label="You" selected /> : undefined;
 
   return (
     <Screen>
       <View style={styles.top}>
         <ScreenTop title="Plan my night" />
-        {tripId && trip ? <Text muted>{`Three stops for ${trip.name}`}</Text> : null}
+        <Text muted style={styles.sub}>
+          {tripId && trip ? `Three stops for ${trip.name}` : "Three stops, picked for whoever is coming."}
+        </Text>
       </View>
 
       <View style={styles.group}>
-        <Text variant="label">{"Who's coming"}</Text>
+        <FieldLabel>{"Who's coming"}</FieldLabel>
         {tripId ? (
           // A trip plans for everyone who joined it; the backend says who that is.
           shown === undefined ? (
-            <ChipRow>
-              <Skeleton width={96} height={40} round={radius.pill} />
-              <Skeleton width={120} height={40} round={radius.pill} />
-            </ChipRow>
+            <View style={styles.loadingFaces}>
+              <Skeleton width={56} height={56} round={28} />
+              <Skeleton width={56} height={56} round={28} />
+            </View>
           ) : (
-            <ChipRow>
+            <FaceRow>
               {shown.members.map((member) => (
-                <Chip
+                <Face
                   key={member.userId}
-                  label={member.userId === me?.userId ? "You" : member.displayName}
-                  selected
-                  leading={<Avatar name={member.displayName} uri={member.avatarUrl} size={22} />}
+                  name={member.displayName}
+                  uri={member.avatarUrl}
+                  label={member.userId === me?.userId ? "You" : undefined}
                 />
               ))}
-            </ChipRow>
+            </FaceRow>
           )
         ) : (
           <FriendChips
@@ -118,7 +133,7 @@ export default function PlanScreen() {
       </View>
 
       <View style={styles.group}>
-        <Text variant="label">Vibe</Text>
+        <FieldLabel>Vibe</FieldLabel>
         <VibeChips value={vibe ?? shown?.vibe} onChange={setVibe} />
       </View>
 
@@ -127,14 +142,14 @@ export default function PlanScreen() {
       ) : shown.stops.length === 0 ? (
         <EmptyState title="Not enough open places nearby right now." icon="map" />
       ) : (
-        <View style={[styles.stops, updating && styles.updating]}>
-          {shown.stops.map((stop) => (
-            <View key={stop.id} style={styles.stop}>
-              <Text variant="label">{stop.slotLabel}</Text>
-              <ItemCard item={stop} style={styles.stopCard}>
+        <View style={updating && styles.updating}>
+          {shown.stops.map((stop, index) => (
+            <Step key={stop.id} last={index === shown.stops.length - 1}>
+              <Text style={styles.slot}>{stop.slotLabel}</Text>
+              <PlaceCard item={stop} now={now} photoHeight={PHOTO}>
                 <MemberScores scores={stop.memberScores} meId={me?.userId} />
-              </ItemCard>
-            </View>
+              </PlaceCard>
+            </Step>
           ))}
         </View>
       )}
@@ -142,21 +157,29 @@ export default function PlanScreen() {
   );
 }
 
+const RAIL = 22;
+const DOT = 12;
+
 const styles = StyleSheet.create({
-  group: { gap: spacing.sm },
-  top: { gap: spacing.xs },
-  stops: { gap: spacing.md },
-  // Each stop is one of Bryan's cards: the time slot as the small label, the place under it.
-  stop: {
-    gap: spacing.sm + 2,
-    padding: spacing.md + 2,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  stopCard: { borderBottomWidth: 0, paddingVertical: 0, minHeight: 0 },
+  group: { gap: spacing.sm + 2 },
+  top: { gap: spacing.xs + 2 },
+  sub: { fontSize: 15 },
+  loadingFaces: { flexDirection: "row", gap: spacing.md },
   updating: { opacity: 0.5 },
-  skeletonRow: { flexDirection: "row", gap: spacing.md },
-  skeletonLines: { flex: 1, gap: spacing.sm },
+  step: { flexDirection: "row", gap: spacing.md },
+  rail: { width: RAIL, alignItems: "center" },
+  // The dot sits on the slot label's line; the line runs from it down to the next dot.
+  dot: {
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+    marginTop: 6,
+    borderWidth: 2.5,
+    borderColor: colors.fg,
+    backgroundColor: colors.bg,
+  },
+  line: { flex: 1, width: 2, marginTop: 6, marginBottom: -2, borderRadius: 1, backgroundColor: colors.line },
+  stepBody: { flex: 1, gap: spacing.md },
+  stepGap: { paddingBottom: spacing.xl + 4 },
+  slot: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
 });

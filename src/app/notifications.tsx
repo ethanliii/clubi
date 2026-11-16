@@ -8,7 +8,7 @@ import { errorMessage } from "../lib/errors";
 import { openLink } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
-import { spacing } from "../theme";
+import { fontWeight, spacing } from "../theme";
 
 export default function NotificationsScreen() {
   const items = useQuery(api.notifications.list, {});
@@ -32,20 +32,23 @@ export default function NotificationsScreen() {
       <Header
         title="Notifications"
         right={
-          <Button
-            title="Mark all read"
-            accessibilityLabel="Mark all read"
-            variant="link"
-            disabled={!hasUnread || pending}
-            onPress={() => void markAllRead({})}
-            style={styles.markAll}
-          />
+          // Only there while something is unread: a button that would do nothing is not shown.
+          hasUnread ? (
+            <Button
+              title="Mark all read"
+              accessibilityLabel="Mark all read"
+              variant="link"
+              disabled={pending}
+              onPress={() => void markAllRead({})}
+              style={styles.markAll}
+            />
+          ) : undefined
         }
       />
       {items === undefined ? (
         <SkeletonRows count={6} />
       ) : items.length === 0 ? (
-        <EmptyState icon="bell" title="Nothing yet." body="Rank a place and your friends will hear about it." />
+        <EmptyState icon="bell" title="Nothing yet" body="Rank a place and your friends will hear about it." />
       ) : (
         <View>
           {items.map((item, index) => {
@@ -55,7 +58,7 @@ export default function NotificationsScreen() {
             return (
               <View key={item.id}>
                 {showDay ? (
-                  <Text variant="label" style={index > 0 ? styles.day : undefined}>
+                  <Text accessibilityRole="header" style={[styles.day, index > 0 && styles.nextDay]}>
                     {day}
                   </Text>
                 ) : null}
@@ -70,7 +73,7 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  markAll: { minHeight: 36, justifyContent: "center" },
-  // Bryan's day label between groups, as on his feed.
-  day: { marginTop: spacing.lg },
+  markAll: { minHeight: 44, justifyContent: "center" },
+  day: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, paddingBottom: spacing.xs },
+  nextDay: { marginTop: spacing.xl },
 });

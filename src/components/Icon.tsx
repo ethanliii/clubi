@@ -45,7 +45,13 @@ export type IconName =
   | "info"
   // Bryan's own extras
   | "plusCircle"
-  | "undo";
+  | "undo"
+  // Category glyphs for photo fallbacks, in the same stroke style.
+  | "cocktail"
+  | "utensils"
+  | "landmark"
+  | "tree"
+  | "alert";
 
 export function Icon({ name, size = 22, color }: { name: IconName; size?: number; color: string }) {
   const stroke = { stroke: color, strokeWidth: 2, fill: "none" } as const;
@@ -242,6 +248,34 @@ export function Icon({ name, size = 22, color }: { name: IconName; size?: number
         </>
       )}
       {name === "undo" && <Path d="M9 7L4 12l5 5M4 12h11a5 5 0 010 10h-2" {...stroke} strokeLinecap="round" />}
+      {name === "cocktail" && (
+        <Path d="M4.5 5h15L12 13.2zM12 13.2V20M8 20h8M15.5 9.2l3.2-4.9" {...stroke} strokeLinecap="round" strokeLinejoin="round" />
+      )}
+      {name === "utensils" && (
+        <Path
+          d="M6 3.5v6.2a2.2 2.2 0 004.4 0V3.5M8.2 3.5v17M17.8 20.5v-7.3M17.8 13.2c-2 0-3-1.6-3-4.6 0-2.6 1.2-4.6 3-5.1z"
+          {...stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {name === "landmark" && (
+        <Path
+          d="M3.5 9.5L12 4l8.5 5.5zM6 10v7.5M10 10v7.5M14 10v7.5M18 10v7.5M3.5 20.5h17"
+          {...stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {name === "tree" && (
+        <Path d="M12 3.5l5 6.8h-2.6l4.1 6.2H5.5l4.1-6.2H7zM12 16.5V21" {...stroke} strokeLinecap="round" strokeLinejoin="round" />
+      )}
+      {name === "alert" && (
+        <>
+          <Circle cx={12} cy={12} r={8.5} {...stroke} />
+          <Path d="M12 7.5V13M12 16.2v.3" {...stroke} strokeLinecap="round" />
+        </>
+      )}
     </Svg>
   );
 }

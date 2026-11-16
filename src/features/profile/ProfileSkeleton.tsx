@@ -1,28 +1,38 @@
 import { StyleSheet, View } from "react-native";
-import { Skeleton, SkeletonRows } from "../../components";
-import { radius, spacing } from "../../theme";
+import { Skeleton } from "../../components";
+import { spacing } from "../../theme";
 
 /** A profile that is still loading, in the shape of the real one. */
 export function ProfileSkeleton() {
   return (
     <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.wrap}>
-      <View style={styles.top}>
-        <Skeleton width={86} height={86} round={43} />
-        <View style={styles.names}>
-          <Skeleton width="60%" height={22} />
-          <Skeleton width="80%" height={34} />
-        </View>
+      <Skeleton width={80} height={80} round={40} />
+      <View style={styles.lines}>
+        <Skeleton width="55%" height={28} />
+        <Skeleton width="40%" height={14} />
       </View>
-      <Skeleton width="45%" height={14} />
-      <Skeleton height={48} round={radius.lg} />
-      <Skeleton height={120} round={radius.lg} />
-      <SkeletonRows count={3} avatar={false} />
+      <Skeleton width="70%" height={14} />
+      <View style={styles.meters}>
+        <Skeleton width="46%" height={30} />
+        <Skeleton width="46%" height={30} />
+      </View>
+      {[0, 1, 2].map((row) => (
+        <View key={row} style={styles.row}>
+          <Skeleton width={56} height={56} round={12} />
+          <View style={styles.lines}>
+            <Skeleton width="60%" height={15} />
+            <Skeleton width="35%" height={11} />
+          </View>
+          <Skeleton width={40} height={26} />
+        </View>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.lg },
-  top: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  names: { flex: 1, gap: spacing.sm },
+  lines: { flex: 1, gap: spacing.sm },
+  meters: { flexDirection: "row", justifyContent: "space-between" },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 });

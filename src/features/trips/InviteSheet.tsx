@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Avatar, Button, Chip, EmptyState, Icon, Sheet, SkeletonRows, Text, useToast } from "../../components";
+import { Avatar, Button, EmptyState, Icon, Sheet, SkeletonRows, Text, useToast } from "../../components";
 import { api, type Id, type TripDetail } from "../../lib/api";
 import { pluralize } from "../../lib/format";
 import { paths } from "../../lib/links";
@@ -38,13 +38,17 @@ function PersonRow({
       onPress={onPress}
       style={({ pressed }) => [styles.row, (pressed || locked) && styles.dimmed]}
     >
-      <Avatar name={person.displayName} uri={person.avatarUrl} size={40} />
+      <Avatar name={person.displayName} uri={person.avatarUrl} size={44} />
       <View style={styles.rowText}>
         <View style={styles.nameLine}>
           <Text numberOfLines={1} style={styles.name}>
             {person.displayName}
           </Text>
-          {local ? <Chip label="Local" size="sm" /> : null}
+          {local ? (
+            <Text variant="caption" style={styles.local}>
+              Local
+            </Text>
+          ) : null}
         </View>
         <Text variant="caption" muted numberOfLines={2}>
           {subtitle}
@@ -122,9 +126,7 @@ export function InviteSheet({
           <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
             {suggestions.length > 0 ? (
               <>
-                <Text variant="label" style={styles.section}>
-                  Suggested
-                </Text>
+                <Text style={styles.section}>Suggested</Text>
                 {suggestions.map((person) => (
                   <PersonRow
                     key={person.userId}
@@ -139,9 +141,7 @@ export function InviteSheet({
             ) : null}
             {others.length > 0 ? (
               <>
-                <Text variant="label" style={styles.section}>
-                  {suggestions.length > 0 ? "All friends" : "Friends"}
-                </Text>
+                <Text style={styles.section}>{suggestions.length > 0 ? "All friends" : "Friends"}</Text>
                 {others.map((friend) => {
                   const member = statusOf.get(friend.userId);
                   const note =
@@ -178,20 +178,19 @@ export function InviteSheet({
 
 const styles = StyleSheet.create({
   list: { flexGrow: 0 },
-  section: { marginTop: spacing.sm, marginBottom: spacing.xs },
+  section: { marginTop: spacing.md, marginBottom: spacing.xs, fontSize: 13, fontWeight: "600", color: colors.muted },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    minHeight: 60,
+    minHeight: 64,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
   },
   dimmed: { opacity: 0.6 },
   rowText: { flex: 1, gap: 2 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  name: { flexShrink: 1, fontSize: 15, fontWeight: "600" },
+  name: { flexShrink: 1, fontSize: 16, fontWeight: "600" },
+  local: { color: colors.ok, fontWeight: "600" },
   check: {
     width: 26,
     height: 26,

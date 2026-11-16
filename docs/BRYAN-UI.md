@@ -79,6 +79,14 @@ Map pins by tier with Bryan's bubble style · rankings / plan / notifications / 
 - Rows (Spotify): 48 px thumbnail, name, "Place · Bar · 0.4 mi" / "@username · 2 mutual", ⊕ add to Want to go → green ✓, ✕ remove from recents. People rows use `FriendButton`. Results from `places.search` / `friends.search`, backend order.
 - Search box keeps the accessibility label "Describe your night". The free-text "describe your night" parser is still backend ask E3.
 
+## Pass 12 (merge of Ethan's `ui-overhaul`: Ethan's code, Bryan's look)
+Branch `merge-ui-overhaul` = `main` + `origin/ui-overhaul`. Rule agreed by Bryan and Ethan: keep all of Ethan's code, and wherever the display differs, Bryan's wins.
+- **From Ethan (kept):** all backend changes (Google Places photos in Convex storage, `imageUrl` on feed targets / trips / compare / rank rows, both sides' functions), his screens (Trips, Trip, Plan, Saved, Settings, Following, artist page, Post, Notifications), new shared pieces (`Photo`, `ItemCard`, `Sheet`, `Toast`, `ListRow`, `TextField`…), `features/rate/RateFlow` + `steps` (with Bryan's "Would you go back?" Absolutely / Depends / Nope), map internals (`MapCanvas`, `MapSheet`), additive theme tokens (`palette`, `type`, `layout`, `elevation`, `scrim`, `motion`).
+- **Bryan's kept over Ethan's restyle:** every tab (Home spotlight, Map, Add, Search, Profile), onboarding (welcome, create-account, quiz, You're in; Ethan's taste-card and `(tabs)/feed` removed again), friends, user, compare, rankings, venue page, sign-in, root `_layout` (Bryan's gating + `OnboardingProvider`), `lib/links.ts`, overlord menu, and Bryan's components (`Bits`, `ProfileView`, `Spotlight`, `SearchMode`, `VenueCard`, map surface/peek…).
+- **Shared foundation merged by hand:** `Text`, `Button`, `ScoreBadge`, `VenuePhoto` keep Bryan's look and also accept Ethan's new options (`headline`, `bodyLg`, `soft`; `secondary` / `quiet` / `destructive`, `size`, `loading`, `icon`; score `variant` / `style`; `VenuePhoto` shows the real photo when `uri` is set, Bryan's glow placeholder otherwise).
+- Two lint-only suppressions in Ethan's `MapCanvas.web.tsx` / `MapSheet.tsx` (React Compiler false positives that also fail on his branch).
+- **Not taken (Bryan's display wins):** Ethan's restyled venue page (`features/venue/VenuePage`: I'm going, Get tickets, performers, More like this) and his precise-pin native map. Worth folding into Bryan's venue page / map later.
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 

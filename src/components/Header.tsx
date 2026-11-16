@@ -6,6 +6,8 @@ import { Text } from "./Text";
 
 export type HeaderProps = {
   title?: string;
+  /** One quiet line under the title: a date, a count, where you are. */
+  subtitle?: string;
   /** Show the back button. Default true; tab screens pass false. */
   back?: boolean;
   /** Replace what the back button does. */
@@ -15,18 +17,26 @@ export type HeaderProps = {
 };
 
 /**
- * The top of a screen, laid out the way Bryan does it. First child of `Screen`.
- * With a back button: the round back button and the actions share a row, and the title sits
- * under them as the big heading. Without (tab screens): the heading with the actions beside it.
+ * The top of a screen. First child of `Screen`.
+ * With a back button: the back button and the actions share a row, and the title sits under them
+ * as the screen's one big heading. Without (tab screens): the heading with the actions beside it.
  */
-export function Header({ title, back = true, onBack, right }: HeaderProps) {
+export function Header({ title, subtitle, back = true, onBack, right }: HeaderProps) {
   const actions = right ? <View style={styles.right}>{right}</View> : null;
+  const sub = subtitle ? (
+    <Text muted numberOfLines={1}>
+      {subtitle}
+    </Text>
+  ) : null;
   if (!back) {
     return (
-      <View style={styles.row}>
-        <Text variant="heading" accessibilityRole="header" numberOfLines={1} style={styles.title}>
-          {title ?? ""}
-        </Text>
+      <View style={styles.tabRow}>
+        <View style={styles.title}>
+          <Text variant="heading" accessibilityRole="header" numberOfLines={1}>
+            {title ?? ""}
+          </Text>
+          {sub}
+        </View>
         {actions}
       </View>
     );
@@ -39,17 +49,22 @@ export function Header({ title, back = true, onBack, right }: HeaderProps) {
         {actions}
       </View>
       {title ? (
-        <Text variant="heading" accessibilityRole="header" numberOfLines={2}>
-          {title}
-        </Text>
+        <View style={styles.titles}>
+          <Text variant="heading" accessibilityRole="header" numberOfLines={2}>
+            {title}
+          </Text>
+          {sub}
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: spacing.lg },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 36 },
+  stack: { gap: spacing.md + 2 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 40 },
+  tabRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 44, paddingTop: spacing.xs },
   title: { flex: 1 },
+  titles: { gap: spacing.xs },
   right: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });

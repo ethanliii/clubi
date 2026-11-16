@@ -1,11 +1,12 @@
 import { useMutation, useQuery } from "convex/react";
 import { router, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import { Button, EmptyState, Skeleton, goBack, useToast } from "../../components";
 import { api, type Bucket, type InsightAnswer, type InsightQuestion, type Kind, type RankResult } from "../../lib/api";
 import { errorMessage } from "../../lib/errors";
 import { paths } from "../../lib/links";
-import { radius } from "../../theme";
+import { radius, spacing } from "../../theme";
 import { DetailsStep, EMPTY_DRAFT, type Draft } from "./DetailsStep";
 import { FlowScreen } from "./FlowScreen";
 import { QuestionsStep } from "./QuestionsStep";
@@ -61,10 +62,9 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const fine = useQuery(api.rankings.listInBucket, comparing ? { category, bucket: "fine" } : "skip");
   const didnt = useQuery(api.rankings.listInBucket, comparing ? { category, bucket: "didnt" } : "skip");
   const bucketList = bucket === null ? undefined : { loved, fine, didnt }[bucket];
-  const ranked = useQuery(
-    api.rankings.mine,
-    step === "result" && category !== undefined ? { category } : "skip",
-  );
+  // The user's ranked list for this category: the photos on "Which was better?" and the list on
+  // the result step. Asked for from the start so neither waits.
+  const ranked = useQuery(api.rankings.mine, step !== "questions" && category !== undefined ? { category } : "skip");
   const liveQuestions = useQuery(
     api.insights.questionsFor,
     (step === "result" || step === "questions") && !reranked ? { kind, id } : "skip",
@@ -100,15 +100,15 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
 
   if (venue === undefined) {
     return (
-      <FlowScreen title="" onBack={goBack}>
-        <Skeleton height={30} width="70%" />
-        <Skeleton height={170} round={radius.xl} />
+      <FlowScreen onBack={goBack}>
+        <Skeleton height={300} round={radius.xxl} />
+        <Skeleton height={34} width="50%" style={styles.centered} />
       </FlowScreen>
     );
   }
   if (venue === null) {
     return (
-      <FlowScreen title="" onBack={goBack}>
+      <FlowScreen onBack={goBack}>
         <EmptyState title="This place is no longer listed" actionLabel="Back" onAction={goBack} />
       </FlowScreen>
     );
@@ -207,6 +207,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
       <CompareStep
         venue={venue}
         search={search}
+        photos={ranked}
         onAnswer={onAnswer}
         onTooClose={() => search !== null && settle(stopEarly(search))}
         onBack={backToHow}
@@ -254,10 +255,12 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
         back={false}
         right={<Button title="Skip all" accessibilityLabel="Skip all" variant="link" onPress={goToFeed} />}
       >
-        <Skeleton height={30} width="80%" />
-        <Skeleton height={58} round={radius.xl} />
-        <Skeleton height={58} round={radius.xl} />
-        <Skeleton height={58} round={radius.xl} />
+        <Skeleton height={34} width="80%" />
+        <View style={styles.options}>
+          <Skeleton height={64} round={radius.xl} />
+          <Skeleton height={64} round={radius.xl} />
+          <Skeleton height={64} round={radius.xl} />
+        </View>
       </FlowScreen>
     );
   }
@@ -271,3 +274,8 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  centered: { alignSelf: "center" },
+  options: { gap: spacing.sm + 2 },
+});

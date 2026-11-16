@@ -1,8 +1,25 @@
 import { LinearGradient } from "expo-linear-gradient";
+import type { ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import type { Category } from "../../convex/lib/contract";
 import { radius } from "../theme";
+import { Photo } from "./Photo";
 
-export function VenuePhoto({ hue, height, style }: { hue: number; height: number; style?: StyleProp<ViewStyle> }) {
+/**
+ * A real photo when there is one (`uri`, from main's Google Places photos), otherwise Bryan's
+ * glowing gradient placeholder. Extra props are main's and optional.
+ */
+export function VenuePhoto({ hue, height, style, uri, category, scrim, children }: {
+  hue: number; height: number; style?: StyleProp<ViewStyle>;
+  uri?: string | null; category?: Category; scrim?: boolean | "bottom" | "hero" | "top"; children?: ReactNode;
+}) {
+  if (uri) {
+    return (
+      <Photo uri={uri} category={category} hue={hue} height={height} round={radius.xl} scrim={scrim} style={style}>
+        {children}
+      </Photo>
+    );
+  }
   const glows = [0, 1, 2].map((k) => ({
     left: `${15 + k * 28}%` as const,
     top: `${10 + ((k * 37) % 40)}%` as const,
@@ -33,6 +50,7 @@ export function VenuePhoto({ hue, height, style }: { hue: number; height: number
           ]}
         />
       ))}
+      {children}
     </View>
   );
 }

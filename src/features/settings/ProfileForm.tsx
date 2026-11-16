@@ -1,12 +1,14 @@
 import { useMutation } from "convex/react";
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { Avatar, Button, Loading, Text, TextField, useToast } from "../../components";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Avatar, Button, Icon, Loading, Text, useToast } from "../../components";
 import { api, type SettingsResult } from "../../lib/api";
 import { errorMessage } from "../../lib/errors";
 import { pickPhoto, uploadPhoto } from "../../lib/photos";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { colors, spacing } from "../../theme";
+import { FieldRow } from "./FieldRow";
+import { SettingsGroup } from "./Group";
 
 type Field = "displayName" | "bio" | "homeCity" | "birthday";
 const FIELDS: Field[] = ["displayName", "bio", "homeCity", "birthday"];
@@ -14,8 +16,9 @@ const FIELDS: Field[] = ["displayName", "bio", "homeCity", "birthday"];
 const DISPLAY_NAME_MAX = 40;
 const BIO_MAX = 160;
 const HOME_CITY_MAX = 60;
+const AVATAR = 96;
 
-/** The photo with "Change photo": pick, upload to Convex storage, then `settings.setAvatar`. */
+/** The photo at the top; tapping it is "Change photo": pick, upload to Convex storage, then `settings.setAvatar`. */
 function AvatarPicker({ settings }: { settings: SettingsResult }) {
   const toast = useToast();
   const generateUploadUrl = useMutation(api.settings.generateAvatarUploadUrl);
@@ -38,33 +41,38 @@ function AvatarPicker({ settings }: { settings: SettingsResult }) {
   };
 
   return (
-    <View style={styles.avatarRow}>
-      <View>
-        <Avatar name={settings.displayName} uri={settings.avatarUrl} size={86} style={styles.ring} />
+    <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Change photo"
+        disabled={uploading}
+        onPress={() => void change()}
+        style={({ pressed }) => pressed && styles.pressed}
+      >
+        <Avatar name={settings.displayName} uri={settings.avatarUrl} size={AVATAR} />
         {uploading ? (
           <View style={styles.avatarBusy}>
             <Loading compact />
           </View>
-        ) : null}
-      </View>
-      <View style={styles.avatarText}>
-        <Text muted numberOfLines={1}>{`@${settings.username}`}</Text>
-        <Button
-          title="Change photo"
-          accessibilityLabel="Change photo"
-          variant="ghost"
-          disabled={uploading}
-          style={styles.auto}
-          onPress={() => void change()}
-        />
+        ) : (
+          <View style={styles.camera}>
+            <Icon name="camera" size={16} color={colors.fg} />
+          </View>
+        )}
+      </Pressable>
+      <View style={styles.who}>
+        <Text variant="headline" center numberOfLines={1}>
+          {settings.displayName}
+        </Text>
+        <Text muted center numberOfLines={1}>{`@${settings.username}`}</Text>
       </View>
     </View>
   );
 }
 
 /**
- * Photo, display name, bio, home city and birthday. "Save" sends only the fields that changed
- * to `api.settings.update`. What is typed lives here until then; everything else is the backend's.
+ * Photo, display name, bio, home city and birthday. "Save" appears once something is edited and
+ * sends only the fields that changed to `api.settings.update`. What is typed lives here until then; everything else is the backend's.
  */
 export function ProfileForm({ settings }: { settings: SettingsResult }) {
   const [draft, setDraft] = useState<Partial<Record<Field, string>>>({});
@@ -98,68 +106,80 @@ export function ProfileForm({ settings }: { settings: SettingsResult }) {
   return (
     <View style={styles.form}>
       <AvatarPicker settings={settings} />
-      <TextField
-        label="Display name"
-        placeholder="What friends see"
-        maxLength={DISPLAY_NAME_MAX}
-        value={value("displayName")}
-        onChangeText={edit("displayName")}
-        error={errors.displayName}
-      />
-      <TextField
-        label="Bio"
-        placeholder="A line about your nights out"
-        multiline
-        maxLength={BIO_MAX}
-        value={value("bio")}
-        onChangeText={edit("bio")}
-        hint={`${value("bio").length}/${BIO_MAX}`}
-        error={errors.bio}
-      />
-      <TextField
-        label="Home city"
-        placeholder="Where you're a local"
-        maxLength={HOME_CITY_MAX}
-        value={value("homeCity")}
-        onChangeText={edit("homeCity")}
-        error={errors.homeCity}
-      />
-      <TextField
-        label="Birthday"
-        placeholder="YYYY-MM-DD"
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="numbers-and-punctuation"
-        maxLength={10}
-        value={value("birthday")}
-        onChangeText={edit("birthday")}
-        error={errors.birthday}
-      />
-      <Button
-        title="Save"
-        accessibilityLabel="Save"
-        disabled={save.pending || changed.length === 0}
-        onPress={() => void onSave()}
-      />
+      <SettingsGroup title="Profile">
+        <FieldRow
+          label="Name"
+          accessibilityLabel="Display name"
+          placeholder="What friends see"
+          maxLength={DISPLAY_NAME_MAX}
+          value={value("displayName")}
+          onChangeText={edit("displayName")}
+          error={errors.displayName}
+        />
+        <FieldRow
+          label="Bio"
+          placeholder="A line about your nights out"
+          multiline
+          maxLength={BIO_MAX}
+          value={value("bio")}
+          onChangeText={edit("bio")}
+          hint={draft.bio !== undefined ? `${value("bio").length}/${BIO_MAX}` : undefined}
+          error={errors.bio}
+        />
+        <FieldRow
+          label="Home city"
+          placeholder="Where you're a local"
+          maxLength={HOME_CITY_MAX}
+          value={value("homeCity")}
+          onChangeText={edit("homeCity")}
+          error={errors.homeCity}
+        />
+        <FieldRow
+          label="Birthday"
+          placeholder="YYYY-MM-DD"
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="numbers-and-punctuation"
+          maxLength={10}
+          value={value("birthday")}
+          onChangeText={edit("birthday")}
+          error={errors.birthday}
+        />
+      </SettingsGroup>
+      {changed.length > 0 ? (
+        <Button title="Save" accessibilityLabel="Save" loading={save.pending} onPress={() => void onSave()} />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   form: { gap: spacing.lg },
-  avatarRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  ring: { borderWidth: 2, borderColor: colors.accent },
+  header: { alignItems: "center", gap: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.sm },
+  pressed: { opacity: 0.7 },
   avatarBusy: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 43,
+    borderRadius: AVATAR / 2,
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { flex: 1, gap: spacing.sm, alignItems: "flex-start" },
-  auto: { width: "auto", paddingVertical: 8, paddingHorizontal: 14 },
+  camera: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.raised,
+    borderWidth: 3,
+    borderColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  who: { alignItems: "center", gap: 2, alignSelf: "stretch" },
 });

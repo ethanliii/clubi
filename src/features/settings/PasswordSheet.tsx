@@ -5,6 +5,7 @@ import { StyleSheet } from "react-native";
 import { Button, Sheet, Text, TextField, useToast } from "../../components";
 import { api } from "../../lib/api";
 import { authErrorMessage, errorMessage } from "../../lib/errors";
+import { palette } from "../../theme";
 
 type ChangePasswordFailure = Extract<FunctionReturnType<typeof api.auth.changePassword>, { success: false }>;
 
@@ -68,7 +69,6 @@ export function PasswordSheet({ visible, onClose }: { visible: boolean; onClose:
     <Sheet visible={visible} onClose={close} title="Change password">
       <TextField
         label="Current password"
-        placeholder="Current password"
         secureTextEntry
         autoCapitalize="none"
         autoCorrect={false}
@@ -78,7 +78,6 @@ export function PasswordSheet({ visible, onClose }: { visible: boolean; onClose:
       />
       <TextField
         label="New password"
-        placeholder="New password"
         secureTextEntry
         autoCapitalize="none"
         autoCorrect={false}
@@ -91,7 +90,7 @@ export function PasswordSheet({ visible, onClose }: { visible: boolean; onClose:
       <Button
         title="Update password"
         accessibilityLabel="Update password"
-        disabled={pending}
+        loading={pending}
         onPress={() => void submit()}
       />
     </Sheet>
@@ -99,5 +98,5 @@ export function PasswordSheet({ visible, onClose }: { visible: boolean; onClose:
 }
 
 const styles = StyleSheet.create({
-  error: { color: "#ff6b6b" },
+  error: { color: palette.danger },
 });

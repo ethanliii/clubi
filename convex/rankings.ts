@@ -115,6 +115,7 @@ type BucketItem = {
   name: string;
   score: number;
   position: number;
+  imageUrl?: string;
 };
 
 export const targetIdOfRanking = (ranking: Doc<"rankings">): TargetId | undefined =>
@@ -240,6 +241,7 @@ export const listInBucket = query({
         name: target.name,
         score: ranking.score,
         position: ranking.position,
+        imageUrl: target.imageUrl,
       });
     }
     return items;

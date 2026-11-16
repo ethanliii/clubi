@@ -1,56 +1,87 @@
-import { StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Avatar, Text } from "../../components";
 import type { ProfileResult } from "../../lib/api";
-import { colors, fontSize, fontWeight, spacing } from "../../theme";
+import { colors, fontWeight, spacing } from "../../theme";
 
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <View accessibilityLabel={`${value} ${label}`} style={styles.stat}>
+function Stat({ value, label, onPress }: { value: number; label: string; onPress?: () => void }) {
+  const text = (
+    <Text style={styles.statLabel}>
       <Text style={styles.statValue}>{value.toLocaleString()}</Text>
-      <Text variant="caption">{label}</Text>
-    </View>
+      {` ${label}`}
+    </Text>
+  );
+  if (!onPress) {
+    return (
+      <View accessibilityLabel={`${value} ${label}`} style={styles.stat}>
+        {text}
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${value} ${label}`}
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => [styles.stat, pressed && styles.pressed]}
+    >
+      {text}
+    </Pressable>
   );
 }
 
-/** The top of a profile: photo with the accent ring, name and the three counts, then username, home city and bio. */
-export function ProfileHeader({ user, counts }: Pick<ProfileResult, "user" | "counts">) {
+/**
+ * The top of a profile: the photo and the name as the screen's heading, the handle and home city,
+ * the bio, then the three counts in one line. `aside` sits to the right of the photo (my own
+ * profile puts "Edit profile" and the settings gear there).
+ */
+export function ProfileHeader({
+  user,
+  counts,
+  aside,
+  onPressFriends,
+}: Pick<ProfileResult, "user" | "counts"> & { aside?: ReactNode; onPressFriends?: () => void }) {
   const facts = [user.username ? `@${user.username}` : "", user.homeCity ?? ""].filter((part) => part !== "").join(" · ");
   return (
     <View style={styles.wrap}>
       <View style={styles.top}>
-        <Avatar name={user.displayName} uri={user.avatarUrl} size={86} style={styles.ring} />
-        <View style={styles.names}>
-          <Text variant="title" numberOfLines={2}>
-            {user.displayName}
-          </Text>
-          <View style={styles.stats}>
-            <Stat value={counts.posts} label={counts.posts === 1 ? "post" : "posts"} />
-            <Stat value={counts.friends} label={counts.friends === 1 ? "friend" : "friends"} />
-            <Stat value={counts.ranked} label="ranked" />
-          </View>
-        </View>
+        <Avatar name={user.displayName} uri={user.avatarUrl} size={84} style={styles.avatar} />
+        {aside ? <View style={styles.aside}>{aside}</View> : null}
       </View>
-      {facts !== "" || user.bio ? (
-        <View style={styles.about}>
-          {facts !== "" ? (
-            <Text muted numberOfLines={1}>
-              {facts}
-            </Text>
-          ) : null}
-          {user.bio ? <Text>{user.bio}</Text> : null}
-        </View>
-      ) : null}
+      <View style={styles.names}>
+        <Text accessibilityRole="header" numberOfLines={2} style={styles.name}>
+          {user.displayName}
+        </Text>
+        {facts !== "" ? (
+          <Text muted numberOfLines={1} style={styles.facts}>
+            {facts}
+          </Text>
+        ) : null}
+      </View>
+      {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+      <View style={styles.stats}>
+        <Stat value={counts.ranked} label="ranked" />
+        <Stat value={counts.friends} label={counts.friends === 1 ? "friend" : "friends"} onPress={onPressFriends} />
+        <Stat value={counts.posts} label={counts.posts === 1 ? "post" : "posts"} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.lg },
-  top: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  ring: { borderWidth: 2, borderColor: colors.accent },
-  names: { flex: 1, gap: 6 },
-  stats: { flexDirection: "row" },
-  stat: { flex: 1 },
-  statValue: { fontSize: fontSize.title, lineHeight: 22, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
-  about: { gap: spacing.xxs },
+  wrap: { gap: spacing.md },
+  top: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  // The avatar's own ring is the page colour; pull it out so the photo lines up with the text below.
+  avatar: { marginLeft: -2 },
+  aside: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  names: { gap: spacing.xxs },
+  name: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.5 },
+  facts: { fontSize: 15, lineHeight: 20 },
+  bio: { fontSize: 15, lineHeight: 21 },
+  stats: { flexDirection: "row", alignItems: "center", gap: spacing.xl, paddingTop: spacing.xxs },
+  stat: { minHeight: 28, justifyContent: "center" },
+  statLabel: { fontSize: 15, lineHeight: 20, color: colors.muted },
+  statValue: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold, color: colors.fg, fontVariant: ["tabular-nums"] },
+  pressed: { opacity: 0.6 },
 });

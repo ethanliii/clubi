@@ -47,6 +47,10 @@ export const catalogTables = {
     externalRating: v.optional(v.number()),
     externalRatingCount: v.optional(v.number()),
     googlePlaceId: v.optional(v.string()),
+    // Set together with imageUrl when the image is a Google Places photo copied into file storage
+    // (imports/google.ts): the credit Google requires, and the stored file.
+    imageAttribution: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
     // v2 (Brain writes it): venueVector blended with what visitors answered. Imports must never clear it.
     learnedVector: v.optional(v.array(v.number())),
   })

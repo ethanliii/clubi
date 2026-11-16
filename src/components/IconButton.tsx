@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, fontWeight } from "../theme";
+import { colors, fontWeight, palette } from "../theme";
 import { Icon, type IconName } from "./Icon";
 import { Text } from "./Text";
 
@@ -45,7 +45,7 @@ export function IconButton({
       disabled={disabled}
       hitSlop={8}
       onPress={onPress}
-      style={({ pressed }) => [styles.wrap, (pressed || disabled) && styles.dimmed, style]}
+      style={({ pressed }) => [styles.wrap, pressed && styles.pressed, disabled && styles.dimmed, style]}
     >
       <View
         style={[
@@ -69,19 +69,22 @@ export function IconButton({
 const styles = StyleSheet.create({
   wrap: { flexDirection: "row", alignItems: "center", gap: 4 },
   circle: { alignItems: "center", justifyContent: "center" },
-  filled: { backgroundColor: colors.surface },
-  dimmed: { opacity: 0.6 },
+  filled: { backgroundColor: palette.field },
+  pressed: { opacity: 0.6, transform: [{ scale: 0.94 }] },
+  dimmed: { opacity: 0.4 },
   badge: {
     position: "absolute",
     top: -4,
     right: -6,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     paddingHorizontal: 5,
     backgroundColor: colors.accent,
+    borderWidth: 1.5,
+    borderColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { color: colors.white, fontSize: 10, lineHeight: 14, fontWeight: fontWeight.semibold },
+  badgeText: { color: colors.white, fontSize: 10, lineHeight: 13, fontWeight: fontWeight.bold },
 });

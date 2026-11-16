@@ -263,6 +263,7 @@ async function shortlistItemOf(
     votesDown: tally.votesDown,
     myVote: tally.myVote,
     addedBy: addedBy === null ? undefined : cardOf(addedBy),
+    imageUrl: target.imageUrl,
   };
 }
 

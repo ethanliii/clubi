@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { colors, fontWeight, matchTier, radius, ratingColor } from "../theme";
 import { Text } from "./Text";
 
@@ -10,16 +10,28 @@ const SIZES: Record<Size, { fontSize: number; paddingVertical: number; paddingHo
   lg: { fontSize: 22, paddingVertical: 6, paddingHorizontal: 12 },
 };
 
-export function ScoreBadge({ score, size = "md" }: { score: number; size?: Size }) {
+export type ScoreBadgeProps = {
+  score: number;
+  size?: Size;
+  /** `solid` (default) filled rating colour · `plain` just the number in its colour (main's screens). */
+  variant?: "solid" | "plain";
+  style?: StyleProp<ViewStyle>;
+};
+
+/** Bryan's badge look; `variant` and `style` added for main's screens. */
+export function ScoreBadge({ score, size = "md", variant = "solid", style }: ScoreBadgeProps) {
   const { fontSize, ...padding } = SIZES[size];
-  return (
-    <View
-      accessibilityLabel={`Score ${score.toFixed(1)}`}
-      style={[styles.badge, padding, { backgroundColor: ratingColor(score) }]}
-    >
-      <Text style={[styles.text, { fontSize, lineHeight: fontSize * 1.25, color: "#111" }]}>
-        {score.toFixed(1)}
+  const text = score.toFixed(1);
+  if (variant === "plain") {
+    return (
+      <Text accessibilityLabel={`Score ${text}`} style={[styles.text, { fontSize: fontSize + 1, lineHeight: (fontSize + 1) * 1.25, color: ratingColor(score) }]}>
+        {text}
       </Text>
+    );
+  }
+  return (
+    <View accessibilityLabel={`Score ${text}`} style={[styles.badge, padding, { backgroundColor: ratingColor(score) }, style]}>
+      <Text style={[styles.text, { fontSize, lineHeight: fontSize * 1.25, color: "#111" }]}>{text}</Text>
     </View>
   );
 }
@@ -36,16 +48,9 @@ export function MatchBadge({ match, size = "md" }: { match: number; size?: Size 
   return (
     <View
       accessibilityLabel={`${match}% match for you`}
-      style={[
-        styles.badge,
-        padding,
-        { backgroundColor: tier.backgroundColor },
-        matchTier(match) === "hi" && styles.glow,
-      ]}
+      style={[styles.badge, padding, { backgroundColor: tier.backgroundColor }, matchTier(match) === "hi" && styles.glow]}
     >
-      <Text style={[styles.text, { fontSize, lineHeight: fontSize * 1.25, color: tier.color }]}>
-        {match}%
-      </Text>
+      <Text style={[styles.text, { fontSize, lineHeight: fontSize * 1.25, color: tier.color }]}>{match}%</Text>
     </View>
   );
 }
@@ -53,10 +58,5 @@ export function MatchBadge({ match, size = "md" }: { match: number; size?: Size 
 const styles = StyleSheet.create({
   badge: { borderRadius: radius.md, alignSelf: "flex-start" },
   text: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
-  glow: {
-    shadowColor: colors.accent,
-    shadowOpacity: 0.55,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 0 },
-  },
+  glow: { shadowColor: colors.accent, shadowOpacity: 0.55, shadowRadius: 9, shadowOffset: { width: 0, height: 0 } },
 });

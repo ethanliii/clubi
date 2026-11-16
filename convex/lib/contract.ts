@@ -34,6 +34,8 @@ export type NearbyItem = {
   saved?: boolean;          // I saved it ("want to go")
   going?: boolean;          // I marked "going" (events)
   ratingCount?: number;     // how many clubi rankings it has
+  // v3, optional: set when imageUrl is a Google Places photo. Show it as small text on or under the image.
+  imageAttribution?: string;   // e.g. "Photo: Ana Lopez"
 };
 
 export type NearbyResult = { items: NearbyItem[]; center: { lat: number; lng: number }; algo: string; generatedAt: number; attribution?: string };
@@ -55,7 +57,7 @@ export type RankResult = { rankingId: Id<"rankings">; score: number; position: n
 export type FeedItem = {
   postId: Id<"posts">;
   author: { userId: Id<"users">; displayName: string; avatarUrl?: string };
-  target: { kind: "place" | "event"; id: Id<"places"> | Id<"events">; name: string; category: Category };
+  target: { kind: "place" | "event"; id: Id<"places"> | Id<"events">; name: string; category: Category; imageUrl?: string };
   score: number; position: number; label: string;
   caption?: string; photoUrls: string[]; tags: string[]; createdAt: number;
   myScoreForIt?: number;
@@ -126,7 +128,7 @@ export type CompareResult = {
   tasteMatchPct: number;                       // 0–100 from the two taste vectors
   agreePct?: number;                           // of the places you both ranked, how often you put them in the same bucket
   dims: { label: string; me: number; them: number }[];   // 0–100 meters, same labels as tasteSummary
-  shared: { kind: "place" | "event"; id: Id<"places"> | Id<"events">; name: string; category: Category; myScore: number; theirScore: number }[];
+  shared: { kind: "place" | "event"; id: Id<"places"> | Id<"events">; name: string; category: Category; myScore: number; theirScore: number; imageUrl?: string }[];
   theirTopNewToMe: RankedListItem[];           // their best places I have not ranked
   summary: string;                             // one line, never empty
 };
@@ -181,6 +183,7 @@ export type TripSummary = {
 export type TripShortlistItem = {
   kind: "place" | "event"; id: Id<"places"> | Id<"events">; name: string; category: Category;
   votesUp: number; votesDown: number; myVote?: 1 | -1; addedBy?: UserCard;
+  imageUrl?: string;
 };
 export type TripDetail = TripSummary & {
   lat?: number; lng?: number; vibe?: string;

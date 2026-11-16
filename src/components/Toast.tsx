@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fontWeight, radius, spacing } from "../theme";
+import { colors, elevation, fontWeight, palette, radius, spacing } from "../theme";
+import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 export type ToastKind = "info" | "success" | "error";
@@ -126,8 +127,10 @@ function ToastCard({ toast, onPress }: { toast: ToastState; onPress: () => void 
         accessibilityLiveRegion="polite"
         accessibilityLabel={toast.message}
         onPress={onPress}
-        style={[styles.card, toast.kind === "error" && styles.error, toast.kind === "success" && styles.success]}
+        style={styles.card}
       >
+        {toast.kind === "success" ? <Icon name="check" size={16} color={colors.ok} /> : null}
+        {toast.kind === "error" ? <Icon name="alert" size={17} color={palette.danger} /> : null}
         <Text style={styles.text}>{toast.message}</Text>
       </Pressable>
     </Animated.View>
@@ -145,22 +148,18 @@ const styles = StyleSheet.create({
     elevation: 1000,
     pointerEvents: "box-none",
   },
+  // One light capsule for every kind; a small icon says whether it went well.
   card: {
     maxWidth: 440,
-    minHeight: 44,
-    justifyContent: "center",
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    shadowColor: colors.black,
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    borderRadius: radius.xxl + 2,
+    backgroundColor: "#2b2634",
+    ...elevation.floating,
   },
-  error: { borderColor: "#ff6b6b", backgroundColor: "#3a1a22" },
-  success: { borderColor: colors.ok },
-  text: { fontWeight: fontWeight.semibold, textAlign: "center" },
+  text: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, flexShrink: 1 },
 });
