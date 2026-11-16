@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { EmptyState, Header, Icon, Screen, Text } from "../../components";
+import { EmptyState, Icon, Screen, TabHeader, Text } from "../../components";
 import { SpotRow, SpotRowsSkeleton } from "../../features/rate/SpotRow";
 import { noFocusRing } from "../../features/rate/ui";
 import { api, type NearbyItem } from "../../lib/api";
@@ -52,7 +52,7 @@ export default function RateScreen() {
 
   return (
     <Screen scroll={false}>
-      <Header title="Rank a spot" back={false} />
+      <TabHeader title="Rank a spot" />
       <View style={styles.search}>
         <Icon name="search" size={16} color={colors.muted} />
         <TextInput

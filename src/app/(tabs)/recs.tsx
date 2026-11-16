@@ -1,7 +1,7 @@
 import { router, type Href } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { EmptyState, ScoreBadge, Text } from "../../components";
+import { EmptyState, ScoreBadge, TabHeader, Text } from "../../components";
 import { CardRow, SectionLabel } from "../../features/home/CardRow";
 import { cardFacts, cardLabel, displayName, friendsLine } from "../../features/home/itemText";
 import { Photo } from "../../features/home/Photo";
@@ -86,11 +86,7 @@ export default function ForYou() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text accessibilityRole="header" style={styles.title}>
-            Search
-          </Text>
-        </View>
+        <TabHeader title="Search" />
 
         <SearchField label="Search places and events" onPress={openSearch} />
         <View style={styles.pills}>
@@ -200,8 +196,6 @@ function PlaceRow({ item, line, first, now }: { item: NearbyItem; line: string; 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: GUTTER, paddingTop: 2, paddingBottom: 32 },
-  header: { flexDirection: "row", alignItems: "center", height: 48 },
-  title: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.5, color: colors.fg },
   pills: { marginTop: 6, marginBottom: 2 },
   section: { marginTop: 12 },
   pressed: { opacity: 0.6 },

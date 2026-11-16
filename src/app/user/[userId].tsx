@@ -192,7 +192,7 @@ function UserLoader() {
         </View>
       ) : (
         <>
-          <FavoritesGallery lists={profile.lists} />
+          <FavoritesGallery userId={user.userId} mine={user.isMe} hasRanked={profile.lists.length > 0} />
           {profile.lists.length === 0 ? (
             <EmptyState icon="star" title={`${firstName} hasn't ranked anything yet`} />
           ) : (

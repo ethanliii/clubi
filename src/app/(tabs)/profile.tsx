@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { router, type Href } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { EmptyState, Icon, IconButton, Screen, Text, type IconName } from "../../components";
+import { EmptyState, Icon, Screen, TabHeader, Text, type IconName } from "../../components";
 import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel } from "../../features/profile";
 import { FavoritesGallery } from "../../features/profile/FavoritesGallery";
 import { api } from "../../lib/api";
@@ -20,15 +20,11 @@ export default function ProfileScreen() {
   const profile = useQuery(api.profile.get, {});
   const now = useNow();
 
-  const settings = (
-    <IconButton icon="gear" plain size={44} accessibilityLabel="Settings" style={styles.gear} onPress={() => router.push(paths.settings)} />
-  );
-
   // null only while signing out; the gate moves the user on.
   if (profile === undefined || profile === null) {
     return (
       <Screen>
-        <View style={styles.loadingBar}>{settings}</View>
+        <TabHeader title="" style={styles.bar} />
         <ProfileSkeleton />
       </Screen>
     );
@@ -42,7 +38,7 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <View style={styles.loadingBar}>{settings}</View>
+      <TabHeader title="" style={styles.bar} />
       <ProfileHeader
         user={profile.user}
         counts={profile.counts}
@@ -70,7 +66,7 @@ export default function ProfileScreen() {
         ))}
       </ScrollView>
 
-      <FavoritesGallery lists={profile.lists} />
+      <FavoritesGallery userId={profile.user.userId} mine hasRanked={profile.lists.length > 0} />
 
       {profile.lists.length === 0 ? (
         <EmptyState
@@ -104,9 +100,8 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Only the gear, a plain line icon whose glyph ends at the gutter.
-  loadingBar: { flexDirection: "row", justifyContent: "flex-end", height: 36, alignItems: "center", marginBottom: -spacing.sm },
-  gear: { marginRight: -11 },
+  // Only the icons: the name is in the header right under them.
+  bar: { height: 40, marginBottom: -spacing.sm },
   buttons: { flexDirection: "row", gap: spacing.sm },
   // Light-grey icon pills in one row that scrolls sideways and bleeds to the screen edges.
   pills: { flexGrow: 0, marginHorizontal: -spacing.lg },
