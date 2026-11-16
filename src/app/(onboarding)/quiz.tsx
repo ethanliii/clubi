@@ -2,8 +2,9 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import type { VideoSource } from "expo-video";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon, Text, useToast } from "../../components";
 import { QUIZ_CARDS } from "../../features/onboarding/quizCards";
@@ -12,12 +13,27 @@ import { QuizProgress } from "../../features/onboarding/QuizProgress";
 import { rememberQuizResult } from "../../features/onboarding/quizResult";
 import { Rise } from "../../features/onboarding/Rise";
 import { SpinnerButton } from "../../features/onboarding/SpinnerButton";
+import { VideoBackground } from "../../features/onboarding/VideoBackground";
 import { api } from "../../lib/api";
 import { confirm } from "../../lib/confirm";
 import { errorMessage } from "../../lib/errors";
 import { paths } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, fontWeight, layout } from "../../theme";
+import { colors, fontWeight, layout, palette } from "../../theme";
+
+/** Bryan's full-screen video breaks between quiz sections (Pexels footage, assets/welcome/SOURCES.md). */
+const VIBE_VIDEO: VideoSource = require("../../../assets/onboarding/vibe.mp4");
+const LAST_VIDEO: VideoSource = require("../../../assets/onboarding/been-here.mp4");
+
+type Stop = { card: number } | { video: VideoSource; title: string; sub: string };
+/** The quiz in order: the six cards, with a video break after the first question and before the last. */
+const STOPS: Stop[] = [
+  { card: 0 },
+  { video: VIBE_VIDEO, title: "Now let's figure out your vibe", sub: "A few quick ones. No wrong answers." },
+  ...QUIZ_CARDS.slice(1, -1).map((_, index) => ({ card: index + 1 })),
+  { video: LAST_VIDEO, title: "Last one. What else are you into?", sub: "Then your picks are ready." },
+  { card: QUIZ_CARDS.length - 1 },
+];
 
 /**
  * Six cards (docs/UI-SPEC.md section 2), one question a screen. The answer for a card is the list
@@ -25,7 +41,10 @@ import { colors, fontWeight, layout } from "../../theme";
  * taste card.
  */
 export default function Quiz() {
-  const [step, setStep] = useState(0);
+  // Where the person is in STOPS; `step` is the card that stop shows (a break shows none).
+  const [at, setAt] = useState(0);
+  const stop = STOPS[at];
+  const step = "card" in stop ? stop.card : 0;
   // Which way the next card slides in from: 1 after "Next", -1 after "Back".
   const [direction, setDirection] = useState<1 | -1>(1);
   const [answers, setAnswers] = useState<number[][]>(() => QUIZ_CARDS.map(() => []));
@@ -49,14 +68,14 @@ export default function Quiz() {
     );
 
   const go = (to: number) => {
-    setDirection(to > step ? 1 : -1);
-    setStep(to);
+    setDirection(to > at ? 1 : -1);
+    setAt(to);
   };
 
   const next = async () => {
     if (picked.length === 0 || busy) return;
     if (!isLast) {
-      go(step + 1);
+      go(at + 1);
       return;
     }
     // On failure the toast has shown the backend's sentence and we stay on card 6.
@@ -83,17 +102,47 @@ export default function Quiz() {
     }
   };
 
+  if ("video" in stop) {
+    return (
+      <View style={styles.breakRoot}>
+        <VideoBackground clips={[stop.video]} />
+        <StatusBar style="light" />
+        <LinearGradient colors={BREAK_SCRIM} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+        <SafeAreaView style={styles.breakContent} edges={["top", "bottom"]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} onPress={() => go(at - 1)} style={styles.breakBack}>
+            <Icon name="back" size={24} color={palette.onPhoto} />
+          </Pressable>
+          <View style={styles.breakText}>
+            <Text accessibilityRole="header" style={styles.breakTitle}>
+              {stop.title}
+            </Text>
+            <Text style={styles.breakSub}>{stop.sub}</Text>
+          </View>
+          <View style={styles.flex} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Continue"
+            onPress={() => go(at + 1)}
+            style={({ pressed }) => [styles.breakButton, pressed && styles.dimmed]}
+          >
+            <Text style={styles.breakButtonText}>Continue</Text>
+          </Pressable>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <StatusBar style="dark" />
       <View style={styles.top}>
         <View style={styles.bar}>
-          {step > 0 ? (
+          {at > 0 ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Back"
               disabled={busy}
-              onPress={() => go(step - 1)}
+              onPress={() => go(at - 1)}
               style={({ pressed }) => [styles.back, (pressed || busy) && styles.dimmed]}
             >
               <Icon name="back" size={24} color={colors.fg} />
@@ -165,7 +214,19 @@ const SIDE = layout.gutter;
 /** The page colour with no opacity (8-digit hex), so the fade above the button has no grey in it. */
 const FADE_FROM = `${colors.bg}00`;
 
+/** The footage is a photo surface: shade at the top for the words, clear in the middle, shade under the button. */
+const BREAK_SCRIM = ["rgba(0,0,0,0.55)", "rgba(0,0,0,0.05)", "rgba(0,0,0,0.65)"] as const;
+const SERIF = Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, 'Times New Roman', serif" });
+
 const styles = StyleSheet.create({
+  breakRoot: { flex: 1, backgroundColor: colors.black },
+  breakContent: { flex: 1, paddingHorizontal: 22, paddingBottom: 18 },
+  breakBack: { width: 44, height: 44, marginLeft: -10, alignItems: "center", justifyContent: "center" },
+  breakText: { gap: 10, marginTop: 24 },
+  breakTitle: { fontFamily: SERIF, fontSize: 34, lineHeight: 39, color: palette.onPhoto },
+  breakSub: { fontSize: 15, lineHeight: 21, color: palette.onPhotoMuted },
+  breakButton: { alignSelf: "center", backgroundColor: palette.onPhoto, borderRadius: 99, paddingHorizontal: 40, paddingVertical: 14 },
+  breakButtonText: { fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, color: "#16151a" },
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   top: { paddingHorizontal: SIDE, paddingTop: 4, gap: 8 },

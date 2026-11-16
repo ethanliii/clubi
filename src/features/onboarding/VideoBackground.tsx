@@ -44,15 +44,16 @@ const readActiveClip = () => activeClip;
 /**
  * The welcome footage, full bleed, cross-fading from clip to clip. It is a photo surface: put a
  * dark scrim over it and keep the text on it white, whatever the theme of the rest of the app.
+ * Pass `clips` for a different set (the quiz's video breaks pass one, which simply loops).
  */
-export function VideoBackground() {
-  const active = useSyncExternalStore(subscribe, readActiveClip, readActiveClip);
+export function VideoBackground({ clips = CLIPS }: { clips?: VideoSource[] } = {}) {
+  const active = useSyncExternalStore(subscribe, readActiveClip, readActiveClip) % clips.length;
   // Under the sign-in sheet the welcome screen is still mounted: stop decoding video nobody can see.
   const focused = useIsFocused();
 
   return (
     <>
-      {CLIPS.map((source, index) => (
+      {clips.map((source, index) => (
         <Clip key={index} source={source} visible={index === active} playing={focused && index === active} />
       ))}
     </>
