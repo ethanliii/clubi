@@ -7,14 +7,14 @@ import { Avatar, Icon, Text } from "../../components";
 import { TabIcon, type TabIconName } from "../../features/home/TabIcon";
 import { colors, fontWeight } from "../../theme";
 
-/** Idle tabs: a grey a step lighter than body-muted text, so the open tab reads at a glance. */
-const IDLE = "#8a8a93";
+/** Idle tabs: the body-muted grey, dark enough to read at 11pt on white. The open tab is black and bold. */
+const IDLE = colors.muted;
 
 const TABS: Record<string, { label: string; icon: TabIconName | null }> = {
   index: { label: "Feed", icon: "feed" },
   map: { label: "Map", icon: "map" },
   rate: { label: "Rank", icon: null },
-  recs: { label: "For you", icon: "spark" },
+  recs: { label: "For you", icon: "compass" },
   profile: { label: "Profile", icon: "profile" },
 };
 
@@ -55,6 +55,7 @@ function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
             accessibilityRole="tab"
             accessibilityLabel={tab.icon === null ? "Rank a place" : tab.label}
             accessibilityState={{ selected: focused }}
+            aria-selected={focused}
             onPress={onPress}
             style={styles.item}
           >
@@ -62,8 +63,12 @@ function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
               tab.icon === null ? (
                 // The one accented thing in the bar: rank a place.
                 <View style={styles.tab}>
-                  <View style={[styles.rank, pressed && styles.rankPressed]}>
-                    <Icon name="plus" size={20} color={colors.white} />
+                  {/* Bigger than its neighbours and lifted above their row. Open: a white gap and an accent ring. */}
+                  <View style={[styles.rankRing, pressed && styles.rankPressed]}>
+                    {focused ? <View style={styles.rankRingOn} /> : null}
+                    <View style={[styles.rank, focused && styles.rankOn]}>
+                      <Icon name="plus" size={22} color={colors.white} />
+                    </View>
                   </View>
                   <Text numberOfLines={1} allowFontScaling={false} style={[styles.label, { color }, focused && styles.labelOn]}>
                     {tab.label}
@@ -106,19 +111,30 @@ const styles = StyleSheet.create({
   item: { flex: 1, height: 52, alignItems: "center", justifyContent: "center" },
   tab: { alignItems: "center", gap: 3 },
   tabPressed: { opacity: 0.55 },
-  // Every tab's picture sits in the same 32pt box, so the five labels share one baseline.
+  // Every tab's picture sits in the same 34pt box, so the five labels share one baseline.
   glyph: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
   face: { padding: 1.5, borderRadius: 16, borderWidth: 1.5, borderColor: "transparent" },
   faceOn: { borderColor: colors.fg },
-  label: { fontSize: 10, lineHeight: 12, fontWeight: fontWeight.medium, letterSpacing: 0.1 },
+  label: { fontSize: 11, lineHeight: 13, fontWeight: fontWeight.medium },
   labelOn: { fontWeight: fontWeight.bold },
+  // 40pt against the 34pt glyph boxes: it rises 4pt above them and dips 2pt, so the labels still share a baseline.
+  rankRing: {
+    width: 40,
+    height: 40,
+    marginTop: -4,
+    marginBottom: -2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rankRingOn: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1.5, borderColor: colors.accent },
   rank: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
+  rankOn: { width: 33, height: 33, borderRadius: 16.5 },
   rankPressed: { opacity: 0.85, transform: [{ scale: 0.94 }] },
 });
