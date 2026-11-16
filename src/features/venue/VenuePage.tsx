@@ -207,7 +207,6 @@ function Loaded({
       onPress: () => void openUrl(directionsUrl(venue.lat, venue.lng, venue.name)),
     },
     ...(venue.hours ? [{ icon: "clock" as const, title: venue.hours, subtitle: openLabel || undefined }] : []),
-    ...(venue.priceLevel ? [{ icon: "price" as const, title: formatPrice(venue.priceLevel) }] : []),
     ...(ticketUrl
       ? [{ icon: "ticket" as const, title: "Get tickets", accessibilityLabel: "Get tickets", onPress: () => void openUrl(ticketUrl) }]
       : []),
