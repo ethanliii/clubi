@@ -17,7 +17,7 @@ import {
   useToast,
 } from "../../components";
 import { FriendButton } from "../../features/friends";
-import { PostCard, ProfileHeader, ProfileSkeleton, RankedLists, TasteMeters } from "../../features/profile";
+import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, TasteMeters } from "../../features/profile";
 import { api, type Id } from "../../lib/api";
 import { formatDateRange, pluralize } from "../../lib/format";
 import { comparePath, paths } from "../../lib/links";
@@ -120,6 +120,7 @@ export default function UserScreen() {
   const compare = (
     <Button
       title="Compare tastes"
+      size="md"
       accessibilityLabel="Compare tastes"
       // One pink button at a time: adding them comes first, comparing once you are friends.
       variant={isFriend ? "primary" : "ghost"}
@@ -146,28 +147,25 @@ export default function UserScreen() {
           />
         ) : null}
       </View>
-      <ProfileHeader user={user} counts={profile.counts} />
-
-      {user.isMe ? (
-        <Button
-          title="Edit profile"
-          accessibilityLabel="Edit profile"
-          variant="ghost"
-          onPress={() => router.push(paths.settings)}
-        />
-      ) : user.status === "incoming" ? (
-        // Accept and Decline are already a pair, so they get their own line.
-        <View style={styles.stack}>
-          <Text muted>{`${firstName} wants to be friends`}</Text>
-          {friend}
-          {compare}
-        </View>
-      ) : (
-        <View style={styles.actions}>
-          <View style={styles.half}>{friend}</View>
-          <View style={styles.half}>{compare}</View>
-        </View>
-      )}
+      <ProfileHeader user={user} counts={profile.counts}>
+        {user.isMe ? (
+          <View style={styles.actions}>
+            <OutlineButton title="Edit profile" onPress={() => router.push(paths.settings)} />
+          </View>
+        ) : user.status === "incoming" ? (
+          // Accept and Decline are already a pair, so they get their own line.
+          <View style={styles.stack}>
+            <Text muted style={styles.wants}>{`${firstName} wants to be friends`}</Text>
+            {friend}
+            {compare}
+          </View>
+        ) : (
+          <View style={styles.actions}>
+            <View style={styles.half}>{friend}</View>
+            <View style={styles.half}>{compare}</View>
+          </View>
+        )}
+      </ProfileHeader>
 
       {!profile.canSee ? (
         <View style={styles.locked}>
@@ -176,7 +174,12 @@ export default function UserScreen() {
         </View>
       ) : (
         <>
-          <TasteMeters summary={profile.tasteSummary} />
+          {profile.tasteSummary.length > 0 ? (
+            <View style={styles.section}>
+              <SectionHeader title="Taste profile" />
+              <TasteMeters summary={profile.tasteSummary} />
+            </View>
+          ) : null}
           {profile.lists.length === 0 ? (
             <EmptyState icon="star" title={`${firstName} hasn't ranked anything yet`} />
           ) : (
@@ -214,6 +217,7 @@ export default function UserScreen() {
 
 const styles = StyleSheet.create({
   stack: { gap: spacing.sm },
+  wants: { textAlign: "center" },
   actions: { flexDirection: "row", gap: spacing.sm },
   half: { flex: 1 },
   bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 36 },

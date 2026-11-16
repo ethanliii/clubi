@@ -157,7 +157,7 @@ export default function CompareScreen() {
 
       {result.dims.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="Where your tastes sit" />
+          <SectionHeader title="Your tastes" />
           <TasteCompare dims={result.dims} theirName={theirName} />
         </View>
       ) : null}
@@ -222,15 +222,15 @@ const styles = StyleSheet.create({
   overlap: { marginLeft: -8 },
   match: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm, paddingTop: spacing.sm },
   pct: {
-    fontSize: 72,
-    lineHeight: 76,
+    fontSize: 56,
+    lineHeight: 60,
     fontWeight: fontWeight.bold,
-    letterSpacing: -3,
+    letterSpacing: -2,
     color: colors.accent,
     fontVariant: ["tabular-nums"],
   },
   pctLabel: { fontSize: 17, lineHeight: 22 },
-  lead: { fontSize: 15, lineHeight: 21 },
+  lead: { fontSize: 15, lineHeight: 21, color: colors.muted },
   section: { gap: spacing.md, paddingTop: spacing.md },
   columns: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingBottom: spacing.xs },
   agree: { flex: 1, fontSize: 13, lineHeight: 17 },

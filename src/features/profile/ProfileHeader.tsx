@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Avatar, Text } from "../../components";
 import type { ProfileResult } from "../../lib/api";
@@ -37,15 +38,25 @@ export function ProfileHeader({
   user,
   counts,
   onPressFriends,
-}: Pick<ProfileResult, "user" | "counts"> & { onPressFriends?: () => void }) {
+  showName = true,
+  children,
+}: Pick<ProfileResult, "user" | "counts"> & {
+  onPressFriends?: () => void;
+  /** Off when the screen's own bar already carries the name (my profile tab). */
+  showName?: boolean;
+  /** The outline buttons under the bio ("Edit profile", "Compare tastes"). */
+  children?: ReactNode;
+}) {
   const facts = [user.username ? `@${user.username}` : "", user.homeCity ?? ""].filter((part) => part !== "").join(" · ");
   return (
     <View style={styles.wrap}>
-      <Avatar name={user.displayName} uri={user.avatarUrl} size={88} />
+      <Avatar name={user.displayName} uri={user.avatarUrl} size={92} />
       <View style={styles.names}>
-        <Text accessibilityRole="header" numberOfLines={2} style={styles.name}>
-          {user.displayName}
-        </Text>
+        {showName ? (
+          <Text accessibilityRole="header" numberOfLines={2} style={styles.name}>
+            {user.displayName}
+          </Text>
+        ) : null}
         {facts !== "" ? (
           <Text numberOfLines={1} style={styles.facts}>
             {facts}
@@ -53,6 +64,7 @@ export function ProfileHeader({
         ) : null}
       </View>
       {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+      {children ? <View style={styles.actions}>{children}</View> : null}
       <View style={styles.stats}>
         <Stat value={counts.ranked} label="Ranked" />
         <View style={styles.rule} />
@@ -70,6 +82,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 24, lineHeight: 29, fontWeight: fontWeight.bold, letterSpacing: -0.4, textAlign: "center" },
   facts: { fontSize: 15, lineHeight: 20, color: colors.muted, textAlign: "center" },
   bio: { fontSize: 15, lineHeight: 21, color: palette.soft, textAlign: "center", paddingHorizontal: spacing.md },
+  actions: { alignSelf: "stretch", paddingTop: spacing.xs },
   stats: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", paddingTop: spacing.xs },
   stat: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 1 },
   rule: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: colors.line },

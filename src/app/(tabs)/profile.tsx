@@ -1,12 +1,12 @@
 import { useQuery } from "convex/react";
 import { router, type Href } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Button, EmptyState, Icon, IconButton, Screen, SectionHeader, Text, type IconName } from "../../components";
-import { PostCard, ProfileHeader, ProfileSkeleton, RankedLists, TasteMeters } from "../../features/profile";
+import { StyleSheet, View } from "react-native";
+import { EmptyState, IconButton, Screen, SectionHeader, Text, type IconName } from "../../components";
+import { LinkRow, OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, TasteMeters } from "../../features/profile";
 import { api } from "../../lib/api";
 import { paths, rankingsPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
-import { colors, fontWeight, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
 const SHORTCUTS: { label: string; icon: IconName; href: Href }[] = [
   { label: "Friends", icon: "users", href: paths.friends },
@@ -42,43 +42,43 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <View style={styles.top} />
+      <View style={styles.bar}>
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.barName}>
+          {profile.user.displayName}
+        </Text>
+        {settings}
+      </View>
       <ProfileHeader
         user={profile.user}
         counts={profile.counts}
+        showName={false}
         onPressFriends={() => router.push(paths.friends)}
-        aside={
-          <>
-            <Button
-              title="Edit profile"
-              accessibilityLabel="Edit profile"
-              variant="ghost"
-              style={styles.edit}
-              onPress={() => router.push(paths.settings)}
-            />
-            {settings}
-          </>
-        }
-      />
+      >
+        <View style={styles.buttons}>
+          <OutlineButton title="Edit profile" onPress={() => router.push(paths.settings)} />
+          <OutlineButton title="My rankings" onPress={() => router.push(rankingsPath())} />
+        </View>
+      </ProfileHeader>
 
-      <TasteMeters summary={profile.tasteSummary} mine />
-
-      <View style={styles.shortcuts}>
-        {SHORTCUTS.map((shortcut) => (
-          <Pressable
+      <View style={styles.links}>
+        {SHORTCUTS.map((shortcut, index) => (
+          <LinkRow
             key={shortcut.label}
-            accessibilityRole="button"
-            accessibilityLabel={shortcut.label}
+            icon={shortcut.icon}
+            label={shortcut.label}
+            count={shortcut.label === "Friends" ? profile.counts.friends : undefined}
+            divider={index < SHORTCUTS.length - 1}
             onPress={() => router.push(shortcut.href)}
-            style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}
-          >
-            <Icon name={shortcut.icon} size={22} color={colors.fg} />
-            <Text numberOfLines={1} style={styles.shortcutText}>
-              {shortcut.label}
-            </Text>
-          </Pressable>
+          />
         ))}
       </View>
+
+      {profile.tasteSummary.length > 0 ? (
+        <View style={styles.section}>
+          <SectionHeader title="Taste profile" />
+          <TasteMeters summary={profile.tasteSummary} mine />
+        </View>
+      ) : null}
 
       {profile.lists.length === 0 ? (
         <EmptyState
@@ -113,19 +113,16 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   loadingBar: { flexDirection: "row", justifyContent: "flex-end" },
-  // No bar above the photo on this tab, so give it a little air under the status bar.
-  top: { height: 0, marginBottom: -spacing.sm },
-  edit: { width: "auto", minHeight: 40, paddingVertical: 0, paddingHorizontal: spacing.lg, borderRadius: 20 },
-  // Four plain shortcuts between two hairlines: no pills, the icons carry it.
-  shortcuts: {
-    flexDirection: "row",
+  // Beli's top bar: the name at the left, settings at the right.
+  bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 44 },
+  barName: { flex: 1, fontSize: 22, lineHeight: 27, fontWeight: fontWeight.bold, letterSpacing: -0.4, color: colors.fg },
+  buttons: { flexDirection: "row", gap: spacing.sm },
+  // The list under the counts: one row per place to go, hairlines between and around.
+  links: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
+    borderColor: palette.hairline,
   },
-  shortcut: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, minHeight: 72 },
-  shortcutText: { fontSize: 13, lineHeight: 17, fontWeight: fontWeight.medium },
-  pressed: { opacity: 0.5 },
   section: { gap: spacing.md, paddingTop: spacing.sm },
   posts: { gap: spacing.lg },
 });

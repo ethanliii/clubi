@@ -3,14 +3,14 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { BackButton, EmptyState, IconButton, Screen, Skeleton, Text } from "../components";
-import { CategoryTabs, LeaderCard, RankedRow } from "../features/profile";
+import { CategoryTabs, RankedRow } from "../features/profile";
 import { api, type Bucket, type Category, type RankedListItem } from "../lib/api";
 import { confirm } from "../lib/confirm";
 import { CATEGORY_TABS, formatRelativeTime } from "../lib/format";
 import { paths } from "../lib/links";
 import { useMutationToast } from "../lib/useMutationToast";
 import { useNow } from "../lib/useNow";
-import { colors, fontWeight, radius, spacing } from "../theme";
+import { colors, fontWeight, spacing } from "../theme";
 
 const BUCKET_LABELS: Record<Bucket, string> = {
   loved: "Loved it",
@@ -51,9 +51,6 @@ export default function RankingsScreen() {
     count: everything?.filter((item) => item.category === tab.category).length,
   }));
   const subtitleOf = (item: RankedListItem) => `${BUCKET_LABELS[item.bucket]} · ${formatRelativeTime(item.rankedAt, now)}`;
-  // Number one leads as the big photo; the list below starts at two.
-  const leader = items !== undefined && items.length > 0 && items[0].position === 1 ? items[0] : undefined;
-  const rest = items === undefined ? [] : leader ? items.slice(1) : items;
 
   return (
     <Screen>
@@ -63,22 +60,20 @@ export default function RankingsScreen() {
           My rankings
         </Text>
         {everything !== undefined && everything.length > 0 ? (
-          <Text muted>{`${everything.length} ranked, best first`}</Text>
+          <Text muted>{`${everything.length} ranked · best first`}</Text>
         ) : null}
       </View>
       {nothingAtAll ? null : <CategoryTabs tabs={tabs} selected={category} onSelect={setPicked} />}
 
       {items === undefined ? (
         <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
-          <Skeleton height={236} round={radius.xxl} />
-          {[0, 1, 2].map((row) => (
+          {[0, 1, 2, 3, 4].map((row) => (
             <View key={row} style={styles.loadingRow}>
-              <Skeleton width={56} height={56} round={12} />
               <View style={styles.loadingLines}>
                 <Skeleton width="60%" height={15} />
                 <Skeleton width="35%" height={11} />
               </View>
-              <Skeleton width={40} height={26} />
+              <Skeleton width={40} height={40} round={20} />
             </View>
           ))}
         </View>
@@ -101,31 +96,13 @@ export default function RankingsScreen() {
         )
       ) : (
         <View style={styles.list}>
-          {leader ? (
-            <LeaderCard
-              item={leader}
-              subtitle={subtitleOf(leader)}
-              corner={
-                <IconButton
-                  icon="trash"
-                  accessibilityLabel="Remove"
-                  plain
-                  size={36}
-                  color={colors.white}
-                  disabled={remove.pending}
-                  style={styles.onPhoto}
-                  onPress={() => void onRemove(leader)}
-                />
-              }
-            />
-          ) : null}
           <View>
-            {rest.map((item, index) => (
+            {items.map((item, index) => (
               <RankedRow
                 key={item.rankingId}
                 item={item}
                 subtitle={subtitleOf(item)}
-                divider={index < rest.length - 1}
+                divider={index < items.length - 1}
                 trailing={
                   <IconButton
                     icon="trash"
@@ -151,7 +128,6 @@ const styles = StyleSheet.create({
   heading: { gap: spacing.xxs },
   title: { fontSize: 30, lineHeight: 36, fontWeight: fontWeight.bold, letterSpacing: -0.6 },
   list: { gap: spacing.sm },
-  onPhoto: { backgroundColor: "rgba(8,6,12,0.55)", borderRadius: 18 },
   // Pull the icon to the screen edge so its glyph lines up with the score column's right side.
   remove: { marginRight: -spacing.md },
   loading: { gap: spacing.lg },

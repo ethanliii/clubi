@@ -1,5 +1,7 @@
 export * from "./CategoryTabs";
 export * from "./LeaderCard";
+export * from "./LinkRow";
+export * from "./OutlineButton";
 export * from "./PhotoCard";
 export * from "./PlacePhoto";
 export * from "./PostCard";
