@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as catalog from "../catalog.js";
 import type * as crons from "../crons.js";
 import type * as debug from "../debug.js";
+import type * as demo from "../demo.js";
 import type * as discover from "../discover.js";
 import type * as follows from "../follows.js";
 import type * as friends from "../friends.js";
@@ -69,6 +70,7 @@ declare const fullApi: ApiFromModules<{
   catalog: typeof catalog;
   crons: typeof crons;
   debug: typeof debug;
+  demo: typeof demo;
   discover: typeof discover;
   follows: typeof follows;
   friends: typeof friends;

@@ -12,6 +12,7 @@ import {
 import { forgetAnswers } from "./insights";
 import { deletePostCascade } from "./rankings";
 import { FEATURES, quizToVector } from "./scoring";
+import { DEMO_FRIENDS_FOR_EVERYONE, befriendDemoPeople } from "./demo";
 
 const QUIZ_OPTION_COUNTS = [6, 4, 4, 4, 4, 4];
 const NIGHT_PEAK_CARD = 3;
@@ -173,6 +174,8 @@ export const saveQuiz = mutation({
       tasteVector,
       tastePrior: tasteVector,
     });
+    // Demo: a new account finishes the quiz with friends already there (convex/demo.ts).
+    if (DEMO_FRIENDS_FOR_EVERYONE) await befriendDemoPeople(ctx, userId);
     return { tasteSummary: tasteSummary(tasteVector, answers) };
   },
 });
