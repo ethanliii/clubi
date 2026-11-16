@@ -6,7 +6,7 @@ import type { UserCard } from "../../lib/api";
 import { userPath } from "../../lib/links";
 import { colors, fontWeight, palette, spacing } from "../../theme";
 
-const AVATAR = 48;
+const AVATAR = 52;
 
 /**
  * One person in a list: face, name, one quiet line of facts, and whatever the row offers on the
@@ -58,11 +58,11 @@ export function personFacts(parts: (string | null | undefined | false)[]): strin
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 70 },
-  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: 11 },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 76 },
+  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: 12 },
   pressed: { opacity: 0.55 },
   text: { flex: 1, gap: 2 },
-  name: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, letterSpacing: -0.2, color: colors.fg },
+  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
   subtitle: { fontSize: 13, lineHeight: 18, color: colors.muted },
   right: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   hairline: {

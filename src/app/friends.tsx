@@ -171,9 +171,10 @@ function Overview({
               ])}
               right={
                 friend.tasteMatchPct !== undefined ? (
-                  <Text accessibilityLabel={`${friend.tasteMatchPct}% match`} style={styles.match}>
-                    {`${friend.tasteMatchPct}% match`}
-                  </Text>
+                  <View accessible accessibilityLabel={`${friend.tasteMatchPct}% match`} style={styles.match}>
+                    <Text style={styles.matchPct}>{`${friend.tasteMatchPct}%`}</Text>
+                    <Text style={styles.matchLabel}>match</Text>
+                  </View>
                 ) : undefined
               }
             />
@@ -238,13 +239,23 @@ export default function FriendsScreen() {
 
 const styles = StyleSheet.create({
   scroller: { flex: 1 },
-  content: { gap: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxl * 2 },
+  content: { gap: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xxl * 2 },
   sectionHead: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 32, marginBottom: 2 },
-  sectionTitle: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
-  count: { fontSize: 15, lineHeight: 22, fontWeight: fontWeight.medium, color: colors.muted },
+  // The reference's section label: small, bold, uppercase, letter-spaced.
+  sectionTitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.fg,
+  },
+  count: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, letterSpacing: 0.5, color: colors.muted },
   grow: { flex: 1 },
   seeAll: { minHeight: 32, justifyContent: "center" },
-  seeAllLabel: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.accent },
+  seeAllLabel: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.2, color: colors.fg },
   pressed: { opacity: 0.55 },
-  match: { fontSize: 13, lineHeight: 18, color: colors.muted },
+  match: { alignItems: "flex-end", minWidth: 48 },
+  matchPct: { fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  matchLabel: { fontSize: 11, lineHeight: 14, color: colors.muted },
 });

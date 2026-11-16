@@ -71,6 +71,6 @@ const styles = StyleSheet.create({
   quiet: { backgroundColor: "transparent", minWidth: 0, paddingHorizontal: 8 },
   pressed: { opacity: 0.6 },
   disabled: { opacity: 0.4 },
-  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, letterSpacing: -0.1 },
+  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: -0.1 },
 });
 
