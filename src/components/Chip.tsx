@@ -5,7 +5,7 @@ import { Text } from "./Text";
 
 export type ChipProps = {
   label: string;
-  /** Filled light (the page's text colour) with dark text when true. */
+  /** Filled black with white text when true. */
   selected?: boolean;
   /** Leave out for a chip that only shows a fact ("Packed", "Mostly 20s"). */
   onPress?: () => void;
@@ -92,7 +92,7 @@ export function ChipRow({
 }
 
 const styles = StyleSheet.create({
-  // No outline: an unselected chip is a quiet fill, the selected one is the only bright thing in the row.
+  // No outline: an unselected chip is a light grey pill, the selected one is the only black thing in the row.
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -103,13 +103,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: palette.field,
   },
-  chipSm: { minHeight: 24, paddingVertical: 3, paddingHorizontal: spacing.sm + 2, backgroundColor: "rgba(255,255,255,0.06)" },
+  chipSm: { minHeight: 24, paddingVertical: 3, paddingHorizontal: spacing.sm + 2, backgroundColor: palette.field },
   selected: { backgroundColor: colors.fg },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   dimmed: { opacity: 0.4 },
-  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.medium, color: palette.soft },
-  labelSm: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.regular },
-  labelSelected: { color: colors.bg, fontWeight: fontWeight.semibold },
+  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
+  labelSm: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.medium, color: palette.soft },
+  labelSelected: { color: colors.white, fontWeight: fontWeight.semibold },
   scroller: { flexGrow: 0 },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   wrap: { flexWrap: "wrap" },

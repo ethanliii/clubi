@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { elevation, palette, radius, spacing } from "../theme";
+import { colors, elevation, palette, radius, spacing } from "../theme";
 import { IconButton } from "./IconButton";
 import { Text } from "./Text";
 import { ToastViewport, useToastInSheet } from "./Toast";
@@ -40,7 +40,7 @@ export function Sheet({ visible, onClose, title, children, scroll = true }: Shee
             <Text variant="headline" accessibilityRole="header" numberOfLines={1} style={styles.title}>
               {title ?? ""}
             </Text>
-            <IconButton icon="close" accessibilityLabel="Close sheet" size={32} color="#9a92a9" onPress={onClose} />
+            <IconButton icon="close" accessibilityLabel="Close sheet" size={32} color={colors.muted} onPress={onClose} />
           </View>
           {scroll ? (
             <ScrollView
@@ -68,13 +68,13 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     maxHeight: "88%",
     // A step lighter than the page, so the sheet reads as a layer above it.
-    backgroundColor: "#19151f",
-    borderTopLeftRadius: radius.xxl + 6,
-    borderTopRightRadius: radius.xxl + 6,
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
     paddingTop: spacing.sm,
     ...elevation.floating,
   },
-  handle: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.16)" },
+  handle: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, backgroundColor: colors.line },
   header: {
     flexDirection: "row",
     alignItems: "center",

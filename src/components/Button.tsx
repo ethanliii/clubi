@@ -4,9 +4,10 @@ import { Icon, type IconName } from "./Icon";
 import { Text } from "./Text";
 
 /**
- * `primary` the one main action on a screen (accent) · `secondary` a filled, quiet action beside it
- * (`ghost` is the old name for the same thing) · `quiet` text only, for the least important action ·
- * `destructive` delete, leave, sign out · `light` white, for use on photos and video · `link` inline text.
+ * `primary` the one main action on a screen (solid accent, white label) · `secondary` a light grey
+ * action beside it (`ghost` is the old name for the same thing) · `quiet` text only, for the least
+ * important action · `destructive` solid red: delete, leave, sign out · `light` white, for use on
+ * photos and video · `link` inline text in the accent.
  */
 type Variant = "primary" | "secondary" | "ghost" | "quiet" | "destructive" | "light" | "link";
 
@@ -60,9 +61,9 @@ const INK: Record<Exclude<Variant, "ghost">, string> = {
   primary: colors.white,
   secondary: colors.fg,
   quiet: colors.fg,
-  destructive: palette.danger,
-  light: "#14111a",
-  link: colors.fg,
+  destructive: colors.white,
+  light: colors.fg,
+  link: colors.accent,
 };
 
 const sizes = StyleSheet.create({
@@ -84,13 +85,13 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: colors.accent },
   secondary: { backgroundColor: palette.field },
   quiet: { backgroundColor: "transparent" },
-  destructive: { backgroundColor: palette.dangerSoft },
+  destructive: { backgroundColor: palette.danger },
   light: { backgroundColor: colors.white },
   link: { backgroundColor: "transparent", paddingVertical: spacing.xs, width: "auto", minHeight: 32 },
   pressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
   pressedText: { opacity: 0.55 },
   disabled: { opacity: 0.38 },
-  label: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, letterSpacing: -0.2, textAlign: "center" },
+  label: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, textAlign: "center" },
   labelSm: { fontSize: 14, lineHeight: 18 },
   labelLink: { fontSize: 14, lineHeight: 20 },
 });

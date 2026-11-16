@@ -10,52 +10,78 @@ const SIZES: Record<Size, { fontSize: number; height: number; minWidth: number; 
   lg: { fontSize: 24, height: 42, minWidth: 62, paddingHorizontal: 12, radius: 13 },
 };
 
+/** The ring: a white disc, a thin line in the rating colour, the number in the same colour. */
+const RINGS: Record<Size, { diameter: number; fontSize: number; border: number }> = {
+  sm: { diameter: 32, fontSize: 12.5, border: 1.5 },
+  md: { diameter: 40, fontSize: 15, border: 1.5 },
+  lg: { diameter: 54, fontSize: 20, border: 2 },
+};
+
 export type ScoreBadgeProps = {
   score: number;
   size?: Size;
   /**
-   * `solid` (default): the rating colour filled, for the score that leads a row or sits on a photo.
+   * `ring` (default): the score in its rating colour inside a thin ring of the same colour, on white.
+   * This is the one way a score looks across the app, in lists, on cards and on photos.
+   * `solid`: the rating colour filled with a white number, for a tight spot on a busy photo.
    * `plain`: just the number in its rating colour, for secondary scores (a friend's, a list total).
    */
-  variant?: "solid" | "plain";
+  variant?: "ring" | "solid" | "plain";
   style?: StyleProp<ViewStyle>;
 };
 
-/** A score out of ten in its rating colour. Same width for every score, so a column of them lines up. */
-export function ScoreBadge({ score, size = "md", variant = "solid", style }: ScoreBadgeProps) {
+/** A score out of ten, one decimal, in its rating colour. Same size for every score, so a column of them lines up. */
+export function ScoreBadge({ score, size = "md", variant = "ring", style }: ScoreBadgeProps) {
   const spec = SIZES[size];
   const tint = ratingColor(score);
   const text = score.toFixed(1);
   if (variant === "plain") {
     return (
       <Text
-        accessibilityLabel={`Score ${text}`}
+        accessibilityLabel={`Score ${text} out of 10`}
         style={[styles.text, { fontSize: spec.fontSize + 1, lineHeight: spec.height, color: tint }]}
       >
         {text}
       </Text>
     );
   }
+  if (variant === "ring") {
+    const ring = RINGS[size];
+    return (
+      <View
+        accessibilityLabel={`Score ${text} out of 10`}
+        style={[
+          styles.badge,
+          styles.ring,
+          { width: ring.diameter, height: ring.diameter, borderRadius: ring.diameter / 2, borderWidth: ring.border, borderColor: tint },
+          style,
+        ]}
+      >
+        <Text style={[styles.text, styles.ringText, { fontSize: ring.fontSize, lineHeight: Math.round(ring.fontSize * 1.25), color: tint }]}>{text}</Text>
+      </View>
+    );
+  }
   return (
     <View
-      accessibilityLabel={`Score ${text}`}
+      accessibilityLabel={`Score ${text} out of 10`}
       style={[
         styles.badge,
         { height: spec.height, minWidth: spec.minWidth, paddingHorizontal: spec.paddingHorizontal, borderRadius: spec.radius, backgroundColor: tint },
         style,
       ]}
     >
-      <Text style={[styles.text, { fontSize: spec.fontSize, lineHeight: spec.height, color: "#0d0b10" }]}>{text}</Text>
+      <Text style={[styles.text, { fontSize: spec.fontSize, lineHeight: spec.height, color: colors.white }]}>{text}</Text>
     </View>
   );
 }
 
 const TIER_STYLES = {
-  hi: { backgroundColor: colors.accent, color: colors.white },
-  mid: { backgroundColor: colors.mid, color: "#1a1205" },
-  lo: { backgroundColor: colors.low, color: colors.white },
+  hi: { backgroundColor: colors.accentSoft, color: colors.accent },
+  mid: { backgroundColor: colors.surface, color: colors.fg },
+  lo: { backgroundColor: colors.surface, color: colors.muted },
 } as const;
 
+/** How well a place fits you, as a quiet pill: teal when it is a strong match, grey otherwise. */
 export function MatchBadge({ match, size = "md" }: { match: number; size?: Size }) {
   const spec = SIZES[size];
   const tier = TIER_STYLES[matchTier(match)];
@@ -64,15 +90,18 @@ export function MatchBadge({ match, size = "md" }: { match: number; size?: Size 
       accessibilityLabel={`${match}% match for you`}
       style={[
         styles.badge,
-        { height: spec.height, minWidth: spec.minWidth, paddingHorizontal: spec.paddingHorizontal, borderRadius: spec.radius, backgroundColor: tier.backgroundColor },
+        { height: spec.height, minWidth: spec.minWidth, paddingHorizontal: spec.paddingHorizontal + 2, borderRadius: spec.height / 2, backgroundColor: tier.backgroundColor },
       ]}
     >
-      <Text style={[styles.text, { fontSize: spec.fontSize, lineHeight: spec.height, color: tier.color }]}>{match}%</Text>
+      <Text style={[styles.text, styles.matchText, { fontSize: spec.fontSize - 1, lineHeight: spec.height, color: tier.color }]}>{match}%</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: { alignSelf: "flex-start", alignItems: "center", justifyContent: "center" },
+  ring: { backgroundColor: colors.white },
   text: { fontWeight: "800", fontVariant: ["tabular-nums"], letterSpacing: -0.3, textAlign: "center" },
+  ringText: { fontWeight: "700", letterSpacing: -0.2 },
+  matchText: { fontWeight: "700" },
 });

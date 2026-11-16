@@ -27,13 +27,13 @@ export function Avatar({ name, uri, size = 40, style }: AvatarProps) {
   return (
     <View
       accessibilityLabel={name}
-      style={[styles.base, shape, { backgroundColor: `hsl(${hueOf(name)}, 30%, 26%)` }, style]}
+      style={[styles.base, shape, { backgroundColor: `hsl(${hueOf(name)}, 48%, 90%)` }, style]}
     >
       {imageUri ? (
         <Image source={{ uri: imageUri }} style={styles.image} onError={() => setFailedUri(imageUri)} />
       ) : (
         <Text
-          style={[styles.initials, { fontSize: size * 0.36, lineHeight: size * 0.46, color: `hsl(${hueOf(name)}, 70%, 84%)` }]}
+          style={[styles.initials, { fontSize: size * 0.36, lineHeight: size * 0.46, color: `hsl(${hueOf(name)}, 42%, 34%)` }]}
         >
           {initials(name)}
         </Text>

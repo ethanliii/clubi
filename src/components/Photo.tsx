@@ -7,14 +7,14 @@ import { Icon, type IconName } from "./Icon";
 
 /** What a place looks like before (or without) its photo: a hue and a quiet glyph per category. */
 // `hue` is what `categoryHue` returns for the category; `tint` is what is drawn. They differ for the
-// warm categories, because a dark yellow or orange turns to mud, and a deeper ember does not.
+// warm categories, so a pale yellow or orange reads as peach or butter and not as tan.
 const CATEGORY_LOOK: Record<Category, { hue: number; tint: number; icon: IconName }> = {
   nightlife: { hue: 320, tint: 318, icon: "cocktail" },
-  food: { hue: 28, tint: 16, icon: "utensils" },
+  food: { hue: 28, tint: 18, icon: "utensils" },
   culture: { hue: 265, tint: 262, icon: "landmark" },
   outdoors: { hue: 150, tint: 158, icon: "tree" },
   live: { hue: 200, tint: 212, icon: "music" },
-  popup: { hue: 48, tint: 36, icon: "spark" },
+  popup: { hue: 48, tint: 42, icon: "spark" },
 };
 
 function lookFor(category: Category | undefined, hue: number | undefined): { hue: number; icon: IconName | null } {
@@ -39,7 +39,7 @@ export type PhotoProps = {
   width?: DimensionValue;
   /** Width divided by height, e.g. 4 / 5 for a tall card, 16 / 9 for a banner. */
   aspectRatio?: number;
-  /** Corner radius. Default 16; pass 0 for edge-to-edge. */
+  /** Corner radius. Default 14; pass 0 for edge-to-edge. */
   round?: number;
   /** A dark gradient so text on the photo stays readable: along the bottom, a full hero, or the top edge. */
   scrim?: boolean | "bottom" | "hero" | "top";
@@ -51,7 +51,7 @@ export type PhotoProps = {
 
 /**
  * A photo of a place, an event or a post. It fades in when it has loaded, and until then (or when
- * there is none) shows a calm tinted panel with the category's glyph, never a grey box.
+ * there is none) shows a pale tinted tile with the category's glyph, never a dark block.
  */
 export function Photo({
   uri,
@@ -60,7 +60,7 @@ export function Photo({
   height,
   width = "100%",
   aspectRatio,
-  round = radius.xl - 2,
+  round = radius.lg,
   scrim = false,
   children,
   accessibilityLabel,
@@ -82,7 +82,7 @@ export function Photo({
   };
 
   const kind = scrim === true ? "bottom" : scrim;
-  const glyph = Math.round(Math.min(40, Math.max(20, size * 0.34)));
+  const glyph = Math.round(Math.min(36, Math.max(20, size * 0.3)));
 
   return (
     <View
@@ -91,16 +91,16 @@ export function Photo({
       style={[styles.photo, { width, borderRadius: round }, height !== undefined && { height }, aspectRatio ? { aspectRatio } : null, style]}
     >
       <LinearGradient
-        // The category's colour lights one corner and falls away into the page's own dark plum.
-        colors={[`hsl(${look.hue}, 42%, 28%)`, `hsl(${look.hue}, 36%, 17%)`, "#17131d"]}
-        locations={[0, 0.6, 1]}
+        // A pale wash of the category's colour: it sits on a white page the way a photo placeholder does.
+        colors={[`hsl(${look.hue}, 60%, 96%)`, `hsl(${look.hue}, 56%, 93%)`, `hsl(${look.hue}, 52%, 89%)`]}
+        locations={[0, 0.55, 1]}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
       {!imageUri && look.icon ? (
         <View style={styles.glyph}>
-          <Icon name={look.icon} size={glyph} color={`hsla(${look.hue}, 70%, 82%, 0.72)`} />
+          <Icon name={look.icon} size={glyph} color={`hsla(${look.hue}, 45%, 56%, 0.75)`} />
         </View>
       ) : null}
       {imageUri ? (

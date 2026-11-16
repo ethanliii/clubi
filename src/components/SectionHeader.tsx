@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, spacing } from "../theme";
+import { colors, palette, spacing } from "../theme";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -45,7 +45,9 @@ export function SectionHeader({
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >
           <Text style={styles.actionText}>{actionLabel}</Text>
-          <Icon name="chevron" size={13} color={colors.muted} />
+          <View style={styles.arrow}>
+            <Icon name="chevron" size={13} color={colors.fg} />
+          </View>
         </Pressable>
       ) : null}
     </View>
@@ -53,10 +55,12 @@ export function SectionHeader({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.md, minHeight: 32 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 32 },
   title: { flex: 1 },
   count: { color: colors.low, fontWeight: "600" },
-  action: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: 32 },
-  actionText: { color: colors.muted, fontWeight: "500" },
+  action: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 32 },
+  // The small round arrow that says a row of cards goes on.
+  arrow: { width: 28, height: 28, borderRadius: 14, backgroundColor: palette.field, alignItems: "center", justifyContent: "center", paddingLeft: 1 },
+  actionText: { color: colors.fg, fontWeight: "600" },
   pressed: { opacity: 0.5 },
 });

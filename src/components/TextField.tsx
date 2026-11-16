@@ -17,7 +17,7 @@ export type TextFieldProps = Omit<ComponentProps<typeof TextInput>, "style"> & {
 const noOutline = Platform.OS === "web" ? ({ outlineStyle: "none" } as unknown as TextStyle) : null;
 
 /**
- * A calm filled text box. The label sits inside the box above the text, so a form reads as a short
+ * A grey rounded text box with no border until it is focused. The label sits inside the box above the text, so a form reads as a short
  * list of fields rather than a stack of captions and boxes. Takes every `TextInput` prop
  * (placeholder, secureTextEntry, ref, …).
  */
@@ -42,7 +42,7 @@ export function TextField({
         <TextInput
           accessibilityLabel={accessibilityLabel ?? label ?? placeholder}
           placeholder={hintText}
-          placeholderTextColor="#857d94"
+          placeholderTextColor={colors.low}
           selectionColor={colors.accent}
           multiline={multiline}
           onFocus={(event) => {
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
     overflow: "hidden",
   },
-  boxFocused: { borderColor: "rgba(242,238,247,0.38)", backgroundColor: palette.fieldPressed },
+  boxFocused: { borderColor: colors.fg, backgroundColor: colors.bg },
   boxError: { borderColor: palette.danger },
   // The label is drawn over the input and lets taps through, so the whole box focuses the input.
   label: {
