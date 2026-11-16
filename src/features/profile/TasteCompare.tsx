@@ -54,11 +54,11 @@ export function TasteCompare({
 const styles = StyleSheet.create({
   wrap: { gap: spacing.lg },
   dim: { gap: 6 },
-  label: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold, color: colors.fg },
+  label: { fontSize: 14, lineHeight: 19, fontWeight: fontWeight.bold, color: colors.fg },
   line: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   who: { width: 64, fontSize: 13, lineHeight: 17, color: colors.muted },
-  track: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.raised, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 3 },
+  track: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 2 },
   value: { width: 40, textAlign: "right", fontSize: 13, lineHeight: 17, color: colors.fg, fontVariant: ["tabular-nums"] },
   mine: { color: colors.accent, fontWeight: fontWeight.bold },
 });

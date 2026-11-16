@@ -1,8 +1,8 @@
 import { useQuery } from "convex/react";
 import { router, type Href } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { EmptyState, IconButton, Screen, SectionHeader, Text, type IconName } from "../../components";
-import { LinkRow, OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, TasteMeters } from "../../features/profile";
+import { EmptyState, IconButton, Screen, Text, type IconName } from "../../components";
+import { LinkRow, OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel, TasteMeters } from "../../features/profile";
 import { api } from "../../lib/api";
 import { paths, rankingsPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
@@ -75,7 +75,7 @@ export default function ProfileScreen() {
 
       {profile.tasteSummary.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="Taste profile" />
+          <SectionLabel title="Taste profile" />
           <TasteMeters summary={profile.tasteSummary} mine />
         </View>
       ) : null}
@@ -89,12 +89,12 @@ export default function ProfileScreen() {
           onAction={() => router.push(paths.rate)}
         />
       ) : (
-        <RankedLists lists={profile.lists} limit={3} onSeeAll={(category) => router.push(rankingsPath(category))} />
+        <RankedLists lists={profile.lists} limit={5} onSeeAll={(category) => router.push(rankingsPath(category))} />
       )}
 
       {profile.recentPosts.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="Recent" />
+          <SectionLabel title="Recent" />
           <View style={styles.posts}>
             {profile.recentPosts.map((post) => (
               <PostCard

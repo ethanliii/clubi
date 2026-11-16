@@ -6,6 +6,7 @@ import type { Category, Id, Kind } from "../../lib/api";
 import { categoryLabel } from "../../lib/format";
 import { venuePath } from "../../lib/links";
 import { colors, fontWeight, palette, spacing } from "../../theme";
+import { PlacePhoto } from "./PlacePhoto";
 
 export type RankedRowItem = {
   kind: Kind;
@@ -45,6 +46,7 @@ export function RankedRow({
         onPress={() => router.push(venuePath(item.kind, item.id))}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}
       >
+        <PlacePhoto uri={item.imageUrl} category={item.category} width={56} height={56} round={10} />
         <View style={styles.text}>
           <Text numberOfLines={2} style={styles.name}>
             {showPosition ? `${item.position}. ${item.name}` : item.name}
@@ -63,7 +65,7 @@ export function RankedRow({
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
-  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 68, paddingVertical: spacing.md },
+  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 76, paddingVertical: 10 },
   pressed: { opacity: 0.55 },
   text: { flex: 1, gap: spacing.xxs },
   name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },

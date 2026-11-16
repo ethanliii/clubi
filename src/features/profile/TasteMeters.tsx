@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   // Two columns: half the row minus half the gap.
   cell: { flexBasis: "40%", flexGrow: 1, gap: spacing.sm },
   labels: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.sm },
-  label: { flex: 1, fontWeight: fontWeight.semibold },
+  label: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: fontWeight.semibold },
   value: { fontSize: 13, fontVariant: ["tabular-nums"] },
   track: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
   fill: { height: "100%", borderRadius: 2 },

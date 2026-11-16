@@ -8,7 +8,7 @@ function Stat({ value, label, onPress }: { value: number; label: string; onPress
   const text = (
     <>
       <Text style={styles.statValue}>{value.toLocaleString()}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statLabel}>{label.toUpperCase()}</Text>
     </>
   );
   if (!onPress) {
@@ -50,7 +50,7 @@ export function ProfileHeader({
   const facts = [user.username ? `@${user.username}` : "", user.homeCity ?? ""].filter((part) => part !== "").join(" · ");
   return (
     <View style={styles.wrap}>
-      <Avatar name={user.displayName} uri={user.avatarUrl} size={92} />
+      <Avatar name={user.displayName} uri={user.avatarUrl} size={96} />
       <View style={styles.names}>
         {showName ? (
           <Text accessibilityRole="header" numberOfLines={2} style={styles.name}>
@@ -64,14 +64,12 @@ export function ProfileHeader({
         ) : null}
       </View>
       {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
-      {children ? <View style={styles.actions}>{children}</View> : null}
       <View style={styles.stats}>
         <Stat value={counts.ranked} label="Ranked" />
-        <View style={styles.rule} />
         <Stat value={counts.friends} label={counts.friends === 1 ? "Friend" : "Friends"} onPress={onPressFriends} />
-        <View style={styles.rule} />
         <Stat value={counts.posts} label={counts.posts === 1 ? "Post" : "Posts"} />
       </View>
+      {children ? <View style={styles.actions}>{children}</View> : null}
     </View>
   );
 }
@@ -79,14 +77,14 @@ export function ProfileHeader({
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", gap: spacing.md },
   names: { alignItems: "center", gap: spacing.xxs },
-  name: { fontSize: 24, lineHeight: 29, fontWeight: fontWeight.bold, letterSpacing: -0.4, textAlign: "center" },
-  facts: { fontSize: 15, lineHeight: 20, color: colors.muted, textAlign: "center" },
+  name: { fontSize: 22, lineHeight: 27, fontWeight: fontWeight.bold, letterSpacing: -0.4, textAlign: "center" },
+  facts: { fontSize: 14, lineHeight: 20, color: colors.muted, textAlign: "center" },
   bio: { fontSize: 15, lineHeight: 21, color: palette.soft, textAlign: "center", paddingHorizontal: spacing.md },
   actions: { alignSelf: "stretch", paddingTop: spacing.xs },
   stats: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", paddingTop: spacing.xs },
   stat: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 1 },
   rule: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: colors.line },
-  statValue: { fontSize: 19, lineHeight: 24, fontWeight: fontWeight.bold, color: colors.fg, fontVariant: ["tabular-nums"] },
-  statLabel: { fontSize: 13, lineHeight: 17, color: colors.muted },
+  statValue: { fontSize: 20, lineHeight: 25, fontWeight: fontWeight.bold, color: colors.fg, fontVariant: ["tabular-nums"] },
+  statLabel: { fontSize: 11, lineHeight: 15, fontWeight: fontWeight.bold, letterSpacing: 0.8, color: colors.muted },
   pressed: { opacity: 0.55 },
 });

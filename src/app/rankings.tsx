@@ -69,11 +69,12 @@ export default function RankingsScreen() {
         <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
           {[0, 1, 2, 3, 4].map((row) => (
             <View key={row} style={styles.loadingRow}>
+              <Skeleton width={56} height={56} round={10} />
               <View style={styles.loadingLines}>
                 <Skeleton width="60%" height={15} />
                 <Skeleton width="35%" height={11} />
               </View>
-              <Skeleton width={40} height={40} round={20} />
+              <Skeleton width={44} height={44} round={22} />
             </View>
           ))}
         </View>
@@ -126,7 +127,7 @@ export default function RankingsScreen() {
 
 const styles = StyleSheet.create({
   heading: { gap: spacing.xxs },
-  title: { fontSize: 30, lineHeight: 36, fontWeight: fontWeight.bold, letterSpacing: -0.6 },
+  title: { fontSize: 24, lineHeight: 30, fontWeight: fontWeight.bold, letterSpacing: -0.6 },
   list: { gap: spacing.sm },
   // Pull the icon to the screen edge so its glyph lines up with the score column's right side.
   remove: { marginRight: -spacing.md },

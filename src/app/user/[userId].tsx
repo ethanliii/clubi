@@ -10,14 +10,13 @@ import {
   ListRow,
   Loading,
   Screen,
-  SectionHeader,
   Sheet,
   Text,
   goBack,
   useToast,
 } from "../../components";
 import { FriendButton } from "../../features/friends";
-import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, TasteMeters } from "../../features/profile";
+import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel, TasteMeters } from "../../features/profile";
 import { api, type Id } from "../../lib/api";
 import { formatDateRange, pluralize } from "../../lib/format";
 import { comparePath, paths } from "../../lib/links";
@@ -175,7 +174,7 @@ export default function UserScreen() {
         <>
           {profile.tasteSummary.length > 0 ? (
             <View style={styles.section}>
-              <SectionHeader title="Taste profile" />
+              <SectionLabel title="Taste profile" />
               <TasteMeters summary={profile.tasteSummary} />
             </View>
           ) : null}
@@ -186,7 +185,7 @@ export default function UserScreen() {
           )}
           {profile.recentPosts.length > 0 ? (
             <View style={styles.section}>
-              <SectionHeader title="Recent" />
+              <SectionLabel title="Recent" />
               <View style={styles.posts}>
                 {profile.recentPosts.map((post) => (
                   <PostCard

@@ -11,3 +11,4 @@ export * from "./RankedLists";
 export * from "./RankedRow";
 export * from "./TasteCompare";
 export * from "./TasteMeters";
+export * from "./SectionLabel";

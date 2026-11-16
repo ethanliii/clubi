@@ -8,21 +8,22 @@ import {
   EmptyState,
   ScoreBadge,
   Screen,
-  SectionHeader,
   Skeleton,
   SkeletonRows,
   Text,
   goBack,
 } from "../../components";
 import { FriendButton } from "../../features/friends";
-import { PhotoCard, PlacePhoto, TasteCompare } from "../../features/profile";
+import { PhotoCard, PlacePhoto, SectionLabel, TasteCompare } from "../../features/profile";
 import { api, type CompareResult, type Id } from "../../lib/api";
 import { categoryLabel } from "../../lib/format";
 import { userPath, venuePath } from "../../lib/links";
 import { colors, fontWeight, spacing } from "../../theme";
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
-const SCORE_COLUMN = 52;
+const SCORE_COLUMN = 46;
+/** A score out of ten as a bar width. */
+const tenth = (score: number) => Math.min(100, Math.max(0, score * 10));
 
 function SharedRow({
   item,
@@ -40,7 +41,7 @@ function SharedRow({
       onPress={() => router.push(venuePath(item.kind, item.id))}
       style={({ pressed }) => [styles.sharedRow, pressed && styles.pressed]}
     >
-      <PlacePhoto uri={imageUrl} category={item.category} width={48} height={48} round={10} />
+      <PlacePhoto uri={item.imageUrl ?? imageUrl} category={item.category} width={56} height={56} round={10} />
       <View style={[styles.sharedRest, divider && styles.divider]}>
         <View style={styles.sharedText}>
           <Text numberOfLines={2} style={styles.sharedName}>
@@ -49,6 +50,14 @@ function SharedRow({
           <Text variant="caption" muted numberOfLines={1}>
             {categoryLabel(item.category)}
           </Text>
+          <View style={styles.pair}>
+            <View style={styles.pairTrack}>
+              <View style={[styles.pairFill, { width: `${tenth(item.myScore)}%`, backgroundColor: colors.accent }]} />
+            </View>
+            <View style={styles.pairTrack}>
+              <View style={[styles.pairFill, { width: `${tenth(item.theirScore)}%`, backgroundColor: colors.fg }]} />
+            </View>
+          </View>
         </View>
         <View style={styles.scoreColumn}>
           <ScoreBadge score={item.myScore} size="md" />
@@ -157,13 +166,13 @@ export default function CompareScreen() {
 
       {result.dims.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="Your tastes" />
+          <SectionLabel title="Your tastes" />
           <TasteCompare dims={result.dims} theirName={theirName} />
         </View>
       ) : null}
 
       <View style={styles.section}>
-        <SectionHeader title="Both ranked" />
+        <SectionLabel title="Both ranked" />
         {result.shared.length === 0 ? (
           <Text muted style={styles.lead}>
             No places in common yet.
@@ -195,7 +204,7 @@ export default function CompareScreen() {
 
       {result.theirTopNewToMe.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title={`${theirName}'s picks you haven't ranked`} />
+          <SectionLabel title={`${theirName}'s picks you haven't ranked`} />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -217,7 +226,7 @@ const styles = StyleSheet.create({
   hero: { gap: spacing.xs },
   heroTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   grow: { flex: 1 },
-  title: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.5 },
+  title: { fontSize: 24, lineHeight: 30, fontWeight: fontWeight.bold, letterSpacing: -0.5 },
   faces: { flexDirection: "row", alignItems: "center" },
   overlap: { marginLeft: -8 },
   match: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm, paddingTop: spacing.sm },
@@ -232,16 +241,19 @@ const styles = StyleSheet.create({
   pctLabel: { fontSize: 17, lineHeight: 22 },
   lead: { fontSize: 15, lineHeight: 21, color: colors.muted },
   section: { gap: spacing.md, paddingTop: spacing.md },
-  columns: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingBottom: spacing.xs },
+  columns: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingBottom: spacing.xs },
   agree: { flex: 1, fontSize: 13, lineHeight: 17 },
   columnHead: { width: SCORE_COLUMN, textAlign: "center" },
   mineHead: { color: colors.accent, fontWeight: fontWeight.bold },
   sharedRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  sharedRest: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 68, paddingVertical: 10 },
+  sharedRest: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 80, paddingVertical: 12 },
   divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   pressed: { opacity: 0.6 },
   sharedText: { flex: 1, gap: spacing.xxs },
-  sharedName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold },
+  sharedName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  pair: { gap: 3, paddingTop: 4 },
+  pairTrack: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
+  pairFill: { height: "100%", borderRadius: 2 },
   scoreColumn: { width: SCORE_COLUMN, alignItems: "center" },
   // Bleeds to the screen edges so the cards scroll under them.
   carousel: { flexGrow: 0, marginHorizontal: -spacing.lg },

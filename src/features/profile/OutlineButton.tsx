@@ -18,10 +18,11 @@ export function OutlineButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
+      hitSlop={{ top: 4, bottom: 4 }}
       onPress={onPress}
       style={({ pressed }) => [styles.button, pressed && styles.pressed, style]}
     >
-      {icon ? <Icon name={icon} size={16} color={colors.fg} /> : null}
+      {icon ? <Icon name={icon} size={15} color={colors.fg} /> : null}
       <Text numberOfLines={1} style={styles.label}>
         {title}
       </Text>
@@ -32,17 +33,17 @@ export function OutlineButton({
 const styles = StyleSheet.create({
   button: {
     flex: 1,
-    minHeight: 44,
+    height: 36,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.bg,
   },
   pressed: { backgroundColor: colors.surface },
-  label: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.fg },
+  label: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.fg },
 });

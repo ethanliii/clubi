@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { SectionHeader } from "../../components";
 import type { Bucket, Category, ProfileResult } from "../../lib/api";
 import { categoryLabel } from "../../lib/format";
 import { spacing } from "../../theme";
 import { CategoryTabs } from "./CategoryTabs";
 import { RankedRow } from "./RankedRow";
+import { SectionLabel } from "./SectionLabel";
 
 /** "bars" → "Bars". The noun itself comes from the backend. */
 const titleOf = (noun: string) => noun.charAt(0).toUpperCase() + noun.slice(1);
@@ -50,7 +50,7 @@ export function RankedLists({
       : null;
   return (
     <View style={styles.section}>
-      <SectionHeader
+      <SectionLabel
         title="Rankings"
         actionLabel={action?.label}
         onAction={action?.run}
@@ -76,5 +76,5 @@ export function RankedLists({
 }
 
 const styles = StyleSheet.create({
-  section: { gap: spacing.sm, paddingTop: spacing.sm },
+  section: { gap: spacing.xs, paddingTop: spacing.sm },
 });
