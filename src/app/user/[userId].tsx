@@ -120,7 +120,6 @@ export default function UserScreen() {
   const compare = (
     <Button
       title="Compare tastes"
-      size="md"
       accessibilityLabel="Compare tastes"
       // One pink button at a time: adding them comes first, comparing once you are friends.
       variant={isFriend ? "primary" : "ghost"}

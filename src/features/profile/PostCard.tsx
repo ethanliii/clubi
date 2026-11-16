@@ -31,38 +31,20 @@ export function PostCard({ post, now, imageUrl }: { post: FeedItem; now: number;
         onPress={() => router.push(venuePath(post.target.kind, post.target.id))}
         style={({ pressed }) => [styles.body, pressed && styles.pressed]}
       >
-        {photo ? (
-          <PlacePhoto uri={photo} category={post.target.category} height={220} round={18} scrim>
-            <View style={styles.onPhoto}>
-              <View style={styles.titles}>
-                <Text numberOfLines={2} style={styles.photoName}>
-                  {post.target.name}
-                </Text>
-                <Text numberOfLines={1} style={styles.photoLabel}>
-                  {post.label}
-                </Text>
-              </View>
-              <View>
-                <ScoreBadge score={post.score} size="lg" />
-              </View>
-            </View>
-          </PlacePhoto>
-        ) : (
-          <View style={styles.row}>
-            <PlacePhoto category={post.target.category} width={56} height={56} round={12} />
-            <View style={styles.titles}>
-              <Text numberOfLines={1} style={styles.name}>
-                {post.target.name}
-              </Text>
-              <Text variant="caption" muted numberOfLines={1}>
-                {post.label}
-              </Text>
-            </View>
-            <View>
-              <ScoreBadge score={post.score} size="md" />
-            </View>
+        <View style={styles.row}>
+          <View style={styles.titles}>
+            <Text numberOfLines={2} style={styles.name}>
+              {post.target.name}
+            </Text>
+            <Text variant="caption" muted numberOfLines={1}>
+              {post.label}
+            </Text>
           </View>
-        )}
+          <View>
+            <ScoreBadge score={post.score} size="md" />
+          </View>
+        </View>
+        {photo ? <PlacePhoto uri={photo} category={post.target.category} height={210} round={14} /> : null}
         {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
         {post.myScoreForIt !== undefined ? (
           <Text variant="caption" muted>
@@ -95,20 +77,9 @@ const styles = StyleSheet.create({
   card: { gap: spacing.xxs },
   body: { gap: spacing.sm + 2 },
   pressed: { opacity: 0.7 },
-  onPhoto: {
-    position: "absolute",
-    left: spacing.md + 2,
-    right: spacing.md + 2,
-    bottom: spacing.md + 2,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.md,
-  },
   titles: { flex: 1, gap: spacing.xxs },
-  photoName: { fontSize: 20, lineHeight: 25, fontWeight: fontWeight.bold, color: colors.white, letterSpacing: -0.2 },
-  photoLabel: { fontSize: 13, lineHeight: 17, color: "rgba(255,255,255,0.78)" },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold },
+  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
   caption: { fontSize: 15, lineHeight: 21 },
   mine: { fontWeight: fontWeight.bold },
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 36 },
