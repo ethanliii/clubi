@@ -1,5 +1,6 @@
 import { router } from "expo-router";
-import { Pressable, Share, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Avatar, Icon, IconButton, Skeleton, Text, type IconName } from "../../components";
 import { api, type FeedItem, type Visibility } from "../../lib/api";
 import { categoryLabel, displayName, formatRelativeTime, formatScore } from "../../lib/format";
@@ -66,10 +67,13 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost, hide
   const place = standing ? /^#([1-3]) of their (.+)$/.exec(standing) : null;
   const firstName = author.displayName.split(" ")[0] ?? author.displayName;
   const topSpot = place ? `No. ${place[1]} on ${mine ? "your" : `${firstName}'s`} ${place[2]} list` : null;
-  const share = () =>
-    void Share.share({
-      message: `${author.displayName} ranked ${target.name}${hasScore ? ` ${formatScore(post.score)}` : ""} on Vioma`,
-    }).catch(() => undefined);
+  // Save = put the place on my Want to go list (saves.toggle "want"), like Bryan's prototype.
+  const { run: toggleSave, pending: saving } = useMutationToast(api.saves.toggle);
+  const [saved, setSaved] = useState(false);
+  const onSave = async () => {
+    const result = await toggleSave({ kind: target.kind, id: target.id, type: "want" });
+    if (result !== undefined) setSaved(result.saved);
+  };
 
   const openVenue = () => router.push(venuePath(target.kind, target.id));
   const openAuthor = () => router.push(userPath(author.userId));
@@ -160,7 +164,14 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost, hide
           onPress={onLike}
         />
         <Action icon="comment" accessibilityLabel="Comments" color={colors.fg} onPress={onComments} />
-        <Action icon="paperPlane" accessibilityLabel="Share" color={colors.fg} onPress={share} />
+        <Action
+          icon={saved ? "bookmarkFilled" : "bookmark"}
+          accessibilityLabel={saved ? "Saved to Want to go" : "Save to Want to go"}
+          color={saved ? colors.accent : colors.fg}
+          selected={saved}
+          disabled={saving}
+          onPress={() => void onSave()}
+        />
         <View style={styles.flex} />
         {mine && onMenu ? (
           <IconButton icon="more" accessibilityLabel="Post options" size={44} plain color={colors.fg} onPress={onMenu} style={styles.menu} />

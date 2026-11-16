@@ -1,10 +1,10 @@
 import { router, type Href } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { useRef, useState } from "react";
+import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, EmptyState, Loading, TabHeader, Text } from "../../components";
 import { CommentsSheet } from "../../features/feed/Comments";
-import { PostCard, PostDivider, PostSkeletons } from "../../features/feed/PostCard";
+import { PostCard, PostSkeletons } from "../../features/feed/PostCard";
 import { PostMenu } from "../../features/feed/PostMenu";
 import { useFeed } from "../../features/feed/useFeed";
 import { SectionLabel } from "../../features/home/CardRow";
@@ -17,91 +17,55 @@ import { colors } from "../../theme";
 
 /** The screen's side padding. The hairlines between posts run through it to both edges. */
 const GUTTER = 16;
-/** A post of mine this fresh was just posted: the feed scrolls to it. */
-const JUST_POSTED_MS = 60_000;
 
 /**
  * The first tab and the screen the app opens on: the friends' feed.
- * The wordmark, the icons and the search field sit on top and scroll away; right under them the
- * whole feed, page by page (`useFeed`), down to its end.
+ * The wordmark, the icons and the search field stay on top; under them one post per screen, and a
+ * swipe left goes to the next one (`useFeed` loads more as you near the end).
  * Everything that recommends a place lives on the Search tab.
  */
 export default function FeedTab() {
   const me = useMe();
   const now = useNow();
-  // The list's height and its content's height: while the posts do not fill the screen, the feed reads on.
-  const [size, setSize] = useState({ list: 0, content: 0 });
-  const feed = useFeed({ fillsScreen: size.list === 0 || size.content > size.list });
+  const { width } = useWindowDimensions();
+  const feed = useFeed({ fillsScreen: true });
   // Each sheet remembers its post while it slides away; `open` is what shows it.
   const [comments, setComments] = useState<{ postId: Id<"posts"> | null; open: boolean }>({ postId: null, open: false });
   const [menu, setMenu] = useState<{ postId: Id<"posts"> | null; open: boolean }>({ postId: null, open: false });
-
-  const list = useRef<FlatList>(null);
-  /** Where "YOUR FEED" starts inside the list, under everything that sits on top. */
-  const feedTop = useRef(0);
-  /** The list's and its content's heights again, for a timer to read: how far the list can scroll. */
-  const heights = useRef({ list: 0, content: 0 });
-  /** The post of mine the list last scrolled to, so it happens once per post. */
-  const shownPost = useRef<string | null>(null);
-
-  // After posting a ranking the flow ends here: bring the new post, the first in the feed, into view.
-  const first = feed.posts[0];
-  const mineOnTop = first !== undefined && me !== undefined && first.author.userId === me.userId;
-  const firstId = first?.postId;
-  const firstAt = first?.createdAt;
-  useEffect(() => {
-    if (!mineOnTop || firstId === undefined || firstAt === undefined) return;
-    if (shownPost.current === firstId || Date.now() - firstAt > JUST_POSTED_MS) return;
-    shownPost.current = firstId;
-    // A beat later, once the list has laid out what sits on top. A feed too short to bring
-    // "YOUR FEED" to the top stays where it is: the post is on screen, and a half-scroll would only clip the wordmark.
-    setTimeout(() => {
-      const offset = Math.max(0, feedTop.current - 4);
-      if (heights.current.content - heights.current.list >= offset) list.current?.scrollToOffset({ offset, animated: false });
-    }, 250);
-  }, [mineOnTop, firstId, firstAt]);
+  // Swipe left / right between posts, one post per screen (Bryan's prototype). `page` is the one showing.
+  const [page, setPage] = useState(0);
+  const pager = useRef<FlatList>(null);
 
   // The Map tab's search field takes the keyboard each time this number changes.
   const openSearch = () => router.push(`/map?search=${Date.now()}` as Href);
   const isMine = (postId: Id<"posts"> | null) =>
     me !== undefined && feed.posts.some((post) => post.postId === postId && post.author.userId === me.userId);
   const menuPost = feed.posts.find((post) => post.postId === menu.postId) ?? null;
-
-  const top = (
-    <View>
-      <TabHeader />
-
-      <SearchField label="Search places and events" onPress={openSearch} />
-
-      <View onLayout={(event) => (feedTop.current = event.nativeEvent.layout.y)} style={styles.feedLabel}>
-        <SectionLabel title="Your feed" />
-      </View>
-    </View>
-  );
+  const total = feed.posts.length;
+  const goTo = (index: number) => {
+    const next = Math.max(0, Math.min(total, index));
+    pager.current?.scrollToOffset({ offset: next * width, animated: true });
+    setPage(next);
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <FlatList
-        ref={list}
-        data={feed.posts}
-        keyExtractor={(post) => post.postId}
-        renderItem={({ item }) => {
-          const mine = item.author.userId === me?.userId;
-          return (
-            <PostCard
-              post={item}
-              mine={mine}
-              now={now}
-              onComments={() => setComments({ postId: item.postId, open: true })}
-              onMenu={mine ? () => setMenu({ postId: item.postId, open: true }) : undefined}
-              onOpenPost={() => router.push(postPath(item.postId))}
-            />
-          );
-        }}
-        ListHeaderComponent={top}
-        ItemSeparatorComponent={Divider}
-        ListEmptyComponent={
-          feed.loading ? (
+      <View style={styles.head}>
+        <TabHeader />
+        <SearchField label="Search places and events" onPress={openSearch} />
+        <View style={styles.feedLabel}>
+          <SectionLabel title="Your feed" />
+          {total > 0 ? (
+            <Text variant="caption" muted accessibilityLabel={`Post ${Math.min(page + 1, total)} of ${total}`}>
+              {page < total ? `${page + 1} / ${total}${feed.canLoadMore ? "+" : ""} · swipe for next` : "All caught up"}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      {total === 0 ? (
+        <View style={styles.emptyWrap}>
+          {feed.loading ? (
             <PostSkeletons />
           ) : (
             <EmptyState
@@ -111,35 +75,50 @@ export default function FeedTab() {
               actionLabel="Find friends"
               onAction={() => router.push(paths.friends)}
             />
-          )
-        }
-        ListFooterComponent={
-          feed.posts.length === 0 ? undefined : feed.loadingMore ? (
-            <Loading compact label="Loading more" />
-          ) : feed.canLoadMore ? (
-            <Button title="Load more" accessibilityLabel="Load more" variant="link" onPress={feed.more} style={styles.more} />
-          ) : feed.exhausted ? (
-            <Text muted center style={styles.caughtUp}>
-              You&apos;re all caught up
-            </Text>
-          ) : undefined
-        }
-        onLayout={(event) => {
-          const height = event.nativeEvent.layout.height;
-          heights.current.list = height;
-          setSize((was) => (was.list === height ? was : { ...was, list: height }));
-        }}
-        onContentSizeChange={(_width, content) => {
-          heights.current.content = content;
-          setSize((was) => (was.content === content ? was : { ...was, content }));
-        }}
-        onEndReached={feed.more}
-        onEndReachedThreshold={0.6}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        style={styles.list}
-        contentContainerStyle={styles.content}
-      />
+          )}
+        </View>
+      ) : (
+        <FlatList
+          ref={pager}
+          data={[...feed.posts, null]}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(post, index) => (post ? post.postId : `end-${index}`)}
+          getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+          onMomentumScrollEnd={(event) => setPage(Math.round(event.nativeEvent.contentOffset.x / width))}
+          onEndReached={feed.more}
+          onEndReachedThreshold={2}
+          style={styles.list}
+          renderItem={({ item }) =>
+            item === null ? (
+              <View style={[styles.page, styles.endPage, { width }]}>
+                {feed.loadingMore ? (
+                  <Loading compact label="Loading more" />
+                ) : feed.canLoadMore ? (
+                  <Button title="Load more" accessibilityLabel="Load more" variant="link" onPress={feed.more} style={styles.more} />
+                ) : (
+                  <>
+                    <Text style={styles.caughtUp}>You&apos;re all caught up</Text>
+                    <Button title="Back to the newest" accessibilityLabel="Back to the newest" variant="secondary" size="md" onPress={() => goTo(0)} />
+                  </>
+                )}
+              </View>
+            ) : (
+              <ScrollView style={{ width }} contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                <PostCard
+                  post={item}
+                  mine={item.author.userId === me?.userId}
+                  now={now}
+                  onComments={() => setComments({ postId: item.postId, open: true })}
+                  onMenu={item.author.userId === me?.userId ? () => setMenu({ postId: item.postId, open: true }) : undefined}
+                  onOpenPost={() => router.push(postPath(item.postId))}
+                />
+              </ScrollView>
+            )
+          }
+        />
+      )}
       <CommentsSheet
         postId={comments.postId}
         postIsMine={isMine(comments.postId)}
@@ -151,21 +130,14 @@ export default function FeedTab() {
   );
 }
 
-/** The hairline between two posts, running to both edges of the screen. */
-function Divider() {
-  return (
-    <View style={styles.divider}>
-      <PostDivider />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  head: { paddingHorizontal: GUTTER, paddingTop: 2 },
   list: { flex: 1 },
-  content: { paddingHorizontal: GUTTER, paddingTop: 2, paddingBottom: 32 },
-  feedLabel: { marginTop: 10 },
-  divider: { marginHorizontal: -GUTTER },
+  page: { paddingHorizontal: GUTTER, paddingTop: 6, paddingBottom: 32 },
+  endPage: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
+  emptyWrap: { flex: 1, paddingHorizontal: GUTTER },
+  feedLabel: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   more: { alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 18 },
-  caughtUp: { fontSize: 13, lineHeight: 18, paddingVertical: 12 },
+  caughtUp: { fontSize: 17, lineHeight: 22, fontWeight: "700", color: colors.fg },
 });

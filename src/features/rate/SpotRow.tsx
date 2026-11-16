@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Skeleton, Text } from "../../components";
-import type { NearbyItem } from "../../lib/api";
+import { Icon, Skeleton, Text } from "../../components";
+import { api, type NearbyItem } from "../../lib/api";
+import { useMutationToast } from "../../lib/useMutationToast";
 import { categoryLabel, formatDistance, formatEventTime } from "../../lib/format";
-import { spacing } from "../../theme";
+import { colors, palette, spacing } from "../../theme";
 import { displayName } from "../home/itemText";
 import { PlacePhoto, type } from "./ui";
 
@@ -19,9 +21,19 @@ function metaLine(item: NearbyItem): string {
     .join(" · ");
 }
 
-/** One place or event to rank: its photo, its name, what and how far it is. */
+/**
+ * One place or event to rank: its photo, its name, what and how far it is. Tap the row to rank it;
+ * the bookmark on the right saves it to Want to go instead (`saves.toggle` "want").
+ */
 export function SpotRow({ item, onPress }: { item: NearbyItem; onPress: () => void }) {
+  const { run: toggleSave, pending } = useMutationToast(api.saves.toggle);
+  const [saved, setSaved] = useState(item.saved ?? false);
+  const save = async () => {
+    const result = await toggleSave({ kind: item.kind, id: item.id, type: "want" });
+    if (result !== undefined) setSaved(result.saved);
+  };
   return (
+    <View style={styles.wrap}>
     <Pressable
       testID="rate-row"
       accessibilityRole="button"
@@ -40,6 +52,18 @@ export function SpotRow({ item, onPress }: { item: NearbyItem; onPress: () => vo
         </Text>
       </View>
     </Pressable>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={saved ? `Saved ${item.name} to Want to go` : `Save ${item.name} to Want to go`}
+      accessibilityState={{ selected: saved, disabled: pending }}
+      disabled={pending}
+      hitSlop={8}
+      onPress={() => void save()}
+      style={({ pressed }) => [styles.save, saved && styles.saveOn, pressed && styles.pressed]}
+    >
+      <Icon name={saved ? "bookmarkFilled" : "bookmark"} size={18} color={saved ? colors.bg : colors.fg} />
+    </Pressable>
+    </View>
   );
 }
 
@@ -61,7 +85,10 @@ export function SpotRowsSkeleton({ count = 6 }: { count?: number }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: PHOTO + spacing.md * 2 - 4 },
+  wrap: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  row: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: PHOTO + spacing.md * 2 - 4 },
+  save: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: palette.field },
+  saveOn: { backgroundColor: colors.fg },
   pressed: { opacity: 0.6 },
   text: { flex: 1, gap: 1 },
   lines: { gap: spacing.sm },
