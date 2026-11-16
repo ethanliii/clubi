@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, EmptyState, Header, Icon, IconButton, Screen, Skeleton, Text, goBack } from "../../components";
+import { Button, EmptyState, Header, Icon, ScoreBadge, Screen, Skeleton, Text, goBack, type IconName } from "../../components";
 import { api, type Id, type Kind, type Source, type VenueDetail } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { useKeptQuery } from "../../lib/useKeptQuery";
@@ -13,7 +13,7 @@ import { directionsUrl, openUrl, ratePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { useNow } from "../../lib/useNow";
 import { colors, fontWeight, palette, spacing } from "../../theme";
-import { DetailRow, GUTTER, Photo, ScoreTile, Scrim, SectionTitle, pageFade } from "./parts";
+import { DetailRow, GUTTER, Photo, SectionTitle } from "./parts";
 import { BreakdownSection, FriendsSection, InsightsSection, PerformersSection, SimilarSection } from "./sections";
 
 /** "View on …" for the event sources that have a page worth opening (docs/UI-SPEC.md section 5). */
@@ -25,10 +25,8 @@ const SOURCE_LABELS: Partial<Record<Source, string>> = {
 };
 
 /** The photo header: tall when there is a real photo to show, shorter for the category look. */
-const HERO_WITH_PHOTO = 440;
-const HERO_PLAIN = 300;
-/** How far above the name the photo starts to darken. */
-const FADE_LEAD = 150;
+const HERO_WITH_PHOTO = 280;
+const HERO_PLAIN = 220;
 /** The pinned action bar's buttons. */
 const ACTION_HEIGHT = 52;
 
@@ -49,7 +47,7 @@ function LoadingVenue() {
       <View style={styles.loadingBody}>
         <Skeleton height={30} width="72%" />
         <View style={styles.loadingFact}>
-          <Skeleton width={64} height={64} round={18} />
+          <Skeleton width={54} height={54} round={27} />
           <View style={styles.loadingLines}>
             <Skeleton height={18} width="80%" />
             <Skeleton height={13} width="50%" />
@@ -107,19 +105,39 @@ export function VenuePage({ kind, id }: { kind: Kind; id: string }) {
   );
 }
 
-/** The round back button that floats over the photo. */
-function FloatingBack() {
+/** A round white button that floats over the photo: back on the left, save on the right. */
+function RoundButton({
+  icon,
+  label,
+  color = colors.fg,
+  selected,
+  disabled,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  color?: string;
+  selected?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Back"
-      hitSlop={6}
-      onPress={goBack}
-      style={({ pressed }) => [styles.back, pressed && styles.pressed]}
+      accessibilityLabel={label}
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
+      hitSlop={4}
+      onPress={onPress}
+      style={({ pressed }) => [styles.round, pressed && styles.pressed]}
     >
-      <Icon name="back" size={20} color={colors.white} />
+      <Icon name={icon} size={20} color={color} />
     </Pressable>
   );
+}
+
+function FloatingBack() {
+  return <RoundButton icon="back" label="Back" onPress={goBack} />;
 }
 
 function Loaded({
@@ -143,13 +161,9 @@ function Loaded({
   const isEvent = venue.kind === "event";
 
   const heroHeight = venue.imageUrl ? HERO_WITH_PHOTO : HERO_PLAIN;
-  // The fade into the page is as tall as the words on the photo need: a short name leaves more
-  // of the picture clear, a four-line event title still reads over a busy poster.
-  const [textHeight, setTextHeight] = useState(120);
-  const fadeHeight = Math.min(heroHeight, textHeight + FADE_LEAD + 8);
   // The bar under the back button fades in once the name has scrolled away beneath it.
   const barOpacity = scrollY.interpolate({
-    inputRange: [heroHeight - insets.top - 130, heroHeight - insets.top - 70],
+    inputRange: [heroHeight - insets.top - 90, heroHeight - insets.top - 40],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
@@ -213,6 +227,18 @@ function Loaded({
     ...(venue.phone ? [{ icon: "phone" as const, title: venue.phone }] : []),
   ];
 
+  const metaParts = [kindLine, distance].filter((part) => part !== "");
+  const save = (
+    <RoundButton
+      icon={venue.saved ? "bookmarkFilled" : "bookmark"}
+      label={saveLabel}
+      selected={!!venue.saved}
+      disabled={saving}
+      color={venue.saved ? colors.accent : colors.fg}
+      onPress={() => void toggleSave({ kind: venue.kind, id: venue.id, type: "want" })}
+    />
+  );
+
   return (
     <View style={styles.root}>
       <Animated.ScrollView
@@ -221,87 +247,84 @@ function Loaded({
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: Platform.OS !== "web",
         })}
-        contentContainerStyle={{ paddingBottom: ACTION_HEIGHT + Math.max(insets.bottom, 14) + 44 }}
+        contentContainerStyle={{ paddingBottom: ACTION_HEIGHT + Math.max(insets.bottom, 14) + 40 }}
       >
         <View style={{ height: heroHeight }}>
-          <Photo
-            uri={venue.imageUrl}
-            category={venue.category}
-            height={heroHeight}
-            label={`Photo of ${venue.name}`}
-          />
+          <Photo uri={venue.imageUrl} category={venue.category} height={heroHeight} label={`Photo of ${venue.name}`} />
           <LinearGradient
             pointerEvents="none"
-            colors={["rgba(0, 0, 0, 0.5)", "rgba(0, 0, 0, 0)"]}
-            style={[styles.topShade, { height: insets.top + 96 }]}
-          />
-          <LinearGradient
-            pointerEvents="none"
-            colors={[pageFade(0), pageFade(0.5), pageFade(0.9), pageFade(0.97), pageFade(1)]}
-            locations={[
-              0,
-              (FADE_LEAD * 0.45) / fadeHeight,
-              FADE_LEAD / fadeHeight,
-              (FADE_LEAD + textHeight * 0.4) / fadeHeight,
-              1,
-            ]}
-            style={[styles.heroFade, { height: fadeHeight }]}
+            colors={["rgba(0, 0, 0, 0.32)", "rgba(0, 0, 0, 0)"]}
+            style={[styles.topShade, { height: insets.top + 80 }]}
           />
           {venue.imageUrl && venue.imageAttribution ? (
-            <Text numberOfLines={1} style={[styles.credit, { top: insets.top + 18 }]}>
-              {venue.imageAttribution}
-            </Text>
+            <View style={styles.credit}>
+              <Text numberOfLines={1} style={styles.creditText}>
+                {venue.imageAttribution}
+              </Text>
+            </View>
           ) : null}
-          <View onLayout={(event) => setTextHeight(Math.round(event.nativeEvent.layout.height))} style={styles.heroText}>
-            <Text style={styles.kindLine}>{kindLine}</Text>
-            <Text accessibilityRole="header" numberOfLines={4} style={[styles.name, nameSize]}>
-              {venue.name}
-            </Text>
-            {when ? (
-              <Text style={styles.when}>{distance ? `${when} · ${distance}` : when}</Text>
-            ) : openLabel || distance ? (
-              <View style={styles.statusRow}>
-                {openLabel ? (
-                  <>
-                    <View style={[styles.statusDot, venue.openNow ? styles.statusOpen : null]} />
-                    <Text style={[styles.status, venue.openNow ? styles.statusOpenText : null]}>{openLabel}</Text>
-                  </>
-                ) : null}
-                {distance ? <Text style={styles.status}>{openLabel ? `·  ${distance}` : distance}</Text> : null}
-              </View>
-            ) : null}
-          </View>
         </View>
 
         <View style={styles.body}>
-          <View style={styles.lead}>
-            <View style={styles.fact}>
-              <ScoreTile score={venue.score} size={64} />
-              <View style={styles.factText}>
-                <Text style={styles.why}>{why}</Text>
-                <Text muted style={styles.proof}>
-                  {socialProof.join(" · ")}
-                </Text>
-              </View>
-            </View>
-            {venue.myRanking ? (
-              <View
-                accessibilityLabel={`You ranked it #${venue.myRanking.position} of ${venue.myRanking.outOf}, ${formatScore(venue.myRanking.score)}`}
-                style={styles.mine}
-              >
-                <Text style={styles.mineText}>
-                  {`You ranked it #${venue.myRanking.position} of ${venue.myRanking.outOf}`}
-                </Text>
-                <Text style={styles.mineScore}>{formatScore(venue.myRanking.score)}</Text>
-              </View>
-            ) : null}
-            {venue.blurb ? <Text style={styles.blurb}>{venue.blurb}</Text> : null}
-            {tags.length > 0 ? (
-              <Text muted style={styles.tags}>
-                {tags.join(" · ")}
+          <View style={styles.heading}>
+            <Text accessibilityRole="header" numberOfLines={4} style={[styles.name, nameSize]}>
+              {venue.name}
+            </Text>
+            {metaParts.length > 0 || openLabel ? (
+              <Text style={styles.meta}>
+                {metaParts.join(" · ")}
+                {openLabel ? (
+                  <Text style={[styles.meta, venue.openNow ? styles.metaOpen : null]}>
+                    {metaParts.length > 0 ? ` · ${openLabel}` : openLabel}
+                  </Text>
+                ) : null}
               </Text>
             ) : null}
+            {when ? <Text style={styles.when}>{when}</Text> : null}
           </View>
+
+          <View style={styles.scoreCard}>
+            <View style={styles.scoreCol}>
+              <ScoreBadge score={venue.score} size="lg" />
+              <Text style={styles.scoreCaption}>for you</Text>
+            </View>
+            <View style={styles.factText}>
+              <Text style={styles.why}>{why}</Text>
+              <Text muted style={styles.proof}>
+                {socialProof.join(" · ")}
+              </Text>
+            </View>
+          </View>
+
+          {venue.myRanking ? (
+            <View
+              accessibilityLabel={`You ranked it #${venue.myRanking.position} of ${venue.myRanking.outOf}, ${formatScore(venue.myRanking.score)}`}
+              style={styles.mine}
+            >
+              <View style={styles.factText}>
+                <Text style={styles.mineText}>{`Your rank: #${venue.myRanking.position} of ${venue.myRanking.outOf}`}</Text>
+                <Text muted style={styles.proof}>
+                  Your score
+                </Text>
+              </View>
+              <ScoreBadge score={venue.myRanking.score} />
+            </View>
+          ) : null}
+
+          {venue.blurb || tags.length > 0 ? (
+            <View style={styles.about}>
+              {venue.blurb ? <Text style={styles.blurb}>{venue.blurb}</Text> : null}
+              {tags.length > 0 ? (
+                <View style={styles.pills}>
+                  {tags.slice(0, 8).map((tag) => (
+                    <View key={tag} style={styles.pill}>
+                      <Text style={styles.pillText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
 
           <FriendsSection venue={venue} now={now} />
 
@@ -330,20 +353,10 @@ function Loaded({
         <Animated.Text numberOfLines={1} style={[styles.topTitle, { opacity: barOpacity }]}>
           {venue.name}
         </Animated.Text>
-        <View style={styles.topSpacer} />
+        {save}
       </View>
 
       <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-        <Scrim from={pageFade(0)} to={pageFade(1)} height={28} style={styles.actionsFade} />
-        <IconButton
-          icon={venue.saved ? "bookmarkFilled" : "bookmark"}
-          accessibilityLabel={saveLabel}
-          selected={!!venue.saved}
-          disabled={saving}
-          color={venue.saved ? colors.accent : colors.fg}
-          size={ACTION_HEIGHT}
-          onPress={() => void toggleSave({ kind: venue.kind, id: venue.id, type: "want" })}
-        />
         {isEvent ? (
           <Button
             title={goingLabel}
@@ -372,50 +385,57 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.6 },
 
   topShade: { position: "absolute", top: 0, left: 0, right: 0 },
-  heroFade: { position: "absolute", left: 0, right: 0, bottom: 0 },
-  // The photographer's credit, level with the back button, clear of the name.
-  credit: { position: "absolute", right: 16, maxWidth: "62%", color: "rgba(255, 255, 255, 0.72)", fontSize: 11, lineHeight: 15 },
-  heroText: { position: "absolute", left: GUTTER, right: GUTTER, bottom: 4, gap: 6 },
-  kindLine: { color: palette.onPhotoMuted, fontSize: 14, lineHeight: 19, fontWeight: fontWeight.semibold },
-  name: {
-    color: colors.white,
-    fontSize: 36,
-    lineHeight: 40,
-    fontWeight: "800",
-    letterSpacing: -1,
-    // Holds the name together over a busy poster.
-    textShadowColor: "rgba(0, 0, 0, 0.45)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 14,
+  // The photographer's credit, in the photo's bottom corner.
+  credit: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    maxWidth: "70%",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
   },
-  nameMedium: { fontSize: 30, lineHeight: 34, letterSpacing: -0.7 },
-  nameSmall: { fontSize: 24, lineHeight: 29, letterSpacing: -0.4 },
-  when: { color: colors.white, fontSize: 15, lineHeight: 21, fontWeight: fontWeight.semibold, marginTop: 2 },
-  statusRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 2 },
-  statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.low },
-  statusOpen: { backgroundColor: colors.ok },
-  status: { color: colors.muted, fontSize: 15, lineHeight: 21, fontWeight: fontWeight.medium },
-  statusOpenText: { color: colors.fg },
+  creditText: { color: palette.onPhoto, fontSize: 11, lineHeight: 15 },
 
-  body: { paddingHorizontal: GUTTER, paddingTop: spacing.xl, gap: 36 },
-  lead: { gap: spacing.lg },
-  fact: { flexDirection: "row", alignItems: "center", gap: 14 },
+  body: { paddingHorizontal: GUTTER, paddingTop: 18, gap: 28 },
+  heading: { gap: 6 },
+  name: { color: colors.fg, fontSize: 30, lineHeight: 35, fontWeight: "800", letterSpacing: -0.7 },
+  nameMedium: { fontSize: 26, lineHeight: 31, letterSpacing: -0.5 },
+  nameSmall: { fontSize: 22, lineHeight: 27, letterSpacing: -0.3 },
+  meta: { color: colors.muted, fontSize: 15, lineHeight: 21 },
+  metaOpen: { color: colors.ok, fontWeight: fontWeight.semibold },
+  when: { color: colors.fg, fontSize: 15, lineHeight: 21, fontWeight: fontWeight.semibold },
+
+  scoreCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginTop: -8,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+  },
+  scoreCol: { alignItems: "center", gap: 4, width: 58 },
+  scoreCaption: { color: colors.muted, fontSize: 12, lineHeight: 15, fontWeight: fontWeight.semibold },
   factText: { flex: 1, gap: 3 },
-  why: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.semibold, letterSpacing: -0.2 },
-  proof: { fontSize: 14, lineHeight: 19 },
+  why: { fontSize: 16, lineHeight: 22, fontWeight: fontWeight.semibold, letterSpacing: -0.2 },
+  proof: { fontSize: 13, lineHeight: 18 },
   mine: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingVertical: 14,
-    borderTopWidth: 1,
+    marginTop: -14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderColor: palette.hairline,
   },
-  mineText: { flex: 1, fontSize: 15, lineHeight: 21 },
-  mineScore: { color: colors.accent, fontSize: 20, lineHeight: 24, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
-  blurb: { fontSize: 16, lineHeight: 25 },
-  tags: { fontSize: 14, lineHeight: 20, marginTop: -spacing.sm },
+  mineText: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold },
+  about: { gap: 14, marginTop: -6 },
+  blurb: { color: palette.soft, fontSize: 15, lineHeight: 23 },
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  pill: { height: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: "center", backgroundColor: palette.field },
+  pillText: { fontSize: 13, lineHeight: 17, fontWeight: fontWeight.medium },
   details: { marginTop: spacing.xs },
 
   topBar: {
@@ -439,16 +459,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: palette.hairline,
   },
-  back: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: palette.glass,
+  round: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  topTitle: { flex: 1, color: colors.fg, fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, textAlign: "center" },
-  topSpacer: { width: 40 },
+  topTitle: { flex: 1, color: colors.fg, fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, textAlign: "center" },
 
   actions: {
     position: "absolute",
@@ -459,10 +483,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingTop: 10,
     backgroundColor: colors.bg,
+    borderTopWidth: 1,
+    borderTopColor: palette.hairline,
   },
-  actionsFade: { top: -28, bottom: undefined },
   going: { width: "auto", minHeight: ACTION_HEIGHT, paddingHorizontal: spacing.lg },
   rank: { flex: 1, width: "auto", minHeight: ACTION_HEIGHT },
 

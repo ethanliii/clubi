@@ -6,7 +6,7 @@ import { categoryLabel, formatDistance, formatEventTime, formatRelativeTime, for
 import { performerPath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
 import { colors, fontWeight, palette, radius, spacing } from "../../theme";
-import { GUTTER, Photo, ScoreTile, Scrim, SectionTitle } from "./parts";
+import { GUTTER, Photo, SectionTitle } from "./parts";
 
 type FriendRanking = VenueDetail["friendRankings"][number];
 
@@ -24,6 +24,7 @@ function FriendRow({ friend, now, last }: { friend: FriendRanking; now: number; 
         <View style={styles.flex}>
           <Text numberOfLines={1} style={styles.rowTitle}>
             {friend.displayName}
+            <Text style={styles.rowVerb}> ranked it</Text>
           </Text>
           <Text muted style={styles.rowSub}>
             {friend.isLocal ? `Local · ${when}` : when}
@@ -59,7 +60,28 @@ export function FriendsSection({ venue, now }: { venue: VenueDetail; now: number
   }
   return (
     <View style={styles.section}>
-      <SectionTitle>Friends who went</SectionTitle>
+      <SectionTitle note={friends.length > 1 ? `${friends.length} friends` : undefined}>Friends who went</SectionTitle>
+      {friends.length > 1 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={styles.faces}>
+          {friends.map((friend) => (
+            <Pressable
+              key={friend.userId}
+              accessibilityRole="button"
+              accessibilityLabel={`${friend.displayName}'s profile, ${formatScore(friend.score)}`}
+              onPress={() => router.push(userPath(friend.userId))}
+              style={({ pressed }) => [styles.face, pressed && styles.pressed]}
+            >
+              <View>
+                <Avatar name={friend.displayName} uri={friend.avatarUrl} size={56} />
+                <ScoreBadge score={friend.score} size="sm" style={styles.faceScore} />
+              </View>
+              <Text numberOfLines={1} style={styles.faceName}>
+                {friend.displayName.split(" ")[0]}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
       <View>
         {friends.map((friend, index) => (
           <FriendRow key={friend.userId} friend={friend} now={now} last={index === friends.length - 1} />
@@ -112,19 +134,23 @@ export function InsightsSection({ insights }: { insights: VenueInsights | null |
         <View style={styles.highlights}>
           {insights.highlights.map((highlight) => (
             <View key={highlight} style={styles.highlight}>
-              <View style={styles.dot} />
+              <Icon name="check" size={16} color={colors.ok} />
               <Text style={styles.highlightText}>{highlight}</Text>
             </View>
           ))}
         </View>
       ) : null}
       {insights.bestFor.length > 0 ? (
-        <Text style={styles.bestFor} accessibilityLabel={`Best for ${insights.bestFor.join(", ")}`}>
+        <View accessibilityLabel={`Best for ${insights.bestFor.join(", ")}`} style={styles.pills}>
           <Text muted style={styles.bestFor}>
-            {"Best for  "}
+            Best for
           </Text>
-          {insights.bestFor.join(", ")}
-        </Text>
+          {insights.bestFor.map((item) => (
+            <View key={item} style={styles.pill}>
+              <Text style={styles.pillText}>{item}</Text>
+            </View>
+          ))}
+        </View>
       ) : null}
       {answered.map((distribution) => (
         <View key={distribution.questionId} style={styles.question}>
@@ -190,7 +216,7 @@ function PerformerRow({ performer, last }: { performer: PerformerCard; last: boo
         accessibilityLabel={label}
         accessibilityState={{ selected: performer.following, disabled: pending }}
         size="sm"
-        variant={performer.following ? "secondary" : "light"}
+        variant="secondary"
         disabled={pending}
         onPress={() => void run({ performerId: performer.performerId, follow: !performer.following })}
         style={styles.follow}
@@ -246,8 +272,8 @@ export function PerformersSection({
   );
 }
 
-const CARD_WIDTH = 172;
-const CARD_HEIGHT = 228;
+const CARD_WIDTH = 224;
+const CARD_HEIGHT = 140;
 
 function SimilarCard({ item, now }: { item: NearbyItem; now: number }) {
   const facts =
@@ -261,18 +287,19 @@ function SimilarCard({ item, now }: { item: NearbyItem; now: number }) {
       onPress={() => router.push(venuePath(item.kind, item.id))}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
-      <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${item.name}`} />
-      <Scrim from="rgba(8, 7, 11, 0)" to="rgba(8, 7, 11, 0.92)" height="62%" />
-      <View style={styles.cardScore}>
-        <ScoreTile score={item.score} size={36} />
+      <View style={styles.cardPhoto}>
+        <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${item.name}`} />
       </View>
-      <View style={styles.cardText}>
-        <Text numberOfLines={2} style={styles.cardName}>
-          {item.name}
-        </Text>
-        <Text numberOfLines={1} style={styles.cardFacts}>
-          {facts}
-        </Text>
+      <View style={styles.cardRow}>
+        <View style={styles.flex}>
+          <Text numberOfLines={1} style={styles.cardName}>
+            {item.name}
+          </Text>
+          <Text numberOfLines={1} style={styles.cardFacts}>
+            {facts}
+          </Text>
+        </View>
+        <ScoreBadge score={item.score} size="sm" />
       </View>
     </Pressable>
   );
@@ -286,8 +313,8 @@ export function SimilarSection({ items, now }: { items: NearbyItem[] | undefined
       <SectionTitle>More like this</SectionTitle>
       {items === undefined ? (
         <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loadingCards}>
-          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={radius.xl} />
-          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={radius.xl} />
+          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={radius.lg} />
+          <Skeleton width={CARD_WIDTH} height={CARD_HEIGHT} round={radius.lg} />
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={styles.cards}>
@@ -310,13 +337,13 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold },
   rowSub: { fontSize: 13, lineHeight: 18 },
 
-  quiet: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  quiet: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: 14, borderRadius: 14, backgroundColor: colors.surface },
   quietText: { flex: 1, fontSize: 14, lineHeight: 20 },
 
   friend: { gap: spacing.md, paddingVertical: 14 },
   friendTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  quote: { fontSize: 16, lineHeight: 23 },
-  friendPhoto: { width: "100%", aspectRatio: 4 / 3, borderRadius: radius.xl, backgroundColor: colors.surface },
+  quote: { color: palette.soft, fontSize: 15, lineHeight: 22 },
+  friendPhoto: { width: "100%", aspectRatio: 16 / 10, borderRadius: radius.lg, backgroundColor: colors.surface },
 
   bars: { gap: 14 },
   barRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
@@ -329,8 +356,7 @@ const styles = StyleSheet.create({
 
   highlights: { gap: spacing.md - 2 },
   highlight: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.low },
-  highlightText: { flex: 1, fontSize: 17, lineHeight: 23, fontWeight: fontWeight.semibold },
+  highlightText: { flex: 1, fontSize: 15, lineHeight: 21, fontWeight: fontWeight.medium },
   bestFor: { fontSize: 15, lineHeight: 21 },
   question: { gap: spacing.md - 2, paddingTop: spacing.sm },
   questionText: { fontSize: 14, lineHeight: 19 },
@@ -349,10 +375,19 @@ const styles = StyleSheet.create({
   bleed: { marginHorizontal: -GUTTER, flexGrow: 0 },
   cards: { gap: spacing.md, paddingHorizontal: GUTTER },
   loadingCards: { flexDirection: "row", gap: spacing.md },
-  card: { width: CARD_WIDTH, height: CARD_HEIGHT, borderRadius: radius.xl, overflow: "hidden", backgroundColor: colors.surface },
-  cardPressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
-  cardScore: { position: "absolute", top: 10, left: 10 },
-  cardText: { position: "absolute", left: 12, right: 12, bottom: 12, gap: 3 },
-  cardName: { color: colors.white, fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
-  cardFacts: { color: "rgba(255, 255, 255, 0.72)", fontSize: 12.5, lineHeight: 16 },
+  card: { width: CARD_WIDTH, gap: 8 },
+  cardPhoto: { height: CARD_HEIGHT, borderRadius: radius.lg, overflow: "hidden", backgroundColor: colors.surface },
+  cardPressed: { opacity: 0.8 },
+  cardRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  cardName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  cardFacts: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+
+  faces: { gap: 16, paddingHorizontal: GUTTER, paddingBottom: 4 },
+  face: { width: 64, alignItems: "center", gap: 6 },
+  faceScore: { position: "absolute", right: -8, bottom: -4 },
+  faceName: { fontSize: 12.5, lineHeight: 16, fontWeight: fontWeight.medium },
+  rowVerb: { color: colors.muted, fontWeight: fontWeight.regular },
+  pills: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
+  pill: { height: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: "center", backgroundColor: palette.field },
+  pillText: { fontSize: 13, lineHeight: 17, fontWeight: fontWeight.medium },
 });

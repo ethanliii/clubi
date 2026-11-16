@@ -11,7 +11,7 @@ import { colors, fontWeight, layout, palette, ratingColor, spacing } from "../..
 export const GUTTER = layout.gutter;
 
 /** The page background as rgba, for scrims that fade a photo into the page. */
-export const pageFade = (alpha: number) => `rgba(20, 17, 25, ${alpha})`;
+export const pageFade = (alpha: number) => `rgba(255, 255, 255, ${alpha})`;
 
 /** A section's heading: bigger than a card title, smaller than the page's name. */
 export function SectionTitle({ children, note }: { children: string; note?: string }) {
@@ -134,7 +134,7 @@ export function DetailRow({
   const body = (
     <>
       <View style={styles.detailIcon}>
-        <Glyph name={icon} color={colors.muted} />
+        <Glyph name={icon} color={colors.fg} />
       </View>
       <View style={[styles.detailBody, !last && styles.hairline]}>
         <View style={styles.detailText}>
@@ -147,9 +147,7 @@ export function DetailRow({
         </View>
         {right}
         {action ? (
-          <Text muted style={styles.detailAction}>
-            {action}
-          </Text>
+          <Text style={styles.detailAction}>{action}</Text>
         ) : null}
         {onPress ? <Icon name="chevron" size={14} color={colors.low} /> : null}
       </View>
@@ -173,16 +171,16 @@ const styles = StyleSheet.create({
   sectionTitleText: { flexShrink: 1 },
   sectionNote: { fontSize: 13, lineHeight: 18 },
   tile: { alignItems: "center", justifyContent: "center" },
-  tileText: { color: "#111111", fontWeight: fontWeight.bold, letterSpacing: -0.5, fontVariant: ["tabular-nums"] },
+  tileText: { color: colors.white, fontWeight: fontWeight.bold, letterSpacing: -0.5, fontVariant: ["tabular-nums"] },
   square: { borderRadius: 0 },
   scrim: { position: "absolute", left: 0, right: 0, bottom: 0 },
   detailRow: { flexDirection: "row", alignItems: "stretch", minHeight: 54 },
   detailIcon: { width: 36, justifyContent: "center" },
   detailBody: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 15 },
   detailText: { flex: 1, gap: 2 },
-  detailTitle: { fontSize: 15, lineHeight: 21 },
+  detailTitle: { fontSize: 15, lineHeight: 21, fontWeight: fontWeight.medium },
   detailSubtitle: { fontSize: 13, lineHeight: 18 },
-  detailAction: { fontSize: 14, lineHeight: 20 },
+  detailAction: { color: colors.accent, fontSize: 14, lineHeight: 20, fontWeight: fontWeight.semibold },
   hairline: { borderBottomWidth: 1, borderBottomColor: palette.hairline },
   pressed: { opacity: 0.55 },
 });
