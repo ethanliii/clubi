@@ -16,6 +16,7 @@ export function VenuePhoto({
   uri,
   category,
   scrim,
+  deep,
   children,
 }: {
   hue: number;
@@ -24,10 +25,12 @@ export function VenuePhoto({
   uri?: string | null;
   category?: Category;
   scrim?: boolean | "bottom" | "hero" | "top";
+  /** White text sits on it: a deep tint when there is no picture. */
+  deep?: boolean;
   children?: ReactNode;
 }) {
   return (
-    <Photo uri={uri} category={category} hue={hue} height={height} round={radius.md} scrim={scrim} style={style}>
+    <Photo uri={uri} category={category} hue={hue} height={height} round={radius.md} scrim={scrim} deep={deep} style={style}>
       {children}
     </Photo>
   );

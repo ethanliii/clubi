@@ -138,8 +138,11 @@ export function BreakdownSection({ breakdown }: { breakdown: VenueDetail["breakd
 /** What visitors said after ranking it: the highlights, who it is best for, and how each question was answered. */
 export function InsightsSection({ insights }: { insights: VenueInsights | null | undefined }) {
   if (!insights) return null;
-  const answered = insights.distributions.filter((distribution) => distribution.total > 0);
-  if (insights.highlights.length === 0 && insights.bestFor.length === 0 && answered.length === 0) return null;
+  const asked = insights.distributions.filter((distribution) => distribution.total > 0);
+  // With only a couple of answers the backend withholds the split (every share is 0): rows of "0%" would read as a result.
+  const answered = asked.filter((distribution) => distribution.options.some((option) => option.pct > 0));
+  const withheld = asked.length > 0 && answered.length === 0;
+  if (insights.highlights.length === 0 && insights.bestFor.length === 0 && asked.length === 0) return null;
   return (
     <View style={styles.section}>
       <SectionTitle note={insights.confidence === "low" ? "Based on a few visits" : undefined}>What people say</SectionTitle>
@@ -164,6 +167,11 @@ export function InsightsSection({ insights }: { insights: VenueInsights | null |
             </View>
           ))}
         </View>
+      ) : null}
+      {withheld ? (
+        <Text muted style={styles.questionText}>
+          A few people have answered. The breakdown shows once more have.
+        </Text>
       ) : null}
       {answered.map((distribution) => (
         <View key={distribution.questionId} style={styles.question}>
@@ -300,7 +308,7 @@ function SimilarCard({ item, now }: { item: NearbyItem; now: number }) {
       onPress={() => router.push(venuePath(item.kind, item.id))}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
-      <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${item.name}`} />
+      <Photo uri={item.imageUrl} category={item.category} height={CARD_HEIGHT} label={`Photo of ${item.name}`} deep />
       <Scrim from="rgba(0, 0, 0, 0)" to="rgba(0, 0, 0, 0.82)" height="70%" />
       <ScoreBadge score={item.score} size="sm" style={styles.cardScore} />
       <View style={styles.cardText}>

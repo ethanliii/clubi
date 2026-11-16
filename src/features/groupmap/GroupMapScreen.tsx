@@ -422,7 +422,8 @@ const styles = StyleSheet.create({
   roundPressed: { backgroundColor: palette.field },
 
   sheetHeader: { justifyContent: "center", height: SHEET_HEADER - 28 },
-  title: { fontSize: 20, lineHeight: 25, fontWeight: fontWeight.bold, letterSpacing: -0.3, color: colors.fg },
+  // The small bold capitals of a section label, as on the map's own list.
+  title: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.9, textTransform: "uppercase", color: colors.fg },
   detail: { marginTop: 2, fontSize: 13, lineHeight: 17, color: colors.muted },
   sheetPad: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
   empty: { paddingVertical: spacing.lg },

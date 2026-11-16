@@ -43,6 +43,8 @@ export type PhotoProps = {
   round?: number;
   /** A dark gradient so text on the photo stays readable: along the bottom, a full hero, or the top edge. */
   scrim?: boolean | "bottom" | "hero" | "top";
+  /** White text sits on this photo: with no picture, draw a deep tint of the category colour, not the pale tile. Default: on when `scrim` is. */
+  deep?: boolean;
   /** Drawn over the photo and the scrim: a title, a score, buttons. Fills the photo. */
   children?: ReactNode;
   accessibilityLabel?: string;
@@ -63,6 +65,7 @@ export function Photo({
   aspectRatio,
   round = radius.md,
   scrim = false,
+  deep,
   children,
   accessibilityLabel,
   style,
@@ -84,6 +87,8 @@ export function Photo({
 
   const kind = scrim === true ? "bottom" : scrim;
   const glyph = Math.round(Math.min(26, Math.max(16, size * 0.22)));
+  // With no picture under white text, the tile goes deep so the words still read.
+  const dark = (deep ?? !!kind) && !imageUri;
 
   return (
     <View
@@ -92,8 +97,8 @@ export function Photo({
       style={[styles.photo, { width, borderRadius: round }, height !== undefined && { height }, aspectRatio ? { aspectRatio } : null, style]}
     >
       {/* The fallback: a soft light tile with a small line glyph. The photo fades in over it. */}
-      <View style={styles.glyph}>
-        <Icon name={look.icon} size={glyph} color={FALLBACK_GLYPH} />
+      <View style={[styles.glyph, dark && { backgroundColor: `hsl(${look.hue}, 30%, 28%)`, justifyContent: "flex-start", paddingTop: Math.round(size * 0.2) }]}>
+        <Icon name={look.icon} size={dark ? glyph + 4 : glyph} color={dark ? "rgba(255,255,255,0.55)" : FALLBACK_GLYPH} />
       </View>
       {imageUri ? (
         <Animated.Image

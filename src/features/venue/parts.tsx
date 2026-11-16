@@ -55,15 +55,18 @@ export function Photo({
   category,
   height,
   label,
+  deep,
 }: {
   uri?: string | null;
   category: Category;
   height: number;
   label: string;
+  /** White text sits on it: a deep tint when there is no picture. */
+  deep?: boolean;
 }) {
   return (
     <View accessibilityLabel={uri ? label : undefined}>
-      <VenuePhoto hue={categoryHue(category)} category={category} uri={uri} height={height} style={styles.square} />
+      <VenuePhoto hue={categoryHue(category)} category={category} uri={uri} height={height} deep={deep} style={styles.square} />
     </View>
   );
 }

@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   actions: { gap: 6, paddingBottom: 8 },
-  button: { height: 52, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  button: { height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
   primary: { backgroundColor: colors.accent },
   primaryPressed: { opacity: 0.85 },
   secondaryPressed: { opacity: 0.6 },

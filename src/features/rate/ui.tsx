@@ -205,7 +205,7 @@ export function BigScore({ score, size = 148 }: { score: number; size?: number }
   const text = formatScore(score);
   return (
     <View accessible accessibilityLabel={`Score ${text} out of 10`} style={styles.bigScore}>
-      <View style={[styles.bigRing, { width: size, height: size, borderRadius: size / 2, borderColor: tint }]}>
+      <View style={[styles.bigRing, { width: size, height: size, borderRadius: size / 2 }]}>
         <Text style={[styles.bigNumber, { fontSize: Math.round(size * 0.4), lineHeight: Math.round(size * 0.48), color: tint }]}>
           {text}
         </Text>
@@ -223,7 +223,8 @@ const styles = StyleSheet.create({
   steps: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
   stepFill: { height: 4, borderRadius: 2, backgroundColor: colors.accent },
   bigScore: { alignItems: "center", gap: 10 },
-  bigRing: { alignItems: "center", justifyContent: "center", borderWidth: 2, backgroundColor: colors.bg },
+  // The same thin grey ring as every score in the app, at headline size.
+  bigRing: { alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#d6d6dc", backgroundColor: colors.bg },
   bigNumber: { fontWeight: "800", letterSpacing: -1.5, textAlign: "center", fontVariant: ["tabular-nums"] },
   outOf: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.muted },
 });

@@ -34,5 +34,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "baseline", gap: 8 },
   title: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
   aside: { fontSize: 13, lineHeight: 18 },
-  field: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.muted },
+  // The same small bold capitals as a section label.
+  field: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.8, textTransform: "uppercase", color: colors.fg },
 });
