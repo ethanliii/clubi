@@ -13,7 +13,7 @@ import { formatScore } from "../../lib/format";
 import { colors, fontWeight } from "../../theme";
 import { LIGHT_MAP_STYLE } from "./darkMapStyle";
 import { layoutPins, scaleForRegion, type PinMode } from "./pinLayout";
-import { PHOTO_PIN, PIN, START_LAT_DELTA, bubbleSize, pinColor, pinSize, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_LAT_DELTA } from "./pinLook";
+import { PHOTO_PIN, PIN, START_LAT_DELTA, bubbleSize, pinColor, pinLook, pinSize, pinLabel, pinOrder, pinSignature, SELECT_LAT_DELTA } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
 import { displayName } from "./names";
 
@@ -250,13 +250,15 @@ const Pin = memo(function Pin({
   onPicture?: () => void;
 }) {
   const color = pinColor(item.score);
+  // The kind of place (bar, club, cafe, park…): its own colour and glyph.
+  const kind = pinLook(item);
   const label = pinLabel(item);
 
   if (mode !== "bubble") {
     return (
       // The dot is small; the clear box around it is the tap target.
       <View accessible accessibilityRole="button" accessibilityLabel={label} style={styles.dotTarget}>
-        <View style={[styles.dot, { backgroundColor: color }]} />
+        <View style={[styles.dot, { backgroundColor: kind.color }]} />
       </View>
     );
   }
@@ -265,7 +267,7 @@ const Pin = memo(function Pin({
     const grown = selected ? PIN.selectedScale : 1;
     const side = Math.round(pinSize(item, true).width * grown);
     const geo = bubbleGeometry(item, named, selected, true);
-    const edge = selected ? PIN.selectedFill : PIN.fill;
+    const edge = selected ? PIN.selectedFill : kind.color;
     return (
       <View
         accessible
@@ -312,20 +314,15 @@ const Pin = memo(function Pin({
       <View
         style={[
           styles.bubble,
-          { width: bubbleWidth, height: bubbleHeight, backgroundColor: selected ? PIN.selectedFill : PIN.fill },
+          { width: bubbleWidth, height: bubbleHeight, backgroundColor: selected ? PIN.selectedFill : PIN.fill, borderColor: kind.color, borderWidth: 1.5 },
           selected && styles.bubbleSelected,
         ]}
       >
-        <Svg width={size.glyph * grown} height={size.glyph * grown} viewBox="0 0 24 24">
-          <Path
-            d={pinGlyph(item.category)}
-            fill="none"
-            stroke={selected ? PIN.selectedInk : color}
-            strokeWidth={2.4}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
+        <View style={[styles.kind, { backgroundColor: kind.color, width: bubbleHeight - 8, height: bubbleHeight - 8, borderRadius: (bubbleHeight - 8) / 2 }]}>
+          <Svg width={size.glyph * grown} height={size.glyph * grown} viewBox="0 0 24 24">
+            <Path d={kind.glyph} fill="none" stroke="#ffffff" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </View>
         <Text allowFontScaling={false} style={[styles.score, { color: selected ? PIN.selectedInk : color, fontSize: size.font * grown, lineHeight: Math.round(size.font * grown * 1.2) }]}>
           {formatScore(item.score)}
         </Text>
@@ -383,6 +380,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   chipText: { fontSize: PHOTO_PIN.chipFont, lineHeight: PHOTO_PIN.chipHeight - 2, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
+  kind: { alignItems: "center", justifyContent: "center", marginLeft: -2 },
   bubbleSelected: { borderColor: PIN.selectedFill, shadowOpacity: 0.3, shadowRadius: 7, elevation: 7 },
   score: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"], letterSpacing: -0.2 },
   name: {

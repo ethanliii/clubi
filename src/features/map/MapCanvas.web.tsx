@@ -14,7 +14,7 @@ import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
 import { colors } from "../../theme";
 import { layoutPins, scaleForZoom, type PinPlacement } from "./pinLayout";
-import { PHOTO_PIN, PIN, START_ZOOM, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_ZOOM } from "./pinLook";
+import { PHOTO_PIN, PIN, START_ZOOM, pinColor, pinLook, pinLabel, pinOrder, pinSignature, SELECT_ZOOM } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
 import { displayName } from "./names";
 
@@ -45,7 +45,7 @@ const T = PIN.bubbleTop;
 
 // A pin is one element holding all three of its pictures (bubble, dot, name); `data-mode` and
 // `data-name` say which show, so a zoom only flips attributes and the change can be animated.
-// `--c` is the rating colour of the pin's score.
+// `--c` is the rating colour of the pin's score; `--k` the colour of its kind of place (pinLook).
 const CSS = `
 .clubi-map { background: ${colors.page}; outline: none; font-family: ${FONT}; }
 .clubi-map .maplibregl-canvas { outline: none; }
@@ -63,7 +63,7 @@ const CSS = `
   transform-origin: 50% calc(100% + ${PIN.tip}px);
   display: flex; align-items: center; justify-content: center; gap: 3px;
   border-radius: 99px; background: ${PIN.fill}; color: var(--c);
-  box-shadow: 0 0 0 1px ${PIN.hairline}, 0 2px 6px ${PIN.shadow};
+  box-shadow: 0 0 0 1.5px var(--k), 0 2px 6px ${PIN.shadow};
   font-size: ${B.font}px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.2px; line-height: 1;
   opacity: 0; transform: scale(.4); pointer-events: none;
   transition: transform .18s cubic-bezier(.2,.9,.3,1.2), opacity .14s ease, background-color .14s ease, color .14s ease, box-shadow .14s ease;
@@ -79,6 +79,9 @@ const CSS = `
   content: ""; position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box;
   background: ${colors.white}; border: 2px solid ${PIN.selectedFill}; pointer-events: none;
 }
+.clubi-kind { flex: none; display: flex; align-items: center; justify-content: center; margin-left: -2px;
+  width: ${B.height - 8}px; height: ${B.height - 8}px; border-radius: 50%; background: var(--k); color: #fff; }
+.clubi-pin.is-top .clubi-kind { width: ${T.height - 8}px; height: ${T.height - 8}px; }
 .clubi-bubble svg { flex: none; width: ${B.glyph}px; height: ${B.glyph}px; }
 .clubi-pin.is-top .clubi-bubble {
   width: ${T.width}px; height: ${T.height}px; margin: ${-(T.height + PIN.tip)}px 0 0 ${-T.width / 2}px; font-size: ${T.font}px;
@@ -98,7 +101,7 @@ const CSS = `
   position: absolute; left: 0; top: 0; box-sizing: border-box;
   width: ${PHOTO_PIN.size}px; height: ${PHOTO_PIN.size}px; margin: ${-(PHOTO_PIN.size + PIN.tip)}px 0 0 ${-PHOTO_PIN.size / 2}px;
   transform-origin: 50% calc(100% + ${PIN.tip}px);
-  border-radius: 50%; background: ${PIN.fill}; border: ${PHOTO_PIN.border}px solid ${PIN.fill};
+  border-radius: 50%; background: ${PIN.fill}; border: ${PHOTO_PIN.border}px solid var(--k);
   box-shadow: 0 0 0 1px ${PIN.hairline}, 0 3px 8px ${PIN.shadow};
   opacity: 0; transform: scale(.4); pointer-events: none;
   transition: transform .2s cubic-bezier(.2,.9,.3,1.2), opacity .16s ease, border-color .14s ease;
@@ -127,7 +130,7 @@ const CSS = `
 .clubi-dot {
   position: absolute; left: 0; top: 0; box-sizing: border-box;
   width: ${PIN.dot}px; height: ${PIN.dot}px; margin: ${-PIN.dot / 2}px 0 0 ${-PIN.dot / 2}px; border-radius: 50%;
-  background: var(--c); box-shadow: 0 0 0 ${PIN.edge}px ${PIN.edgeColor}, 0 1px 3px ${PIN.shadow};
+  background: var(--k); box-shadow: 0 0 0 ${PIN.edge}px ${PIN.edgeColor}, 0 1px 3px ${PIN.shadow};
   opacity: 0; transform: scale(.3); pointer-events: none;
   transition: transform .18s ease, opacity .14s ease;
 }
@@ -178,6 +181,8 @@ function pinElement(item: NearbyItem, selected: boolean, placement: PinPlacement
   const pin = document.createElement("div");
   pin.className = ["clubi-pin", item.tier === "top" ? "is-top" : "", selected ? "is-selected" : ""].filter(Boolean).join(" ");
   pin.style.setProperty("--c", pinColor(item.score));
+  const kind = pinLook(item);
+  pin.style.setProperty("--k", kind.color);
   pin.dataset.pin = item.tier;
   pin.dataset.mode = placement.mode;
   pin.dataset.name = placement.name ? "1" : "0";
@@ -189,7 +194,7 @@ function pinElement(item: NearbyItem, selected: boolean, placement: PinPlacement
   glyph.setAttribute("viewBox", "0 0 24 24");
   glyph.setAttribute("aria-hidden", "true");
   const path = document.createElementNS(SVG_NS, "path");
-  path.setAttribute("d", pinGlyph(item.category));
+  path.setAttribute("d", kind.glyph);
   path.setAttribute("fill", "none");
   path.setAttribute("stroke", "currentColor");
   path.setAttribute("stroke-width", "2.4");
@@ -198,7 +203,10 @@ function pinElement(item: NearbyItem, selected: boolean, placement: PinPlacement
   glyph.append(path);
   const score = document.createElement("span");
   score.textContent = formatScore(item.score);
-  bubble.append(glyph, score);
+  const badge = document.createElement("span");
+  badge.className = "clubi-kind";
+  badge.append(glyph);
+  bubble.append(badge, score);
 
   const dot = document.createElement("div");
   dot.className = "clubi-dot";
