@@ -12,7 +12,7 @@ import { formatCount } from "../../lib/format";
 import { paths, postPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
 import { useMe } from "../../state/session";
-import { spacing } from "../../theme";
+import { colors, fontWeight, spacing } from "../../theme";
 
 export default function FeedScreen() {
   const me = useMe();
@@ -60,6 +60,13 @@ export default function FeedScreen() {
             />
           );
         }}
+        ListHeaderComponent={
+          feed.posts.length > 0 || feed.loading ? (
+            <Text accessibilityRole="header" style={styles.label}>
+              YOUR FEED
+            </Text>
+          ) : undefined
+        }
         ItemSeparatorComponent={Divider}
         ListEmptyComponent={
           feed.loading ? (
@@ -120,6 +127,8 @@ function Divider() {
 const styles = StyleSheet.create({
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md, minHeight: 44 },
   flex: { flex: 1 },
+  // The small bold uppercase section label of the reference.
+  label: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.bold, letterSpacing: 0.9, color: colors.fg, marginBottom: spacing.lg },
   divider: { marginHorizontal: -spacing.lg },
   // The list runs edge to edge and down to the tab bar; `Screen` pads the header.
   list: { flex: 1, marginHorizontal: -spacing.lg, marginBottom: -spacing.xl },

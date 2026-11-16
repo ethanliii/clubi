@@ -12,8 +12,8 @@ import { Text } from "../../components";
 import { colors, fontWeight, palette } from "../../theme";
 
 /** The picture's shape: a little wider than tall, like a photo in a feed. */
-const PHOTO_HEIGHT = 250;
-const RADIUS = 14;
+const PHOTO_HEIGHT = 260;
+const RADIUS = 10;
 
 /**
  * The picture under a post's headline: the author's own photos when the post has any (swipe between
@@ -85,11 +85,18 @@ export function PostMedia({
       )}
       {/* Which photo this is, on its own small dark pill so it reads on any picture. */}
       {photos.length > 1 ? (
-        <View style={styles.counter}>
-          <Text style={styles.counterText}>
-            {Math.min(page + 1, photos.length)}/{photos.length}
-          </Text>
-        </View>
+        <>
+          <View style={styles.counter}>
+            <Text style={styles.counterText}>
+              {Math.min(page + 1, photos.length)}/{photos.length}
+            </Text>
+          </View>
+          <View style={styles.dots}>
+            {photos.map((url, index) => (
+              <View key={url} style={[styles.dot, index === Math.min(page, photos.length - 1) && styles.dotOn]} />
+            ))}
+          </View>
+        </>
       ) : null}
     </View>
   );
@@ -112,5 +119,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
     pointerEvents: "none",
   },
+  dots: { position: "absolute", left: 0, right: 0, bottom: 10, flexDirection: "row", justifyContent: "center", gap: 5, pointerEvents: "none" },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.5)" },
+  dotOn: { backgroundColor: palette.onPhoto },
   counterText: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.semibold, color: palette.onPhoto, fontVariant: ["tabular-nums"] },
 });

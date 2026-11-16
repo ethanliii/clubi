@@ -63,17 +63,19 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
   // Sending my current emoji again is how the backend removes a reaction; with none, it adds the default heart.
   const onLike = () => void react(post.myReaction ? { postId: post.postId, emoji: post.myReaction } : { postId: post.postId });
 
+  const likes = reactionCount === 1 ? "1 like" : `${reactionCount} likes`;
+  const comments = commentCount === 1 ? "1 comment" : `${commentCount} comments`;
+
   return (
     <View style={styles.post}>
       <View style={styles.top}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${author.displayName}'s profile`}
-          hitSlop={4}
           onPress={openAuthor}
           style={({ pressed }) => pressed && styles.pressed}
         >
-          <Avatar name={author.displayName} uri={author.avatarUrl} size={36} />
+          <Avatar name={author.displayName} uri={author.avatarUrl} size={AVATAR} />
         </Pressable>
         <View style={styles.who}>
           {/* "<Name> ranked <Place>": the name opens the person, the place opens the place. */}
@@ -86,39 +88,36 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
               {target.name}
             </Text>
           </Text>
-          <Pressable
-            accessibilityRole={onOpenPost ? "button" : undefined}
-            accessibilityLabel={onOpenPost ? "Open post" : `${detail}, ${time}`}
-            disabled={!onOpenPost}
-            hitSlop={8}
-            onPress={onOpenPost}
-            style={({ pressed }) => [styles.line, pressed && styles.pressed]}
-          >
-            <Text muted numberOfLines={1} style={[styles.meta, styles.shrink]}>
-              {detail}
-            </Text>
-            <Text muted style={styles.meta}>
-              · {time}
-            </Text>
-            {mine && visibility ? (
-              <View accessibilityLabel={`Who sees it: ${visibility.label}`} style={styles.visibility}>
-                <Icon name={visibility.icon} size={12} color={colors.muted} />
-                <Text muted style={styles.meta}>
-                  {visibility.label}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
+          <Text numberOfLines={1} style={styles.place}>
+            {detail}
+          </Text>
         </View>
         {hasScore ? <ScoreRing score={post.score} /> : null}
       </View>
 
+      {post.caption ? (
+        <Text style={styles.caption}>
+          <Text style={styles.strong}>Notes: </Text>
+          {post.caption}
+        </Text>
+      ) : null}
+      {facts.length > 0 ? (
+        <View style={styles.facts}>
+          {facts.map((fact, index) => (
+            <View key={`${fact}-${index}`} style={styles.fact}>
+              <Text numberOfLines={1} style={styles.factText}>
+                {fact}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <PostMedia photoUrls={post.photoUrls} placePhotoUrl={placePhotoUrl} name={target.name} onPress={openVenue} />
 
-      {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
-      {facts.length > 0 ? (
-        <Text muted numberOfLines={2} style={styles.meta}>
-          {facts.join(" · ")}
+      {reactionCount > 0 || commentCount > 0 ? (
+        <Text style={styles.likes}>
+          {[reactionCount > 0 ? likes : null, commentCount > 0 ? comments : null].filter(Boolean).join("  ·  ")}
         </Text>
       ) : null}
 
@@ -126,48 +125,63 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
         <Action
           icon={liked ? "heartFilled" : "heart"}
           accessibilityLabel="Like"
-          color={liked ? palette.danger : palette.soft}
+          color={liked ? colors.accent : colors.fg}
           selected={liked}
           disabled={reacting}
-          count={reactionCount}
           onPress={onLike}
         />
-        <Action icon="comment" accessibilityLabel="Comments" color={palette.soft} count={commentCount} onPress={onComments} />
-        <View style={styles.flex} />
-        {mine && onMenu ? (
-          <IconButton icon="more" accessibilityLabel="Post options" size={44} plain color={palette.soft} onPress={onMenu} style={styles.menu} />
-        ) : mine ? null : post.myScoreForIt !== undefined ? (
-          <View accessibilityLabel={`You gave it ${formatScore(post.myScoreForIt)}`} style={styles.yours}>
-            <Text muted style={styles.meta}>
-              You gave it
-            </Text>
-            <ScoreRing score={post.myScoreForIt} size={32} />
-          </View>
-        ) : (
+        <Action icon="comment" accessibilityLabel="Comments" color={colors.fg} onPress={onComments} />
+        {mine || post.myScoreForIt !== undefined ? null : (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Rank it too"
-            hitSlop={8}
+            hitSlop={4}
             onPress={() => router.push(ratePath(target.kind, target.id))}
-            style={({ pressed }) => [styles.rankTooHit, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.rankToo, pressed && styles.pressed]}
           >
-            <View style={styles.rankToo}>
-            <Icon name="plus" size={15} color={colors.fg} />
+            <Icon name="plusCircle" size={22} color={colors.fg} />
             <Text style={styles.rankTooText}>Rank it too</Text>
-            </View>
           </Pressable>
         )}
+        <View style={styles.flex} />
+        {mine && onMenu ? (
+          <IconButton icon="more" accessibilityLabel="Post options" size={44} plain color={colors.fg} onPress={onMenu} style={styles.menu} />
+        ) : mine ? null : post.myScoreForIt !== undefined ? (
+          <View accessibilityLabel={`You gave it ${formatScore(post.myScoreForIt)}`} style={styles.yours}>
+            <Text style={styles.yoursText}>You gave it {formatScore(post.myScoreForIt)}</Text>
+            <View style={styles.checkRing}>
+              <Icon name="check" size={13} color={palette.soft} />
+            </View>
+          </View>
+        ) : null}
       </View>
+
+      <Pressable
+        accessibilityRole={onOpenPost ? "button" : undefined}
+        accessibilityLabel={onOpenPost ? "Open post" : time}
+        disabled={!onOpenPost}
+        hitSlop={{ top: 6, bottom: 14, left: 8, right: 8 }}
+        onPress={onOpenPost}
+        style={({ pressed }) => [styles.line, pressed && styles.pressed]}
+      >
+        <Text style={styles.time}>{time}</Text>
+        {mine && visibility ? (
+          <View accessibilityLabel={`Who sees it: ${visibility.label}`} style={styles.visibility}>
+            <Text style={styles.time}>·</Text>
+            <Icon name={visibility.icon} size={11} color={colors.muted} />
+            <Text style={styles.time}>{visibility.label}</Text>
+          </View>
+        ) : null}
+      </Pressable>
     </View>
   );
 }
 
-/** Like and comment: an icon with its count beside it, 44 tall so it is easy to hit. */
+/** Like and comment: a line icon, 44 tall so it is easy to hit; the counts are on the line above. */
 function Action({
   icon,
   accessibilityLabel,
   color,
-  count,
   selected,
   disabled,
   onPress,
@@ -175,7 +189,6 @@ function Action({
   icon: IconName;
   accessibilityLabel: string;
   color: string;
-  count: number;
   selected?: boolean;
   disabled?: boolean;
   onPress: () => void;
@@ -186,12 +199,11 @@ function Action({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: !!selected, disabled: !!disabled }}
       disabled={disabled}
-      hitSlop={8}
+      hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => [styles.action, pressed && styles.pressed]}
     >
-      <Icon name={icon} size={21} color={color} />
-      {count > 0 ? <Text style={styles.count}>{count}</Text> : null}
+      <Icon name={icon} size={24} color={color} />
     </Pressable>
   );
 }
@@ -201,7 +213,7 @@ export function PostSkeleton() {
   return (
     <View style={styles.post}>
       <View style={styles.top}>
-        <Skeleton width={36} height={36} round={18} />
+        <Skeleton width={AVATAR} height={AVATAR} round={AVATAR / 2} />
         <View style={[styles.flex, styles.lines]}>
           <Skeleton width="70%" height={14} />
           <Skeleton width="40%" height={11} />
@@ -231,41 +243,47 @@ export function PostDivider() {
 }
 
 /** The space above and below the hairline between two posts. */
-export const POST_GAP = 14;
+export const POST_GAP = 16;
+
+/** The author's picture, the size of the one in the reference feed. */
+const AVATAR = 56;
 
 const styles = StyleSheet.create({
   post: { gap: 10 },
   flex: { flex: 1 },
-  shrink: { flexShrink: 1 },
-  top: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
-  who: { flex: 1, gap: 2 },
-  headline: { fontSize: 15, lineHeight: 20, color: colors.fg },
+  top: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: AVATAR },
+  who: { flex: 1, gap: 3 },
+  headline: { fontSize: 16, lineHeight: 21, color: colors.fg, letterSpacing: -0.2 },
   strong: { fontWeight: fontWeight.bold, color: colors.fg },
-  verb: { fontWeight: fontWeight.regular, color: palette.soft },
-  line: { flexDirection: "row", alignItems: "center", gap: 4 },
-  meta: { fontSize: 13, lineHeight: 18 },
-  visibility: { flexDirection: "row", alignItems: "center", gap: 3, marginLeft: 4 },
-  caption: { fontSize: 15, lineHeight: 21 },
-  // The row hugs what is above it; the icons are quiet until tapped.
-  actions: { flexDirection: "row", alignItems: "center", gap: spacing.lg, marginTop: -6, marginBottom: -8, minHeight: 44 },
-  action: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 40, minHeight: 44 },
-  count: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.medium, color: palette.soft, fontVariant: ["tabular-nums"] },
+  verb: { fontWeight: fontWeight.regular, color: colors.fg },
+  place: { fontSize: 13, lineHeight: 18, color: colors.muted },
+  caption: { fontSize: 15, lineHeight: 21, color: colors.fg, marginTop: 2 },
+  // The short answers: tiny grey pills that wrap.
+  facts: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  fact: { height: 24, paddingHorizontal: 9, borderRadius: 12, justifyContent: "center", backgroundColor: colors.surface, maxWidth: "100%" },
+  factText: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.medium, color: palette.soft },
+  likes: { fontSize: 12, lineHeight: 16, fontWeight: fontWeight.semibold, color: colors.fg, marginTop: 2 },
+  // The icon row hugs the lines around it.
+  actions: { flexDirection: "row", alignItems: "center", gap: 2, marginVertical: -8, marginLeft: -10, minHeight: 44 },
+  action: { alignItems: "center", justifyContent: "center", width: 44, minHeight: 44 },
+  rankToo: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingHorizontal: 6 },
+  rankTooText: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
   // The dots line up with the picture's right edge.
   menu: { marginRight: -11 },
   yours: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
-  // A small outline pill, like Beli's secondary buttons; the 44pt tap target is the wrapper.
-  rankTooHit: { minHeight: 44, justifyContent: "center" },
-  rankToo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
+  yoursText: { fontSize: 12, lineHeight: 16, color: colors.muted, fontVariant: ["tabular-nums"] },
+  checkRing: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  rankTooText: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
+  line: { flexDirection: "row", alignItems: "center", gap: 4 },
+  visibility: { flexDirection: "row", alignItems: "center", gap: 4 },
+  time: { fontSize: 12, lineHeight: 16, color: colors.muted },
   pressed: { opacity: 0.6 },
   lines: { gap: spacing.sm },
   skeletons: { gap: POST_GAP * 2 },
