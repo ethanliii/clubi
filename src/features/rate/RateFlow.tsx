@@ -40,6 +40,8 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const [step, setStep] = useState<Step>("how");
   const [bucket, setBucket] = useState<Bucket | null>(null);
   const [search, setSearch] = useState<Search | null>(null);
+  // The searches before each answer of this run, newest last, so "Undo" can step back one.
+  const [history, setHistory] = useState<Search[]>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [posting, setPosting] = useState(false);
   const [result, setResult] = useState<RankResult | null>(null);
@@ -121,6 +123,7 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
     guard.mark();
     setBucket(picked);
     setSearch(null);
+    setHistory([]);
     setStep("compare");
   };
 
@@ -132,11 +135,26 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const onAnswer = (newWon: boolean) => {
     if (search === null || guard.justMoved()) return;
     guard.mark();
+    setHistory([...history, search]);
     settle(answer(search, venue.id, newWon));
+  };
+
+  const undo = () => {
+    const before = history[history.length - 1];
+    if (before === undefined || guard.justMoved()) return;
+    guard.mark();
+    setHistory(history.slice(0, -1));
+    setSearch(before);
+  };
+
+  // "Too tough" and "Skip" both stop asking and keep the comparisons made so far.
+  const stop = () => {
+    if (search !== null) settle(stopEarly(search));
   };
 
   const backToHow = () => {
     setSearch(null);
+    setHistory([]);
     setStep("how");
   };
 
@@ -208,8 +226,11 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
         venue={venue}
         search={search}
         photos={ranked}
+        canUndo={history.length > 0}
         onAnswer={onAnswer}
-        onTooClose={() => search !== null && settle(stopEarly(search))}
+        onTooClose={stop}
+        onUndo={undo}
+        onSkip={stop}
         onBack={backToHow}
       />
     );
