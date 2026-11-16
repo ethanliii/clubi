@@ -8,13 +8,13 @@ export function ScreenTop({ title, right }: { title: string; /** Buttons on the 
   return <Header title={title} right={right} />;
 }
 
-/** A section's title: plain words in sentence case, with a quiet count or note beside it. */
+/** A section's title: small bold capitals, as in the reference, with a quiet count or note beside it. */
 export function SectionLabel({ title, count, note }: { title: string; count?: number; note?: string }) {
   const aside = note ?? (count === undefined ? undefined : String(count));
   return (
     <View style={styles.row}>
       <Text accessibilityRole="header" style={styles.title}>
-        {title}
+        {title.toUpperCase()}
       </Text>
       {aside ? (
         <Text muted style={styles.aside}>
@@ -32,7 +32,7 @@ export function FieldLabel({ children }: { children: string }) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "baseline", gap: 8 },
-  title: { fontSize: 20, lineHeight: 26, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
-  aside: { fontSize: 15 },
+  title: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
+  aside: { fontSize: 13, lineHeight: 18 },
   field: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.muted },
 });

@@ -85,7 +85,7 @@ export default function PlanScreen() {
     return (
       <Screen>
         <ScreenTop title="Plan my night" />
-        <EmptyState title="This trip was deleted" icon="users" actionLabel="Back" onAction={goBack} />
+        <EmptyState title="This plan was deleted" icon="users" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
   }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "convex/react";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, EmptyState, goBack, IconButton, Screen, Sheet, Skeleton, Text } from "../../components";
@@ -51,8 +51,8 @@ export default function TripScreen() {
   if (trip === null) {
     return (
       <Screen>
-        <ScreenTop title="Trip" />
-        <EmptyState title="This trip was deleted" icon="users" actionLabel="Back" onAction={goBack} />
+        <ScreenTop title="Plan" />
+        <EmptyState title="This plan was deleted" icon="users" actionLabel="Back" onAction={goBack} />
       </Screen>
     );
   }
@@ -148,7 +148,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
   const leaveTrip = async () => {
     const sure = await confirm({
-      title: "Leave trip?",
+      title: "Leave plan?",
       message: `You will stop seeing ${trip.name} and your votes are removed.`,
       confirmLabel: "Leave",
       destructive: true,
@@ -162,7 +162,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
   const deleteTrip = async () => {
     const sure = await confirm({
-      title: "Delete trip?",
+      title: "Delete plan?",
       message: `${trip.name} is removed for everyone in it.`,
       confirmLabel: "Delete",
       destructive: true,
@@ -191,6 +191,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
           <Button
             title="Plan the night"
             accessibilityLabel="Plan the night"
+            variant="ghost"
             onPress={() => router.push(planPath(tripId))}
             style={styles.plan}
           />
@@ -202,7 +203,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
           title={trip.name}
           right={
             isIn ? (
-              <IconButton icon="more" accessibilityLabel="Trip options" size={36} onPress={openMenu} />
+              <IconButton icon="more" accessibilityLabel="Plan options" size={36} onPress={openMenu} />
             ) : undefined
           }
         />
@@ -237,6 +238,16 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
       <MemberList trip={trip} meId={me?.userId} onInvite={isIn ? () => setInviteOpen(true) : undefined} />
 
+      {isIn ? (
+        <Button
+          title="See our picks on the map"
+          accessibilityLabel="See our picks on the map"
+          icon="map"
+          onPress={() => router.push(`/group-map?tripId=${tripId}` as Href)}
+          style={styles.map}
+        />
+      ) : null}
+
       <Shortlist items={trip.shortlist} canVote={isIn} onVote={onVote} photoOf={photoOf} />
 
       {isIn ? (
@@ -253,21 +264,21 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
       <InviteSheet trip={trip} visible={inviteOpen} onClose={() => setInviteOpen(false)} />
 
-      <Sheet visible={menuOpen} onClose={closeMenu} title={menuShows === "edit" ? "Edit trip" : trip.name}>
+      <Sheet visible={menuOpen} onClose={closeMenu} title={menuShows === "edit" ? "Edit plan" : trip.name}>
         {menuShows === "edit" ? (
           <TripForm trip={trip} onSaved={closeMenu} />
         ) : isOwner ? (
           <>
             <Button
-              title="Edit trip"
-              accessibilityLabel="Edit trip"
+              title="Edit plan"
+              accessibilityLabel="Edit plan"
               variant="ghost"
               disabled={busy}
               onPress={() => setMenuShows("edit")}
             />
             <Button
-              title="Delete trip"
-              accessibilityLabel="Delete trip"
+              title="Delete plan"
+              accessibilityLabel="Delete plan"
               variant="ghost"
               disabled={busy}
               onPress={() => void deleteTrip()}
@@ -275,8 +286,8 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
           </>
         ) : (
           <Button
-            title="Leave trip"
-            accessibilityLabel="Leave trip"
+            title="Leave plan"
+            accessibilityLabel="Leave plan"
             variant="ghost"
             disabled={busy}
             onPress={() => void leaveTrip()}
@@ -297,4 +308,5 @@ const styles = StyleSheet.create({
   inviteTitle: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold },
   buttons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   plan: { borderRadius: radius.pill },
+  map: { borderRadius: radius.pill },
 });

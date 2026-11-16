@@ -1,5 +1,5 @@
 import { useQuery } from "convex/react";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { AvatarStack, Button, EmptyState, ErrorBoundary, Icon, Screen, Sheet, Skeleton, Text } from "../components";
@@ -73,11 +73,11 @@ export default function TripsScreen() {
   return (
     <Screen>
       <ScreenTop
-        title="Trips"
+        title="Plans with friends"
         right={
           // With no trips the one "New trip" button is in the middle of the screen.
           hasTrips ? (
-            <Button title="New trip" accessibilityLabel="New trip" size="sm" icon="plus" onPress={openForm} style={styles.newTrip} />
+            <Button title="New plan" accessibilityLabel="New plan" size="sm" icon="plus" onPress={openForm} style={styles.newTrip} />
           ) : undefined
         }
       />
@@ -87,12 +87,28 @@ export default function TripsScreen() {
       ) : trips.length === 0 ? (
         <EmptyState
           icon="users"
-          title="Going somewhere with friends? Start a trip."
-          actionLabel="New trip"
+          title="Make a plan with friends"
+          body="Pick who's coming and see the places that fit everyone, ranked for the whole group."
+          actionLabel="New plan"
           onAction={openForm}
         />
       ) : (
         <View style={styles.list}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="See picks for a group on the map"
+            onPress={() => router.push("/group-map" as Href)}
+            style={({ pressed }) => [styles.mapPill, pressed && styles.pressed]}
+          >
+            <Icon name="map" size={18} color={colors.fg} />
+            <Text numberOfLines={1} style={styles.mapPillText}>
+              See picks for a group on the map
+            </Text>
+            <Icon name="chevron" size={14} color={colors.low} />
+          </Pressable>
+          <Text accessibilityRole="header" style={styles.label}>
+            {"Your plans".toUpperCase()}
+          </Text>
           {trips.map((trip) => {
             const invited = trip.myStatus === "invited";
             return (
@@ -157,7 +173,7 @@ export default function TripsScreen() {
         </View>
       )}
 
-      <Sheet visible={formOpen} onClose={() => setFormOpen(false)} title="New trip">
+      <Sheet visible={formOpen} onClose={() => setFormOpen(false)} title="New plan">
         <TripForm key={formRound} onCreated={onCreated} onNavigate={() => setFormOpen(false)} />
       </Sheet>
     </Screen>
@@ -168,15 +184,25 @@ const styles = StyleSheet.create({
   newTrip: { width: "auto" },
   list: { gap: spacing.md + 2 },
   trip: { paddingVertical: spacing.lg, gap: spacing.md },
-  card: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.bg,
-    overflow: "hidden",
+  mapPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm + 2,
+    minHeight: 48,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
   },
-  cover: { borderRadius: 0 },
-  body: { padding: spacing.md + 2, gap: spacing.sm },
+  mapPillText: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold },
+  label: { marginTop: spacing.sm, fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
+  card: {
+    paddingBottom: spacing.md + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+    gap: spacing.md,
+  },
+  cover: { borderRadius: radius.lg, marginBottom: spacing.sm + 2 },
+  body: { gap: spacing.sm },
   line: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   pressed: { opacity: 0.6 },
   text: { flex: 1, gap: 2 },
@@ -185,7 +211,7 @@ const styles = StyleSheet.create({
   facts: { fontSize: 14, lineHeight: 19 },
   who: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 28 },
   whoText: { flex: 1, fontSize: 13, lineHeight: 18 },
-  answer: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md + 2, paddingBottom: spacing.md + 2 },
+  answer: { flexDirection: "row", gap: spacing.sm },
   answerButton: { flex: 1 },
   outline: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line },
 });
