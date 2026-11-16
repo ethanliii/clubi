@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: palette.hairline,
+    borderColor: colors.line,
     backgroundColor: colors.bg,
   },
   ringText: { fontSize: 15, lineHeight: 19, fontWeight: fontWeight.bold, letterSpacing: -0.2 },

@@ -10,7 +10,7 @@ import type { NearbyItem } from "../../lib/api";
 import { formatDistance, formatEventTime, formatScore } from "../../lib/format";
 import { colors, fontWeight, palette, spacing } from "../../theme";
 import { MapPhoto } from "./MapPhoto";
-import { ScoreRing, metaLine } from "./MapRow";
+import { PHOTO_ROUND, ScoreRing, metaLine } from "./MapRow";
 
 const PHOTO = 148;
 const ROUND = 16;
@@ -26,11 +26,14 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
     return () => animation.stop();
   }, [shown]);
 
+  // Without a photo the card is just its line of text beside a small category tile: no empty picture.
+  const compact = !item.imageUrl;
   const when = item.startsAt !== undefined ? formatEventTime(item.startsAt) : null;
   return (
     <Animated.View
       style={[
         styles.shadow,
+        compact && styles.shadowCompact,
         { opacity: shown, transform: [{ translateY: shown.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }] },
       ]}
     >
@@ -41,8 +44,9 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
           onPress={onOpen}
           style={({ pressed }) => pressed && styles.pressed}
         >
-          <MapPhoto item={item} height={PHOTO} />
-          <View style={styles.text}>
+          {compact ? null : <MapPhoto item={item} height={PHOTO} />}
+          <View style={[styles.text, compact && styles.textCompact]}>
+            {compact ? <MapPhoto item={item} width={56} height={56} round={PHOTO_ROUND} /> : null}
             <View style={styles.titles}>
               <Text numberOfLines={1} style={styles.name}>
                 {item.name}
@@ -63,7 +67,7 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
           accessibilityLabel="Close"
           hitSlop={8}
           onPress={onClose}
-          style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
+          style={({ pressed }) => [styles.close, compact && styles.closeCompact, pressed && styles.closePressed]}
         >
           <Icon name="close" size={16} color={colors.fg} />
         </Pressable>
@@ -84,6 +88,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 10,
   },
+  shadowCompact: { height: TEXT },
+  // Room at the right for the cross, which has no photo to sit on here.
+  textCompact: { paddingRight: 52 },
+  closeCompact: { top: (TEXT - 32) / 2, shadowOpacity: 0, elevation: 0, backgroundColor: palette.field },
   card: { flex: 1, borderRadius: ROUND, overflow: "hidden", backgroundColor: colors.bg },
   pressed: { opacity: 0.88 },
   text: {
