@@ -28,10 +28,8 @@ export function SyncContactsCard() {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radius.xl,
-    backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line,
-  },
+  // Bryan's card: the soft accent tint, so it reads as an invitation and not as one more row.
+  card: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radius.lg, backgroundColor: colors.accentSoft },
   pressed: { opacity: 0.7 },
   text: { flex: 1, gap: 3 },
   title: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
