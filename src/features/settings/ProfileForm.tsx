@@ -56,7 +56,7 @@ function AvatarPicker({ settings }: { settings: SettingsResult }) {
           </View>
         ) : (
           <View style={styles.camera}>
-            <Icon name="camera" size={16} color={colors.fg} />
+            <Icon name="camera" size={15} color={colors.white} />
           </View>
         )}
       </Pressable>
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: palette.field,
+    backgroundColor: colors.fg,
     borderWidth: 3,
     borderColor: colors.bg,
     alignItems: "center",

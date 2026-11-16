@@ -28,9 +28,9 @@ export function SwitchRow({
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ false: colors.raised, true: colors.accent }}
+        trackColor={{ false: colors.line, true: colors.accent }}
         thumbColor={colors.white}
-        ios_backgroundColor={colors.raised}
+        ios_backgroundColor={colors.line}
         {...WEB_SWITCH}
       />
     </View>
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    minHeight: 52,
+    minHeight: 50,
     paddingHorizontal: ROW_INSET,
     paddingVertical: spacing.sm,
   },

@@ -59,8 +59,8 @@ export function FieldRow({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, paddingHorizontal: ROW_INSET, paddingVertical: 6 },
-  label: { width: 92, paddingTop: 9 },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, paddingHorizontal: ROW_INSET, paddingVertical: 5 },
+  label: { width: 96, paddingTop: 9 },
   field: { flex: 1, gap: 2, paddingBottom: 2 },
   // 16 keeps iOS Safari from zooming the page when the box is focused.
   input: { ...type.bodyLg, minHeight: 40, paddingVertical: 9, paddingHorizontal: 0, color: colors.fg },

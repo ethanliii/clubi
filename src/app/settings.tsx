@@ -129,7 +129,6 @@ export default function SettingsScreen() {
             <SettingsGroup title="Account">
               <SettingsRow label="Username" value={`@${settings.username}`} />
               <SettingsRow label="Change password" onPress={() => setPasswordOpen(true)} />
-              <SettingsRow label="Sign out" chevron={false} disabled={signingOut} onPress={() => void onSignOut()} />
             </SettingsGroup>
 
             {VERSION ? (
@@ -138,8 +137,12 @@ export default function SettingsScreen() {
               </SettingsGroup>
             ) : null}
 
+            <SettingsGroup>
+              <SettingsRow label="Sign out" tone="action" chevron={false} disabled={signingOut} onPress={() => void onSignOut()} />
+            </SettingsGroup>
+
             <View style={styles.apart}>
-              <SettingsGroup>
+              <SettingsGroup footer="Removes your rankings, posts and friends for good.">
                 <SettingsRow label="Delete account" tone="danger" chevron={false} onPress={() => setDeleteOpen(true)} />
               </SettingsGroup>
             </View>
@@ -159,10 +162,10 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   scroller: { flex: 1 },
-  content: { gap: spacing.xl + spacing.xs, paddingBottom: spacing.xxl * 2 },
+  content: { gap: spacing.xl + spacing.sm, paddingBottom: spacing.xxl * 2 },
   loading: { gap: spacing.xl },
   loadingFace: { alignItems: "center", gap: spacing.md, paddingBottom: spacing.sm },
-  choice: { gap: spacing.md, paddingHorizontal: ROW_INSET, paddingTop: spacing.sm, paddingBottom: spacing.lg - 2 },
+  choice: { gap: spacing.md, paddingHorizontal: ROW_INSET, paddingTop: spacing.md, paddingBottom: spacing.md + 2 },
   choiceText: { gap: 2 },
-  apart: { marginTop: spacing.md },
+  apart: { marginTop: spacing.lg },
 });

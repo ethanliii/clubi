@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../../components";
-import { colors, fontWeight, palette, radius } from "../../theme";
+import { colors, fontWeight, radius } from "../../theme";
 
 /** Pick one of a few: a track with the chosen option lifted. Each option is found by its label. */
 export function Segmented<T extends string>({
@@ -38,13 +38,13 @@ export function Segmented<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  track: { flexDirection: "row", padding: 3, borderRadius: radius.md + 2, backgroundColor: palette.field },
+  track: { flexDirection: "row", padding: 3, borderRadius: radius.md + 2, backgroundColor: colors.raised },
   option: { flex: 1, minHeight: 36, borderRadius: radius.md - 1, alignItems: "center", justifyContent: "center" },
   // The chosen option is a white tile lifted off the grey track.
   optionOn: {
     backgroundColor: colors.bg,
     shadowColor: colors.black,
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.08,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
     elevation: 2,

@@ -15,7 +15,7 @@ const TABS: { type: SaveType; label: string }[] = [
   { type: "going", label: "Going" },
 ];
 
-const PHOTO = 76;
+const PHOTO = 84;
 
 /** One saved place: photo, name, when it is on. The filled mark on the right takes it off the list. */
 function SavedRow({
@@ -49,10 +49,13 @@ function SavedRow({
             {item.name}
           </Text>
           <Text numberOfLines={1} style={styles.meta}>
-            {item.startsAt !== undefined
-              ? `${formatEventTime(item.startsAt, now)} · ${categoryLabel(item.category)}`
-              : categoryLabel(item.category)}
+            {categoryLabel(item.category)}
           </Text>
+          {item.startsAt !== undefined ? (
+            <Text numberOfLines={1} style={styles.when}>
+              {formatEventTime(item.startsAt, now)}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
       <IconButton
@@ -122,6 +125,7 @@ export default function SavedScreen() {
         />
       ) : (
         <View style={styles.list}>
+          <Text style={styles.count}>{items.length === 1 ? "1 saved" : `${items.length} saved`}</Text>
           {items.map((item) => (
             <SavedRow
               key={`${item.type}-${item.id}`}
@@ -141,7 +145,7 @@ const styles = StyleSheet.create({
   // Two pills: the chosen one is dark, the other a quiet grey.
   tabs: { flexDirection: "row", gap: spacing.sm },
   tab: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 16,
     borderRadius: radius.pill,
     backgroundColor: palette.field,
@@ -152,6 +156,8 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
   tabLabelOn: { color: colors.white },
   list: {},
+  count: { fontSize: 13, lineHeight: 18, color: colors.muted, paddingBottom: spacing.xs },
+  when: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.accent },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -164,5 +170,5 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: 3 },
   name: { fontSize: fontSize.bodyLg, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
   meta: { fontSize: 13, lineHeight: 18, color: colors.muted },
-  photo: { width: PHOTO, borderRadius: radius.lg - 2 },
+  photo: { width: PHOTO, borderRadius: radius.lg - 2, backgroundColor: colors.surface },
 });
