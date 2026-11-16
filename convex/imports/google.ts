@@ -411,7 +411,16 @@ const DETAILS_FIELD_MASK = "id,photos,businessStatus";
 const PHOTO_WIDTH_PX = 800;
 /** Hard caps on all photo work this deployment ever does. Counted in appConfig before each request. */
 export const MAX_PHOTO_LOOKUPS = 1500;
-export const MAX_PHOTO_FETCHES = 1500;
+export const MAX_PHOTO_FETCHES = 4800;
+/** Area searches (imports/googleArea.ts): one request returns up to 20 places with their details. */
+export const MAX_AREA_SEARCHES = 600;
+/**
+ * The owner's ceiling on everything this deployment ever spends on Google Places, in dollars, and
+ * what one request of each kind is counted as (the field masks here bill as the Enterprise tier:
+ * about $35 per 1,000 searches, $7 per 1,000 photos). No request is made that would pass it.
+ */
+export const MAX_GOOGLE_USD = 100;
+export const GOOGLE_USD = { lookups: 0.035, searches: 0.035, photos: 0.007 } as const;
 const PHOTO_BUDGET_KEY = "googlePhotoBudget";
 // "2": the log of the first, stricter matcher ("googlePhotoChecked") is no longer read, so each of its
 // misses is looked up once more under the looser rule and then logged here.
@@ -422,7 +431,7 @@ const PHOTOS_PER_RUN = 40;
 const MAX_PHOTOS_PER_RUN = 240;
 const MAX_PHOTO_WORKERS = 8;
 const PHOTO_CHOICES = 5;
-const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const MAX_ATTRIBUTION_NAMES = 2;
 const PHOTO_NAME = /^places\/[^/?#]+\/photos\/[^/?#]+$/;
 /** How many ids the lists may put at the head of one plan, and how many rankings are read for it. */
@@ -430,8 +439,8 @@ const MAX_PLAN = 800;
 const MAX_RANKINGS_READ = 4000;
 /** The radii the lists are read at: the default one people see first, then the wider one. */
 const PLAN_RADII = [2500, 6000];
-const DEMO_LAT = 37.7608;
-const DEMO_LNG = -122.3861;
+export const DEMO_LAT = 37.7608;
+export const DEMO_LNG = -122.3861;
 /** Invented demo pop-ups carry this tag (or one of these names): Google has nothing for them, and they are left alone. */
 const DEMO_TAG = "demo";
 const DEMO_NAMES = ["crane cove sunset dj set", "22nd street natural wine"];
@@ -481,8 +490,16 @@ export function photoOrder(lists: Partial<Record<PhotoList, (string | null)[]>>)
 }
 
 type PhotoCandidate = Candidate & { googlePlaceId?: string };
-type PhotoBudget = { lookups: number; photos: number };
+type PhotoBudget = { lookups: number; photos: number; searches?: number };
 const emptyBudget = (): PhotoBudget => ({ lookups: 0, photos: 0 });
+/** What the requests counted so far cost, in dollars. */
+export const googleSpendUsd = (used: PhotoBudget) =>
+  used.lookups * GOOGLE_USD.lookups + (used.searches ?? 0) * GOOGLE_USD.searches + used.photos * GOOGLE_USD.photos;
+const BUDGET_FIELDS = {
+  lookup: ["lookups", MAX_PHOTO_LOOKUPS],
+  photo: ["photos", MAX_PHOTO_FETCHES],
+  search: ["searches", MAX_AREA_SEARCHES],
+} as const;
 
 type PhotoTiers = { lists: number; ranked: number; seeded: number; rest: number };
 
@@ -538,12 +555,36 @@ export const photoBudget = internalQuery({
 /** Count one request before it is made. `ok` is false, and nothing is counted, once the cap is reached. */
 export const reservePhotoCall = internalMutation({
   args: { kind: v.union(v.literal("lookup"), v.literal("photo")) },
-  handler: async (ctx, { kind }): Promise<{ ok: boolean }> => {
+  handler: async (ctx, { kind }): Promise<{ ok: boolean }> => ({ ok: (await reserveCalls(ctx, kind, 1)) === 1 }),
+});
+
+/** Count up to `count` requests of one kind; returns how many fit under that kind's cap and the dollar ceiling. */
+async function reserveCalls(ctx: MutationCtx, kind: keyof typeof BUDGET_FIELDS, count: number): Promise<number> {
+  const used: PhotoBudget = { ...emptyBudget(), ...((await readConfig(ctx, PHOTO_BUDGET_KEY))?.value ?? {}) };
+  const [field, max] = BUDGET_FIELDS[kind];
+  const done = used[field] ?? 0;
+  const affordable = Math.floor((MAX_GOOGLE_USD - googleSpendUsd(used) + 1e-9) / GOOGLE_USD[field]);
+  const granted = Math.max(0, Math.min(Math.floor(count), max - done, affordable));
+  if (granted > 0) await writeConfig(ctx, PHOTO_BUDGET_KEY, { ...used, [field]: done + granted });
+  return granted;
+}
+
+/** Several requests counted at once, for the area import: `granted` may be fewer than asked, or none. */
+export const reserveGoogleCalls = internalMutation({
+  args: { kind: v.union(v.literal("search"), v.literal("photo")), count: v.number() },
+  handler: async (ctx, { kind, count }): Promise<{ granted: number }> => ({ granted: await reserveCalls(ctx, kind, count) }),
+});
+
+/** Everything spent on Google so far, in requests and dollars: `npx convex run imports/google:googleSpend`. */
+export const googleSpend = internalQuery({
+  args: {},
+  handler: async (ctx) => {
     const used: PhotoBudget = { ...emptyBudget(), ...((await readConfig(ctx, PHOTO_BUDGET_KEY))?.value ?? {}) };
-    const [field, max] = kind === "lookup" ? (["lookups", MAX_PHOTO_LOOKUPS] as const) : (["photos", MAX_PHOTO_FETCHES] as const);
-    if (used[field] >= max) return { ok: false };
-    await writeConfig(ctx, PHOTO_BUDGET_KEY, { ...used, [field]: used[field] + 1 });
-    return { ok: true };
+    return {
+      lookups: used.lookups, searches: used.searches ?? 0, photos: used.photos,
+      maxLookups: MAX_PHOTO_LOOKUPS, maxSearches: MAX_AREA_SEARCHES, maxPhotos: MAX_PHOTO_FETCHES,
+      usd: Math.round(googleSpendUsd(used) * 100) / 100, maxUsd: MAX_GOOGLE_USD,
+    };
   },
 });
 
@@ -701,7 +742,7 @@ export const retryPhotoMisses = internalMutation({
   },
 });
 
-async function askGoogle(url: string, init: RequestInit): Promise<Response | string> {
+export async function askGoogle(url: string, init: RequestInit): Promise<Response | string> {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
   try {

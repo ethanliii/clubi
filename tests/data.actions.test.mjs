@@ -294,7 +294,7 @@ test("Google photos: one lookup and one download per place, stored in file stora
     planned: 3, waiting: 3, searches: 2, details: 1, photoFetches: 2, stored: 2, noMatch: 1, noPhoto: 0, closed: 0,
     tiers: { lists: 2, ranked: 0, seeded: 1, rest: 0 },
     misses: ['Elbo Room: nearest is "Zeitgeist" at 7 m'],
-    budget: { lookups: 3, photos: 2, maxLookups: 1500, maxPhotos: 1500 },
+    budget: { lookups: 3, photos: 2, maxLookups: 1500, maxPhotos: 4800 },
   });
   // What the lists show comes first, then the hand-seeded place.
   assert.deepEqual(requests.map((r) => r.url), [

@@ -315,7 +315,9 @@ async function performersOf(ctx: QueryCtx, c: Candidate, viewer: Viewer): Promis
  * Every place and upcoming event within the radius, nearest first. The lat index is read outward from
  * the centre in both directions, so when a dense area hits the scan limit it is the far edge that is cut.
  */
-export async function loadInRadius(ctx: QueryCtx, lat: number, lng: number, radiusMeters: number, now: number): Promise<Candidate[]> {
+export async function loadInRadius(
+  ctx: QueryCtx, lat: number, lng: number, radiusMeters: number, now: number, placeScanLimit: number = SCAN_LIMIT_PER_SIDE,
+): Promise<Candidate[]> {
   const dLat = radiusMeters / METERS_PER_DEGREE;
   const dLng = radiusMeters / (METERS_PER_DEGREE * Math.cos((lat * Math.PI) / 180));
   const [placesNorth, placesSouth, eventsNorth, eventsSouth] = await Promise.all([
@@ -323,13 +325,13 @@ export async function loadInRadius(ctx: QueryCtx, lat: number, lng: number, radi
       .query("places")
       .withIndex("by_lat", (q) => q.gte("lat", lat).lte("lat", lat + dLat))
       .filter((q) => q.and(q.gte(q.field("lng"), lng - dLng), q.lte(q.field("lng"), lng + dLng)))
-      .take(SCAN_LIMIT_PER_SIDE),
+      .take(placeScanLimit),
     ctx.db
       .query("places")
       .withIndex("by_lat", (q) => q.gte("lat", lat - dLat).lt("lat", lat))
       .order("desc")
       .filter((q) => q.and(q.gte(q.field("lng"), lng - dLng), q.lte(q.field("lng"), lng + dLng)))
-      .take(SCAN_LIMIT_PER_SIDE),
+      .take(placeScanLimit),
     ctx.db
       .query("events")
       .withIndex("by_lat", (q) => q.gte("lat", lat).lte("lat", lat + dLat))
@@ -413,6 +415,49 @@ export async function getCandidate(ctx: QueryCtx, kind: "place" | "event", id: s
 /** The nearest candidates that pass the filter, capped so scoring stays bounded. */
 export const nearestMatching = (pool: Candidate[], matches: (c: Candidate) => boolean) =>
   pool.filter(matches).slice(0, MAX_CANDIDATES);
+
+/** The radius a caller may ask for (a circle drawn on the map), in metres. */
+export const MIN_RADIUS_METERS = 200;
+export const MAX_RADIUS_METERS = 15000;
+/** Places read on each side of the centre for a radius the caller set: enough for a circle across a city. */
+export const WIDE_SCAN_LIMIT_PER_SIDE = 2500;
+const SPREAD_EVEN_SHARE = 1 / 4;
+const SPREAD_EVENT_SHARE = 1 / 4;
+
+/** How much is known about a place, cheaply: its Google rating and how many gave it, comparisons here, a photo. */
+const renown = (c: Candidate) =>
+  c.kind === "event"
+    ? 0
+    : (c.doc.externalRating ?? 3.5) * Math.log10(1 + (c.doc.externalRatingCount ?? 0)) + 0.5 * (c.doc.nComparisons ?? 0) + (c.doc.imageUrl ? 1 : 0);
+
+/**
+ * The candidates to score when a caller sets its own radius. `nearestMatching` keeps the nearest 200,
+ * which in a dense city is a few blocks however wide the circle is. This keeps the whole circle in
+ * play instead: a quarter evenly spaced by distance (so every ring is there, the nearest first), up
+ * to a quarter events (nearest first), and the rest the best-known places anywhere in the radius.
+ * `pool` is nearest first and already filtered; the result keeps that order. Everything is returned
+ * when it fits.
+ */
+export function spreadCandidates(pool: Candidate[], max: number = MAX_CANDIDATES): Candidate[] {
+  if (pool.length <= max) return pool;
+  const picked = new Set<Candidate>();
+  const even = Math.floor(max * SPREAD_EVEN_SHARE);
+  for (let i = 0; i < even; i++) picked.add(pool[Math.floor((i * pool.length) / even)]);
+  let events = 0;
+  for (const c of pool) {
+    if (events >= max * SPREAD_EVENT_SHARE) break;
+    if (c.kind !== "event" || picked.has(c)) continue;
+    picked.add(c);
+    events++;
+  }
+  const rest = pool.filter((c) => !picked.has(c)).map((c, index) => ({ c, index, renown: renown(c) }));
+  rest.sort((a, b) => b.renown - a.renown || a.index - b.index);
+  for (const { c } of rest) {
+    if (picked.size >= max) break;
+    picked.add(c);
+  }
+  return pool.filter((c) => picked.has(c));
+}
 
 export const isPastEvent = (event: Doc<"events">, now: number) =>
   (event.end ?? event.start + EVENT_DEFAULT_LENGTH_MS) <= now;

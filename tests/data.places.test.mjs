@@ -315,15 +315,116 @@ test("the lookup logs are stored as lists, so they can pass the 1024 fields a Co
 test("the photo budget counts each request before it is made and refuses at the cap", async () => {
   const ctx = fakeCtx();
   const { MAX_PHOTO_LOOKUPS, MAX_PHOTO_FETCHES } = google;
-  assert.deepEqual([MAX_PHOTO_LOOKUPS, MAX_PHOTO_FETCHES], [1500, 1500]);
-  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 0, photos: 0, maxLookups: 1500, maxPhotos: 1500 });
+  assert.deepEqual([MAX_PHOTO_LOOKUPS, MAX_PHOTO_FETCHES], [1500, 4800]);
+  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 0, photos: 0, maxLookups: 1500, maxPhotos: 4800 });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "lookup" }), { ok: true });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
   const row = ctx.all("appConfig").find((c) => c.key === "googlePhotoBudget");
-  await ctx.db.patch(row._id, { value: { lookups: 1500, photos: 1499 } });
+  await ctx.db.patch(row._id, { value: { lookups: 1500, photos: 4799 } });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "lookup" }), { ok: false });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: true });
   assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: false });
-  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 1500, photos: 1500, maxLookups: 1500, maxPhotos: 1500 });
+  assert.deepEqual(await run(google.photoBudget, ctx, {}), { lookups: 1500, photos: 4800, maxLookups: 1500, maxPhotos: 4800 });
+});
+
+test("the dollar ceiling: no Google request is counted that would take the spend past $100", async () => {
+  const ctx = fakeCtx();
+  const { MAX_GOOGLE_USD, MAX_AREA_SEARCHES, googleSpendUsd } = google;
+  assert.deepEqual([MAX_GOOGLE_USD, MAX_AREA_SEARCHES], [100, 600]);
+  assert.equal(Math.round(googleSpendUsd({ lookups: 1500, photos: 1180 }) * 100) / 100, 60.76);
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "search", count: 3 }), { granted: 3 });
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "photo", count: 20 }), { granted: 20 });
+  assert.deepEqual(await run(google.googleSpend, ctx, {}), { lookups: 0, searches: 3, photos: 20, maxLookups: 1500, maxSearches: 600, maxPhotos: 4800, usd: 0.25, maxUsd: 100 });
+  const row = ctx.all("appConfig").find((c) => c.key === "googlePhotoBudget");
+  // $99.988 spent: one more photo fits ($0.007 each), a second would not, and a search ($0.035) does not.
+  await ctx.db.patch(row._id, { value: { lookups: 2000, searches: 298, photos: 2794 } });
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "search", count: 1 }), { granted: 0 });
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "photo", count: 20 }), { granted: 1 });
+  assert.deepEqual(await run(google.reservePhotoCall, ctx, { kind: "photo" }), { ok: false });
+  assert.ok((await run(google.googleSpend, ctx, {})).usd <= 100);
+  // And each kind has its own cap as well.
+  await ctx.db.patch(row._id, { value: { lookups: 0, searches: 599, photos: 0 } });
+  assert.deepEqual(await run(google.reserveGoogleCalls, ctx, { kind: "search", count: 5 }), { granted: 1 });
+});
+
+test("Google area import: a result becomes a row with the app's category, and the grid covers the circle nearest first", async () => {
+  const area = await load("imports/googleArea");
+  const base = { id: "g1", displayName: { text: "Zeitgeist" }, location: { latitude: 37.77, longitude: -122.4221 }, businessStatus: "OPERATIONAL" };
+  const row = area.areaRow({
+    ...base, primaryType: "bar", types: ["bar", "beer_garden", "point_of_interest", "establishment"], formattedAddress: "199 Valencia St, San Francisco, CA 94103, USA",
+    rating: 4.4, userRatingCount: 5312, priceLevel: "PRICE_LEVEL_INEXPENSIVE", websiteUri: "https://www.zeitgeistsf.com/", nationalPhoneNumber: "(415) 255-7505",
+    regularOpeningHours: results[0].regularOpeningHours,
+  });
+  assert.deepEqual(row, {
+    googleId: "g1", name: "Zeitgeist", lat: 37.77, lng: -122.4221, closed: false, category: "nightlife", subcategory: "bar", tags: ["beer garden"],
+    address: "199 Valencia St, San Francisco, CA 94103", city: "San Francisco", hours: "Mo-Su 09:00-02:00", priceLevel: 1,
+    website: "https://www.zeitgeistsf.com/", phone: "(415) 255-7505", rating: 4.4, ratingCount: 5312,
+  });
+  const kind = (primaryType, types) => { const r = area.areaRow({ ...base, primaryType, types }); return r && [r.category, r.subcategory]; };
+  assert.deepEqual(kind("night_club", ["night_club", "bar"]), ["nightlife", "nightclub"]);
+  assert.deepEqual(kind("mexican_restaurant", ["mexican_restaurant", "restaurant", "bar"]), ["food", "mexican restaurant"]);
+  assert.deepEqual(kind("park", ["park"]), ["outdoors", "park"]);
+  assert.equal(kind("tourist_attraction", ["tourist_attraction"]), null);
+  assert.deepEqual(kind("comedy_club", ["comedy_club"]), ["live", "comedy club"]);
+  assert.equal(kind("gas_station", ["gas_station"]), null);
+  assert.equal(area.areaRow({ ...base, primaryType: "bar", businessStatus: "CLOSED_TEMPORARILY" }), null);
+  assert.equal(area.areaRow({ ...base, primaryType: "bar", displayName: undefined }), null);
+
+  const cells = area.areaCells(37.7608, -122.3861, 2500, 450);
+  assert.deepEqual(cells[0], { lat: 37.7608, lng: -122.3861 });
+  assert.ok(cells.length > 50 && cells.length < 80, String(cells.length));
+  const ring = area.areaCells(37.7608, -122.3861, 6000, 800, 2500);
+  assert.ok(ring.length > 50 && ring.length < 110, String(ring.length));
+  assert.deepEqual(area.nearbyBody(cells[0], 450, "nightlife").includedPrimaryTypes.slice(0, 2), ["bar", "night_club"]);
+  assert.deepEqual(area.nearbyBody(cells[0], 450, "food").includedTypes, ["restaurant", "cafe", "bakery"]);
+  assert.equal(area.nearbyBody(cells[0], 450, "food").locationRestriction.circle.radius, 450);
+});
+
+test("Google area import: known places only have their gaps filled, new ones are inserted once, closed ones are hidden", async () => {
+  const area = await load("imports/googleArea");
+  const ctx = fakeCtx();
+  const place = (over) => ctx.db.insert("places", { name: "P", category: "nightlife", lat: 37.77, lng: -122.4221, source: "osm", ...over });
+  const zeitgeist = await place({ name: "Zeitgeist", hours: "Mo-Su 10:00-02:00", imageUrl: "https://hand.example/z.jpg" });
+  const closedDown = await place({ name: "Elbo Room", lat: 37.7701 });
+  const row = (googleId, name, over = {}) => ({ googleId, name, lat: 37.77005, lng: -122.4221, closed: false, category: "nightlife", subcategory: "bar", tags: [], ...over });
+  const rows = [
+    row("g1", "Zeitgeist", { hours: "24/7", rating: 4.4, ratingCount: 10, website: "https://z.example" }),
+    row("g2", "Elbo Room", { closed: true }),
+    row("g3", "Brand New Bar", { address: "1 Main St, San Francisco, CA 94103", city: "San Francisco", rating: 4.8, ratingCount: 240 }),
+    row("g4", "Gone Before We Knew It", { closed: true, ratingCount: 900 }),
+    row("g5", "Lobby Sculpture", { rating: 5, ratingCount: 2 }),
+    row("g6", "Zeitgeist", { ratingCount: 500 }),
+  ];
+  const saved = await run(area.saveAreaResults, ctx, { rows });
+  assert.deepEqual(saved.map((r) => [r.outcome, r.needsPhoto]), [["matched", false], ["closed", false], ["inserted", true], ["skipped", false], ["skipped", false], ["skipped", false]], "few ratings, and a second pin for a place already tied to Google, are left out");
+  const [z, e, fresh] = ctx.all("places");
+  assert.deepEqual([z.hours, z.website, z.externalRating, z.googlePlaceId, z.source, z.imageUrl], ["Mo-Su 10:00-02:00", "https://z.example", 4.4, "g1", "osm", "https://hand.example/z.jpg"]);
+  assert.deepEqual([e.permanentlyClosed, e.googlePlaceId], [true, undefined]);
+  assert.deepEqual([fresh.name, fresh.source, fresh.sourceId, fresh.googlePlaceId, fresh.city, fresh.externalRating, fresh.venueVector.length, fresh.elo], ["Brand New Bar", "google", "g3", "g3", "San Francisco", 4.8, 13, 0]);
+  assert.equal(ctx.all("places").length, 3);
+  // The same results again (a neighbouring cell): nothing is inserted twice.
+  const again = await run(area.saveAreaResults, ctx, { rows });
+  assert.deepEqual(again.map((r) => r.outcome), ["matched", "closed", "known", "skipped", "skipped", "skipped"]);
+  assert.equal(ctx.all("places").length, 3);
+  assert.equal(again[2].placeId, fresh._id);
+  assert.ok(zeitgeist && closedDown);
+});
+
+test("a radius the caller sets is searched as a whole: candidates are spread across it, not just the nearest", async () => {
+  const { spreadCandidates, MAX_CANDIDATES } = await load("lib/discovery");
+  // 1,000 places nearest first; the far half is where the well-known ones are.
+  const pool = Array.from({ length: 1000 }, (_, i) => ({ kind: "place", doc: { _id: "p" + i, externalRating: 4.5, externalRatingCount: i >= 500 ? 2000 : 3 } }));
+  const events = [3, 400, 950].map((at) => ({ kind: "event", doc: { _id: "e" + at } }));
+  for (const [n, at] of [3, 400, 950].entries()) pool.splice(at, 0, events[n]);
+  const picked = spreadCandidates(pool);
+  assert.equal(picked.length, MAX_CANDIDATES);
+  assert.equal(picked[0], pool[0], "the nearest is always in");
+  assert.deepEqual(picked.map((c) => pool.indexOf(c)), picked.map((c) => pool.indexOf(c)).sort((a, b) => a - b), "still nearest first");
+  assert.ok(events.every((event) => picked.includes(event)), "events anywhere in the radius are kept");
+  const far = picked.filter((c) => pool.indexOf(c) >= 500).length;
+  assert.ok(far >= 150, `the well-known far half is represented (${far})`);
+  assert.ok(picked.filter((c) => pool.indexOf(c) < 500).length >= 20, "and so is every ring of the near half");
+  const few = pool.slice(0, 50);
+  assert.equal(spreadCandidates(few), few, "a pool that fits is returned as it is");
 });

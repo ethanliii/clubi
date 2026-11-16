@@ -17,6 +17,7 @@ import type * as follows from "../follows.js";
 import type * as friends from "../friends.js";
 import type * as imports_eventbrite from "../imports/eventbrite.js";
 import type * as imports_google from "../imports/google.js";
+import type * as imports_googleArea from "../imports/googleArea.js";
 import type * as imports_luma from "../imports/luma.js";
 import type * as imports_osm from "../imports/osm.js";
 import type * as imports_partiful from "../imports/partiful.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   friends: typeof friends;
   "imports/eventbrite": typeof imports_eventbrite;
   "imports/google": typeof imports_google;
+  "imports/googleArea": typeof imports_googleArea;
   "imports/luma": typeof imports_luma;
   "imports/osm": typeof imports_osm;
   "imports/partiful": typeof imports_partiful;

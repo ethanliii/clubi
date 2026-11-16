@@ -7,10 +7,10 @@ import type {
 } from "./lib/contract";
 import {
   ALGO, ATTRIBUTION, AffinityRow, Candidate, DEFAULT_LIMIT, DEFAULT_RADIUS_METERS, EVENT_DEFAULT_LENGTH_MS, MAX_CANDIDATES,
-  Scored, TONIGHT_WINDOW_MS, UserLoader, Viewer,
+  MAX_RADIUS_METERS, MIN_RADIUS_METERS, Scored, WIDE_SCAN_LIMIT_PER_SIDE, TONIGHT_WINDOW_MS, UserLoader, Viewer,
   affinitiesOf, avatarUrlOf, displayNameOf, friendIdsOf, getCandidate, haversineMeters, isUnder21, isVisibleTo,
   loadEventsBetween, loadInRadius, loadLikedPerformerEvents, loadViewer, matchesFilter, nearestMatching, newestRankingsOf,
-  postOfRanking, rankItems, sameCity, scoreAll, tasteOf, tierForRank, userLoader, venueVectorOf, withTag,
+  postOfRanking, rankItems, sameCity, scoreAll, spreadCandidates, tasteOf, tierForRank, userLoader, venueVectorOf, withTag,
 } from "./lib/discovery";
 import { VoteTally, fairWeights, groupScoreV2, groupWhy, tallyVotes } from "./lib/group";
 import {
@@ -75,8 +75,13 @@ export const nearby = query({
     const now = Date.now();
     const filter = args.filter ?? "all";
     const viewer = await loadViewer(ctx, now);
-    const pool = await loadInRadius(ctx, args.lat, args.lng, args.radiusMeters ?? DEFAULT_RADIUS_METERS, now);
-    const candidates = nearestMatching(pool, (c) => isVisibleTo(c, viewer, now) && matchesFilter(c, filter, now));
+    // A radius the caller set (a circle drawn on the map) is searched as a whole: the candidates are
+    // spread across it. Without one, the list is the nearest matches within the default radius, as before.
+    const custom = args.radiusMeters !== undefined;
+    const radiusMeters = custom ? clip(args.radiusMeters!, MIN_RADIUS_METERS, MAX_RADIUS_METERS) : DEFAULT_RADIUS_METERS;
+    const pool = await loadInRadius(ctx, args.lat, args.lng, radiusMeters, now, custom ? WIDE_SCAN_LIMIT_PER_SIDE : undefined);
+    const matches = (c: Candidate) => isVisibleTo(c, viewer, now) && matchesFilter(c, filter, now);
+    const candidates = custom ? spreadCandidates(pool.filter(matches)) : nearestMatching(pool, matches);
     const scored = await scoreAll(ctx, candidates, viewer, args.lat, args.lng, now);
     return {
       items: rankItems(scored, args.limit ?? DEFAULT_LIMIT),
