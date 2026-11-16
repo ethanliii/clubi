@@ -75,7 +75,7 @@ export default function RateScreen() {
           )
         ) : (
           <>
-            {searching ? null : <Text style={[type.meta, styles.hint]}>Near you</Text>}
+            {searching ? null : <Text accessibilityRole="header" accessibilityLabel="Near you" style={styles.hint}>NEAR YOU</Text>}
             {results.map((item) => (
               <SpotRow key={`${item.kind}:${item.id}`} item={item} onPress={() => pick(item)} />
             ))}
@@ -109,5 +109,5 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.6 },
   list: { flex: 1 },
   listContent: { paddingBottom: spacing.xl },
-  hint: { paddingBottom: spacing.xs },
+  hint: { fontSize: 13, lineHeight: 17, fontWeight: "800", letterSpacing: 0.9, color: colors.fg, paddingTop: spacing.xs, paddingBottom: spacing.xs },
 });

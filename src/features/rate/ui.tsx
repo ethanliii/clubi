@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   steps: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
   stepFill: { height: 4, borderRadius: 2, backgroundColor: colors.accent },
   bigScore: { alignItems: "center", gap: 10 },
-  bigRing: { alignItems: "center", justifyContent: "center", borderWidth: 5, backgroundColor: colors.bg },
+  bigRing: { alignItems: "center", justifyContent: "center", borderWidth: 2, backgroundColor: colors.bg },
   bigNumber: { fontWeight: "800", letterSpacing: -1.5, textAlign: "center", fontVariant: ["tabular-nums"] },
   outOf: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.muted },
 });

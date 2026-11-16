@@ -120,7 +120,7 @@ function Contender({
       pressedStyle={styles.cardPressed}
     >
       <View style={styles.cardClip}>
-        <PlacePhoto uri={photo} category={category} height={photoHeight} round={0} />
+        <PlacePhoto uri={photo} category={category} height={photoHeight} round={PHOTO_ROUND} />
         <View style={styles.cardText}>
           <Text numberOfLines={2} style={[type.strong, styles.cardName]}>
             {name}
@@ -321,7 +321,7 @@ export function ResultStep({
       ) : shown.length > 1 ? (
         <Rise delay={220}>
           <Text accessibilityRole="header" style={styles.listTitle}>
-            Your list
+            YOUR LIST
           </Text>
           {from > 0 ? <Text style={[type.meta, styles.more]}>{`${from} above`}</Text> : null}
           {shown.map((row, index) => {
@@ -352,8 +352,8 @@ export function ResultStep({
   );
 }
 
-const PHOTO_ROUND = 16;
-const CARD_ROUND = 16;
+const PHOTO_ROUND = 12;
+const CARD_ROUND = 12;
 /** The room under a card's photo: two lines of name, one grey line, the padding around them. */
 const CARD_TEXT = 92;
 const OR_SIZE = 38;
@@ -379,16 +379,13 @@ const styles = StyleSheet.create({
   versus: { flexDirection: "row", gap: spacing.md },
   cardCol: { flex: 1 },
   // The shadow sits on the outer box; the inner one clips the photo to the corners.
-  card: { borderRadius: CARD_ROUND, backgroundColor: colors.bg, ...elevation.card },
+  card: { borderRadius: CARD_ROUND, backgroundColor: colors.bg },
   cardPressed: { opacity: 0.9 },
   cardClip: {
     borderRadius: CARD_ROUND,
-    overflow: "hidden",
     backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.line,
   },
-  cardText: { minHeight: CARD_TEXT, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.md + 2, gap: 4 },
+  cardText: { minHeight: CARD_TEXT, paddingHorizontal: 2, paddingTop: spacing.md, paddingBottom: spacing.md + 2, gap: 4 },
   cardName: { minHeight: 42 },
   or: {
     position: "absolute",
@@ -432,7 +429,7 @@ const styles = StyleSheet.create({
   },
   placePillText: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold, color: colors.accent },
 
-  listTitle: { fontSize: 18, lineHeight: 23, fontWeight: "800", letterSpacing: -0.3, color: colors.fg, paddingBottom: spacing.sm },
+  listTitle: { fontSize: 13, lineHeight: 17, fontWeight: "800", letterSpacing: 0.9, color: colors.fg, paddingTop: spacing.lg, paddingBottom: spacing.sm },
   rowsLoading: { gap: spacing.sm },
   row: {
     flexDirection: "row",
@@ -440,13 +437,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     minHeight: 64,
     paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.line,
   },
   rowNoLine: { borderBottomColor: "transparent" },
-  rowNew: { backgroundColor: colors.accentSoft, borderRadius: radius.lg },
+  rowNew: { backgroundColor: colors.accentSoft, borderRadius: radius.md, marginHorizontal: -spacing.md, paddingHorizontal: spacing.md },
   rowText: { flex: 1, gap: 2 },
   rowMetaNew: { color: colors.accent, fontWeight: fontWeight.semibold },
-  more: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  more: { paddingVertical: spacing.sm },
 });
