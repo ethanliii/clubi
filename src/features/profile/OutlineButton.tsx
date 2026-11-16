@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { Icon, Text, type IconName } from "../../components";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, spacing } from "../../theme";
 
 /** A small outline button, the quiet action under a profile header ("Edit profile", "Compare tastes"). */
 export function OutlineButton({

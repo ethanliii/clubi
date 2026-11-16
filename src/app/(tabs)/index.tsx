@@ -1,10 +1,10 @@
 import { useQuery } from "convex/react";
 import { router, type Href } from "expo-router";
-import { useRef, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { useRef, useState, type ReactNode } from "react";
+import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { EmptyState, Icon, IconButton, Text } from "../../components";
+import { EmptyState, IconButton, Text } from "../../components";
 import { CommentsSheet } from "../../features/feed/Comments";
 import { CardRow, SectionLabel } from "../../features/home/CardRow";
 import { HomePost, HomePostSkeleton } from "../../features/home/HomePost";
@@ -28,6 +28,15 @@ const SERIF = Platform.select({ android: "serif", default: "Georgia" });
 
 type SectionKey = "picks" | "friends" | "tonight" | "upcoming" | "feed";
 
+/** One block of the page. It reports where it starts, so a pill can scroll to it. */
+function Section({ name, onTop, children }: { name: SectionKey; onTop: (key: SectionKey, y: number) => void; children: ReactNode }) {
+  return (
+    <View onLayout={(event) => onTop(name, event.nativeEvent.layout.y)} style={styles.section}>
+      {children}
+    </View>
+  );
+}
+
 export default function Home() {
   const { lat, lng, ready } = useDemoLocation();
   const tonight = useKeptQuery(api.discover.tonight, ready ? { lat, lng } : "skip", "tonight");
@@ -41,8 +50,8 @@ export default function Home() {
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   /** Where each section starts inside the scroll view, for the pills. */
   const tops = useRef<Partial<Record<SectionKey, number>>>({});
-  const mark = (key: SectionKey) => (event: LayoutChangeEvent) => {
-    tops.current[key] = event.nativeEvent.layout.y;
+  const setTop = (key: SectionKey, y: number) => {
+    tops.current[key] = y;
   };
   /** Scrolls to the first of these sections that is on the page. */
   const jump = (...keys: SectionKey[]) => {
@@ -115,7 +124,7 @@ export default function Home() {
         ) : (
           <>
             {has(tonight?.topPicks) ? (
-              <View onLayout={mark("picks")} style={styles.section}>
+              <Section name="picks" onTop={setTop}>
                 <CardRow
                   title="Top picks for you"
                   items={tonight?.topPicks}
@@ -124,10 +133,10 @@ export default function Home() {
                   moreLabel="See top picks on the map"
                   onMore={openMap}
                 />
-              </View>
+              </Section>
             ) : null}
             {tonight !== undefined && tonight.friendsGoing.length > 0 ? (
-              <View onLayout={mark("friends")} style={styles.section}>
+              <Section name="friends" onTop={setTop}>
                 <CardRow
                   title="Where friends go"
                   items={tonight.friendsGoing}
@@ -136,10 +145,10 @@ export default function Home() {
                   moreLabel="See where the group should go on the map"
                   onMore={() => router.push(GROUP_MAP)}
                 />
-              </View>
+              </Section>
             ) : null}
             {tonight !== undefined && tonight.events.length > 0 ? (
-              <View onLayout={mark("tonight")} style={styles.section}>
+              <Section name="tonight" onTop={setTop}>
                 <CardRow
                   title="Events tonight"
                   items={tonight.events}
@@ -148,10 +157,10 @@ export default function Home() {
                   moreLabel="See tonight's events on the map"
                   onMore={openMap}
                 />
-              </View>
+              </Section>
             ) : null}
             {upcoming !== undefined && upcoming.length > 0 ? (
-              <View onLayout={mark("upcoming")} style={styles.section}>
+              <Section name="upcoming" onTop={setTop}>
                 <CardRow
                   title="Coming up"
                   items={upcoming}
@@ -160,12 +169,12 @@ export default function Home() {
                   moreLabel="See upcoming events on the map"
                   onMore={openMap}
                 />
-              </View>
+              </Section>
             ) : null}
           </>
         )}
 
-        <View onLayout={mark("feed")} style={styles.section}>
+        <Section name="feed" onTop={setTop}>
           <SectionLabel title="Your feed" moreLabel="See the whole feed" onMore={openFeed} />
           {feed === undefined ? (
             <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.loading}>
@@ -187,7 +196,7 @@ export default function Home() {
               </View>
             ))
           )}
-        </View>
+        </Section>
       </ScrollView>
       <CommentsSheet
         postId={comments.postId}

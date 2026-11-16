@@ -29,6 +29,11 @@ function nearestSnap(height: number, heights: SheetHeights): SheetSnap {
   return best;
 }
 
+/** Whether the list inside is scrolled to its very top. Read only while a finger is down. */
+function atTop(listOffset: { current: number } | undefined): boolean {
+  return (listOffset?.current ?? 0) <= 0;
+}
+
 export function MapSheet({
   snap,
   onSnap,
@@ -100,7 +105,7 @@ export function MapSheet({
       // list scrolls, and only a pull down from its very top brings the panel down.
       body: PanResponder.create({
         onMoveShouldSetPanResponderCapture: (_event, gesture) =>
-          vertical(gesture.dx, gesture.dy) && (snap !== "full" || (gesture.dy > 0 && (listOffset?.current ?? 0) <= 0)),
+          vertical(gesture.dx, gesture.dy) && (snap !== "full" || (gesture.dy > 0 && atTop(listOffset))),
         ...drag,
       }),
     };

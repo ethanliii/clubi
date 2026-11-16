@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, ScoreBadge, Skeleton, Text, type IconName } from "../../components";
 import type { Bucket, RankResult, RankedListItem, VenueDetail } from "../../lib/api";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
-import { colors, elevation, fontWeight, palette, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, radius, spacing } from "../../theme";
 import { BusyButton, FlowScreen } from "./FlowScreen";
 import { opponentOf, totalRounds, type Search } from "./search";
 import { BigScore, BUCKET_LOOK, PlacePhoto, Pop, PressScale, Rise, type } from "./ui";

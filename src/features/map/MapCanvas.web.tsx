@@ -9,7 +9,7 @@
  */
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Map as GLMap, Marker, getVersion, setWorkerUrl } from "maplibre-gl";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
 import { colors } from "../../theme";
@@ -256,7 +256,7 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
   });
 
   /** Decide bubble, dot or hidden for every pin at the current zoom, and show it. */
-  const arrange = useRef(() => {
+  const arrange = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
     const { items: list, selectedId: picked } = latest.current;
@@ -275,7 +275,7 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       const name = placement.name ? "1" : "0";
       if (pin.dataset.name !== name) pin.dataset.name = name;
     }
-  }).current;
+  }, []);
 
   // Create the map once.
   useEffect(() => {

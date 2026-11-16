@@ -5,7 +5,7 @@ import { api, type NearbyItem, type PerformerCard, type VenueDetail, type VenueI
 import { categoryLabel, formatDistance, formatEventTime, formatRelativeTime, formatScore } from "../../lib/format";
 import { performerPath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, fontWeight, palette, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 import { GUTTER, Photo, Scrim, SectionTitle } from "./parts";
 
 type FriendRanking = VenueDetail["friendRankings"][number];

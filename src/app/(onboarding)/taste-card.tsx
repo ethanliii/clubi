@@ -66,7 +66,7 @@ export default function TasteCard() {
               {tags.length > 0 ? (
                 <Rise delay={1400}>
                   <View style={styles.into}>
-                    <Text style={styles.section}>You're into</Text>
+                    <Text style={styles.section}>{"You're into"}</Text>
                     <View accessible accessibilityLabel={`Into ${listOf(tags)}`} style={styles.tags}>
                       {tags.map((tag) => (
                         <View key={tag} style={styles.tag}>

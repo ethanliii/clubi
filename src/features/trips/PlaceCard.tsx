@@ -6,7 +6,7 @@ import { ScoreBadge, Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
 import { venuePath } from "../../lib/links";
-import { colors, fontWeight, palette, radius, scrim, spacing } from "../../theme";
+import { fontWeight, palette, radius, scrim, spacing } from "../../theme";
 import { PlacePhoto } from "./PlacePhoto";
 
 /** "Cafe · $$ · 350 m" from what the backend sent. */

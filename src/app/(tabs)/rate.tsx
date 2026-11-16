@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { EmptyState, Header, Icon, Screen, Text } from "../../components";
 import { SpotRow, SpotRowsSkeleton } from "../../features/rate/SpotRow";
-import { noFocusRing, type } from "../../features/rate/ui";
+import { noFocusRing } from "../../features/rate/ui";
 import { api, type NearbyItem } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { ratePath } from "../../lib/links";
