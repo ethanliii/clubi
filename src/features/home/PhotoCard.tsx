@@ -1,65 +1,56 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
-import { AvatarStack, ScoreBadge, Text } from "../../components";
+import { Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
+import { formatEventTime, formatScore } from "../../lib/format";
 import { venuePath } from "../../lib/links";
-import { colors, fontWeight } from "../../theme";
-import { cardLabel, friendsLine, metaLine } from "./itemText";
+import { fontWeight } from "../../theme";
+import { cardLabel } from "./itemText";
 import { Photo } from "./Photo";
 
-export type CardShape = "large" | "medium";
+/** Every card in a Home carousel is this size: tall, the photo filling it. */
+export const CARD_WIDTH = 158;
+export const CARD_HEIGHT = 180;
+export const CARD_ROUND = 10;
 
-/** The photo's size. The name and the grey line sit under it at the same width. */
-export const CARD_SIZES: Record<CardShape, { width: number; height: number }> = {
-  large: { width: 300, height: 168 },
-  medium: { width: 210, height: 140 },
-};
-export const CARD_ROUND = 14;
+const FADE = ["rgba(0,0,0,0)", "rgba(0,0,0,0.25)", "rgba(0,0,0,0.82)"] as const;
+const FADE_STOPS = [0, 0.4, 1] as const;
 
 /**
- * One place or event in a sideways row: the photo, then the name in bold with its score at the
- * right, then one grey line. No box around it; the photo is the card.
+ * One place or event in a carousel: the photo fills the card, a dark fade at the bottom, the name
+ * in bold white over it (two lines) and one small white line: the score for you and the reason
+ * (an event leads with when it starts).
  */
-export function PhotoCard({ item, shape, now }: { item: NearbyItem; shape: CardShape; now: number }) {
-  const { width, height } = CARD_SIZES[shape];
-  const hasFriends = item.friends.length > 0;
+export function PhotoCard({ item, now }: { item: NearbyItem; now: number }) {
+  const lead = item.startsAt !== undefined ? formatEventTime(item.startsAt, now) : "";
+  const sub = [formatScore(item.score), lead, item.why].filter((part) => part !== "").join(" · ");
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={cardLabel(item)}
       onPress={() => router.push(venuePath(item.kind, item.id))}
-      style={({ pressed }) => [{ width }, pressed && styles.pressed]}
+      style={({ pressed }) => pressed && styles.pressed}
     >
-      <Photo item={item} width={width} height={height} round={CARD_ROUND} />
-      <View style={styles.under}>
-        <View style={styles.copy}>
-          <Text numberOfLines={1} style={styles.name}>
+      <Photo item={item} width={CARD_WIDTH} height={CARD_HEIGHT} round={CARD_ROUND}>
+        <LinearGradient colors={FADE} locations={FADE_STOPS} style={styles.fade} pointerEvents="none" />
+        <View style={styles.copy} pointerEvents="none">
+          <Text numberOfLines={2} style={styles.name}>
             {item.name}
           </Text>
-          <Text numberOfLines={1} style={styles.meta}>
-            {metaLine(item, now)}
+          <Text numberOfLines={1} style={styles.sub}>
+            {sub}
           </Text>
-          {hasFriends ? (
-            <View style={styles.friends}>
-              <AvatarStack people={item.friends} size={18} />
-              <Text numberOfLines={1} style={[styles.meta, styles.flex]}>
-                {friendsLine(item)}
-              </Text>
-            </View>
-          ) : null}
         </View>
-        <ScoreBadge score={item.score} size="sm" />
-      </View>
+      </Photo>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  pressed: { opacity: 0.7 },
-  flex: { flex: 1 },
-  under: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingTop: 8 },
-  copy: { flex: 1, gap: 2 },
-  name: { fontSize: 16, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
-  meta: { fontSize: 13, lineHeight: 18, color: colors.muted },
-  friends: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  pressed: { opacity: 0.8 },
+  fade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "72%" },
+  copy: { position: "absolute", left: 10, right: 10, bottom: 10, gap: 3 },
+  name: { fontSize: 16, lineHeight: 19, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: "#ffffff" },
+  sub: { fontSize: 12, lineHeight: 15, color: "rgba(255,255,255,0.92)" },
 });

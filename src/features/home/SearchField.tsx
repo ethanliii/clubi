@@ -11,7 +11,7 @@ export function SearchField({ label, onPress }: { label: string; onPress: () => 
       onPress={onPress}
       style={({ pressed }) => [styles.field, pressed && styles.pressed]}
     >
-      <Icon name="search" size={19} color={colors.fg} />
+      <Icon name="search" size={18} color={colors.muted} />
       <Text numberOfLines={1} style={styles.label}>
         {label}
       </Text>
@@ -23,10 +23,10 @@ const styles = StyleSheet.create({
   field: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    height: 46,
-    borderRadius: 23,
-    paddingHorizontal: 16,
+    gap: 8,
+    height: 44,
+    borderRadius: 10,
+    paddingHorizontal: 12,
     backgroundColor: palette.field,
   },
   pressed: { backgroundColor: palette.fieldPressed },
