@@ -3,6 +3,7 @@ import { Skeleton, Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { categoryLabel, formatDistance, formatEventTime } from "../../lib/format";
 import { spacing } from "../../theme";
+import { displayName } from "../home/itemText";
 import { PlacePhoto, type } from "./ui";
 
 const PHOTO = 48;
@@ -32,7 +33,7 @@ export function SpotRow({ item, onPress }: { item: NearbyItem; onPress: () => vo
       <PlacePhoto uri={item.imageUrl} category={item.category} height={PHOTO} width={PHOTO} round={item.imageUrl ? ROUND : PHOTO / 2} />
       <View style={styles.text}>
         <Text numberOfLines={1} style={type.strong}>
-          {item.name}
+          {displayName(item.name)}
         </Text>
         <Text numberOfLines={1} style={type.meta}>
           {metaLine(item)}

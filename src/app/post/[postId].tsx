@@ -1,9 +1,9 @@
 import { useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View, type TextInputInstance } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { EmptyState, ErrorBoundary, goBack, Header, Screen, SkeletonRows, Text } from "../../components";
-import { CommentComposer, CommentRow, NoComments, type ReplyTarget } from "../../features/feed/Comments";
+import { CommentComposer, CommentRow, NoComments, type CommentComposerHandle } from "../../features/feed/Comments";
 import { PostCard, PostSkeletons } from "../../features/feed/PostCard";
 import { PostMenu } from "../../features/feed/PostMenu";
 import { api, type Id } from "../../lib/api";
@@ -43,9 +43,8 @@ function Post({ postId }: { postId: Id<"posts"> }) {
   const now = useNow();
   const post = useQuery(api.posts.get, { postId });
   const comments = useQuery(api.posts.comments, { postId });
-  const commentBox = useRef<TextInputInstance>(null);
+  const commentBox = useRef<CommentComposerHandle>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
 
   if (post === undefined) return <PostSkeletons count={1} />;
   if (post === null) return <Gone />;
@@ -61,7 +60,7 @@ function Post({ postId }: { postId: Id<"posts"> }) {
             comment={item}
             canDelete={item.mine || mine}
             now={now}
-            onReply={(name) => setReplyTo({ name, at: Date.now() })}
+            onReply={(name) => commentBox.current?.reply(name)}
           />
         )}
         ListHeaderComponent={
@@ -91,7 +90,7 @@ function Post({ postId }: { postId: Id<"posts"> }) {
         contentContainerStyle={styles.content}
       />
       <View style={styles.composer}>
-        <CommentComposer postId={postId} inputRef={commentBox} replyTo={replyTo} />
+        <CommentComposer postId={postId} ref={commentBox} />
       </View>
       <PostMenu post={post} visible={menuOpen} onClose={() => setMenuOpen(false)} onDeleted={goBack} />
     </View>

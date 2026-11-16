@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useImperativeHandle, useRef, useState, type Ref } from "react";
 import { FlatList, Platform, Pressable, StyleSheet, TextInput, View, type TextInputInstance } from "react-native";
 import { Avatar, Icon, Sheet, SkeletonRows, Text } from "../../components";
 import { api, type CommentItem, type Id } from "../../lib/api";
@@ -116,23 +116,15 @@ export function CommentRow({
   );
 }
 
-/** Who "Reply" was pressed on. `at` changes on every press, so pressing the same name twice works. */
-export type ReplyTarget = { name: string; at: number };
+/** What a screen can ask of the comment box: put the cursor in it, or start a reply to someone. */
+export type CommentComposerHandle = { focus: () => void; reply: (name: string) => void };
 
 /**
  * The comment box: my avatar and a light-grey rounded field that grows to four lines as you type.
  * "Post" appears in dark red once there is text. Clears itself when the comment is saved; the list
  * updates by itself.
  */
-export function CommentComposer({
-  postId,
-  inputRef,
-  replyTo,
-}: {
-  postId: Id<"posts">;
-  inputRef?: Ref<TextInputInstance>;
-  replyTo?: ReplyTarget | null;
-}) {
+export function CommentComposer({ postId, ref }: { postId: Id<"posts">; ref?: Ref<CommentComposerHandle> }) {
   const me = useMe();
   const [text, setText] = useState("");
   const box = useRef<TextInputInstance | null>(null);
@@ -144,24 +136,24 @@ export function CommentComposer({
     const saved = await addComment({ postId, text: text.trim() });
     if (saved !== undefined) setText("");
   };
-  const setBox = (node: TextInputInstance | null) => {
-    box.current = node;
-    if (typeof inputRef === "function") inputRef(node);
-    else if (inputRef) (inputRef as { current: TextInputInstance | null }).current = node;
-  };
-  const replyName = replyTo?.name;
-  const replyAt = replyTo?.at;
-  useEffect(() => {
-    if (replyName === undefined) return;
-    setText((was) => (was.trim().length > 0 ? was : `@${replyName} `));
-    box.current?.focus();
-  }, [replyName, replyAt]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => box.current?.focus(),
+      // "Reply" starts the comment with the person's name, unless something is already typed.
+      reply: (name) => {
+        setText((was) => (was.trim().length > 0 ? was : `@${name} `));
+        box.current?.focus();
+      },
+    }),
+    [],
+  );
   return (
     <View style={styles.composer}>
       {me ? <Avatar name={me.displayName} uri={me.avatarUrl} size={36} style={styles.composerAvatar} /> : null}
       <View style={styles.field}>
         <TextInput
-          ref={setBox}
+          ref={box}
           placeholder="Add a comment…"
           placeholderTextColor={colors.muted}
           selectionColor={colors.accent}
@@ -225,7 +217,7 @@ export function CommentsSheet({
 }) {
   const comments = useQuery(api.posts.comments, postId ? { postId } : "skip");
   const now = useNow();
-  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
+  const composer = useRef<CommentComposerHandle>(null);
   return (
     <Sheet visible={visible} onClose={onClose} title="Comments" scroll={false}>
       {comments === undefined ? (
@@ -242,7 +234,7 @@ export function CommentsSheet({
               canDelete={item.mine || postIsMine}
               now={now}
               onAuthor={onClose}
-              onReply={(name) => setReplyTo({ name, at: Date.now() })}
+              onReply={(name) => composer.current?.reply(name)}
             />
           )}
           ListEmptyComponent={<NoComments />}
@@ -254,7 +246,7 @@ export function CommentsSheet({
       )}
       {postId ? (
         <View style={styles.sheetComposer}>
-          <CommentComposer postId={postId} replyTo={replyTo} />
+          <CommentComposer postId={postId} ref={composer} />
         </View>
       ) : null}
     </Sheet>

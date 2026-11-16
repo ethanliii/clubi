@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 import { Button, Text } from "../../components";
 import type { InsightAnswer, InsightQuestion } from "../../lib/api";
 import { colors, fontWeight, palette, spacing } from "../../theme";

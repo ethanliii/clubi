@@ -16,7 +16,7 @@ import { colors, fontWeight, layout, palette, radius } from "../../theme";
 /**
  * The reveal after the quiz: the four meters the backend worked out (`users.me.tasteSummary`, or the
  * same list straight from `users.saveQuiz` for the instant before `users.me` catches up), under a
- * name made from those meters. "Let's go" opens the Map tab.
+ * name made from those meters. "Let's go" opens the Feed tab.
  */
 export default function TasteCard() {
   const me = useMe();

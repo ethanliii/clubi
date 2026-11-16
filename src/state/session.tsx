@@ -24,10 +24,10 @@ type Session = {
   me: Me | null | undefined;
   /**
    * Where a signed-in, onboarded user is sent from a screen that is no longer theirs (welcome,
-   * sign-in, the quiz): Home, or the Map for someone who has just finished the quiz here.
+   * sign-in, the quiz): the Feed, the tab the app opens on.
    */
   landing: Href;
-  /** "Let's go" on the taste card: opens the Map tab and closes onboarding for good. */
+  /** "Let's go" on the taste card: opens the Feed tab and closes onboarding for good. */
   finishOnboarding: () => void;
 };
 
@@ -40,8 +40,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
   const [inOnboarding, setInOnboarding] = useState(false);
   const [settled, setSettled] = useState<Gate | null>(null);
-  // "Let's go" was tapped in this session: the way out of onboarding is the Map, not Home.
-  const [finishedHere, setFinishedHere] = useState(false);
 
   let live: Gate | "loading";
   if (isLoading) live = "loading";
@@ -55,7 +53,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // `users.saveQuiz` flips `onboarded` to true. Forgotten on "Let's go" and on sign-out.
   if (live === "quiz" && !inOnboarding) setInOnboarding(true);
   if (live === "signedOut" && inOnboarding) setInOnboarding(false);
-  if (live === "signedOut" && finishedHere) setFinishedHere(false);
   // While something reloads (signing in, a token refresh) keep the last settled answer,
   // so the screen underneath never flashes to the wrong one.
   if (live !== "loading" && live !== settled) setSettled(live);
@@ -69,13 +66,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Closing onboarding also closes the taste card's route guard, and a closed guard redirects by
   // itself. That redirect and the `replace` below are queued in an order the router decides, so
-  // both must name the same screen: `landing` is the Map from here on.
+  // both must name the same screen: the Feed.
   const finishOnboarding = useCallback(() => {
-    setFinishedHere(true);
     setInOnboarding(false);
-    router.replace(paths.map);
+    router.replace(paths.feed);
   }, []);
-  const landing: Href = finishedHere ? paths.map : paths.home;
+  const landing: Href = paths.feed;
 
   const value = useMemo<Session>(
     () => ({ gate, me: isAuthenticated ? me : null, landing, finishOnboarding }),
