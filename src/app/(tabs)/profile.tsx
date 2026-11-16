@@ -2,7 +2,8 @@ import { useQuery } from "convex/react";
 import { router, type Href } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { EmptyState, Icon, IconButton, Screen, Text, type IconName } from "../../components";
-import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel, TasteMeters } from "../../features/profile";
+import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel } from "../../features/profile";
+import { FavoritesGallery } from "../../features/profile/FavoritesGallery";
 import { api } from "../../lib/api";
 import { paths, rankingsPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
@@ -69,12 +70,7 @@ export default function ProfileScreen() {
         ))}
       </ScrollView>
 
-      {profile.tasteSummary.length > 0 ? (
-        <View style={styles.section}>
-          <SectionLabel title="Taste profile" />
-          <TasteMeters summary={profile.tasteSummary} />
-        </View>
-      ) : null}
+      <FavoritesGallery lists={profile.lists} />
 
       {profile.lists.length === 0 ? (
         <EmptyState

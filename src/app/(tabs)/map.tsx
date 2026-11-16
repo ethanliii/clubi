@@ -58,7 +58,8 @@ export default function MapScreen() {
   const { search: focusSearch } = useLocalSearchParams<{ search?: string }>();
   const { lat, lng, ready, isDemo } = useDemoLocation();
   const [filter, setFilter] = useState<Filter>(DEFAULT_FILTER);
-  const nearby = useNearby(filter);
+  // Many more than a list needs: zooming in makes room for them, each with its photo.
+  const nearby = useNearby(filter, 150);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
   const [snap, setSnap] = useState<SheetSnap>("peek");

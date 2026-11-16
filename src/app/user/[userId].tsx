@@ -18,7 +18,8 @@ import {
   useToast,
 } from "../../components";
 import { FriendButton } from "../../features/friends";
-import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel, TasteMeters } from "../../features/profile";
+import { OutlineButton, PostCard, ProfileHeader, ProfileSkeleton, RankedLists, SectionLabel } from "../../features/profile";
+import { FavoritesGallery } from "../../features/profile/FavoritesGallery";
 import { api, type Id } from "../../lib/api";
 import { formatDateRange, pluralize } from "../../lib/format";
 import { comparePath, paths } from "../../lib/links";
@@ -191,12 +192,7 @@ function UserLoader() {
         </View>
       ) : (
         <>
-          {profile.tasteSummary.length > 0 ? (
-            <View style={styles.section}>
-              <SectionLabel title="Taste profile" />
-              <TasteMeters summary={profile.tasteSummary} />
-            </View>
-          ) : null}
+          <FavoritesGallery lists={profile.lists} />
           {profile.lists.length === 0 ? (
             <EmptyState icon="star" title={`${firstName} hasn't ranked anything yet`} />
           ) : (

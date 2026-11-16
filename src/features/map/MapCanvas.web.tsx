@@ -14,7 +14,7 @@ import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
 import { colors } from "../../theme";
 import { layoutPins, scaleForZoom, type PinPlacement } from "./pinLayout";
-import { PIN, START_ZOOM, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_ZOOM } from "./pinLook";
+import { PHOTO_PIN, PIN, START_ZOOM, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_ZOOM } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
 import { displayName } from "./names";
 
@@ -93,6 +93,37 @@ const CSS = `
   transform: scale(${PIN.selectedScale}) !important;
 }
 
+/* The photo pin: the place's picture in a circle with its score on a chip. Shown instead of the pill when zoomed in. */
+.clubi-photo {
+  position: absolute; left: 0; top: 0; box-sizing: border-box;
+  width: ${PHOTO_PIN.size}px; height: ${PHOTO_PIN.size}px; margin: ${-(PHOTO_PIN.size + PIN.tip)}px 0 0 ${-PHOTO_PIN.size / 2}px;
+  transform-origin: 50% calc(100% + ${PIN.tip}px);
+  border-radius: 50%; background: ${PIN.fill}; border: ${PHOTO_PIN.border}px solid ${PIN.fill};
+  box-shadow: 0 0 0 1px ${PIN.hairline}, 0 3px 8px ${PIN.shadow};
+  opacity: 0; transform: scale(.4); pointer-events: none;
+  transition: transform .2s cubic-bezier(.2,.9,.3,1.2), opacity .16s ease, border-color .14s ease;
+}
+.clubi-pin.is-top .clubi-photo {
+  width: ${PHOTO_PIN.sizeTop}px; height: ${PHOTO_PIN.sizeTop}px; margin: ${-(PHOTO_PIN.sizeTop + PIN.tip)}px 0 0 ${-PHOTO_PIN.sizeTop / 2}px;
+}
+.clubi-photo img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; }
+.clubi-photo::after {
+  content: ""; position: absolute; left: 50%; top: calc(100% + ${PHOTO_PIN.border - 1}px); margin-left: ${-PIN.tipHalf}px; width: 0; height: 0;
+  border-left: ${PIN.tipHalf}px solid transparent; border-right: ${PIN.tipHalf}px solid transparent; border-top: ${PIN.tip}px solid ${PIN.fill};
+}
+.clubi-photo span {
+  position: absolute; left: 50%; bottom: ${-PHOTO_PIN.chipDrop}px; transform: translateX(-50%); z-index: 1;
+  height: ${PHOTO_PIN.chipHeight}px; line-height: ${PHOTO_PIN.chipHeight}px; padding: 0 6px; border-radius: 99px;
+  background: ${PIN.fill}; color: var(--c); box-shadow: 0 0 0 1px ${PIN.hairline};
+  font-size: ${PHOTO_PIN.chipFont}px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.2px;
+}
+.clubi-pin[data-mode="bubble"][data-photo="1"] .clubi-photo { opacity: 1; transform: scale(1); pointer-events: auto; }
+.clubi-pin[data-mode="bubble"][data-photo="1"]:hover .clubi-photo { transform: scale(1.06); }
+.clubi-pin[data-mode="bubble"][data-photo="1"] .clubi-bubble { opacity: 0; transform: scale(.4); pointer-events: none; }
+.clubi-pin.is-selected[data-photo="1"] .clubi-photo { border-color: ${PIN.selectedFill}; transform: scale(${PIN.selectedScale}) !important; }
+.clubi-pin.is-selected[data-photo="1"] .clubi-photo::after { border-top-color: ${PIN.selectedFill}; }
+.clubi-pin.is-selected[data-photo="1"] .clubi-bubble { transform: scale(.4) !important; }
+
 .clubi-dot {
   position: absolute; left: 0; top: 0; box-sizing: border-box;
   width: ${PIN.dot}px; height: ${PIN.dot}px; margin: ${-PIN.dot / 2}px 0 0 ${-PIN.dot / 2}px; border-radius: 50%;
@@ -144,6 +175,7 @@ function pinElement(item: NearbyItem, selected: boolean, placement: PinPlacement
   pin.dataset.pin = item.tier;
   pin.dataset.mode = placement.mode;
   pin.dataset.name = placement.name ? "1" : "0";
+  pin.dataset.photo = placement.photo && item.imageUrl ? "1" : "0";
 
   const bubble = document.createElement("div");
   bubble.className = "clubi-bubble";
@@ -170,7 +202,23 @@ function pinElement(item: NearbyItem, selected: boolean, placement: PinPlacement
   name.setAttribute("aria-hidden", "true");
   name.textContent = displayName(item.name, true);
 
-  pin.append(dot, bubble, name);
+  pin.append(dot, bubble);
+  if (item.imageUrl) {
+    // The picture is set as a property, never as markup, and only fetched once the pin is first shown.
+    const photo = document.createElement("div");
+    photo.className = "clubi-photo";
+    const picture = document.createElement("img");
+    picture.alt = "";
+    picture.loading = "lazy";
+    picture.decoding = "async";
+    picture.draggable = false;
+    picture.src = item.imageUrl;
+    const chip = document.createElement("span");
+    chip.textContent = formatScore(item.score);
+    photo.append(picture, chip);
+    pin.append(photo);
+  }
+  pin.append(name);
   return pin;
 }
 
@@ -272,7 +320,7 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       let placement = placements.get(id) ?? HIDDEN;
       if (placement.mode !== "hidden" && id !== picked && tall > 0) {
         const y = map.project([entry.item.lng, entry.item.lat]).y;
-        const head = placement.mode === "bubble" ? 40 : 8;
+        const head = placement.mode === "bubble" ? (placement.photo ? 64 : 40) : 8;
         if ((y > 0 && y - head < topLine) || (y > bottomLine - 26 && y < tall + 60)) placement = HIDDEN;
       }
       const pin = entry.anchor.firstElementChild as HTMLElement | null;
@@ -286,6 +334,8 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       }
       const name = placement.name ? "1" : "0";
       if (pin.dataset.name !== name) pin.dataset.name = name;
+      const photo = placement.photo && entry.item.imageUrl ? "1" : "0";
+      if (pin.dataset.photo !== photo) pin.dataset.photo = photo;
     }
   }, []);
 
@@ -376,7 +426,7 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
         if (existing.signature !== signature) {
           const old = existing.anchor.firstElementChild as HTMLElement | null;
           // Start from the mode it had, so a pin that turns into a bubble grows instead of blinking.
-          const pin = pinElement(item, selected, old ? { mode: old.dataset.mode as PinPlacement["mode"], name: old.dataset.name === "1" } : placement);
+          const pin = pinElement(item, selected, old ? { mode: old.dataset.mode as PinPlacement["mode"], name: old.dataset.name === "1", photo: old.dataset.photo === "1" } : placement);
           existing.anchor.replaceChildren(pin);
           existing.anchor.setAttribute("aria-label", pinLabel(item));
           existing.signature = signature;

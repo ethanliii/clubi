@@ -10,10 +10,17 @@
  * with a pan. Both maps call it: the web one with MapLibre's zoom, the native one with its region.
  */
 import type { NearbyItem } from "../../lib/api";
-import { PIN, bubbleSize } from "./pinLook";
+import { PIN, pinSize } from "./pinLook";
 
 export type PinMode = "bubble" | "dot" | "hidden";
-export type PinPlacement = { mode: PinMode; name: boolean };
+export type PinPlacement = { mode: PinMode; name: boolean; /** Drawn as its photo in a circle, not as a score pill. */ photo?: boolean };
+
+/**
+ * Photos show from this zoom in (MapLibre's number; the map opens one level closer than this).
+ * Further out there is no room for pictures: pins are score pills, then dots.
+ */
+export const PHOTO_ZOOM = 13.3;
+export const photosAt = (scale: number) => scale >= scaleForZoom(PHOTO_ZOOM);
 
 type Box = { left: number; top: number; right: number; bottom: number };
 
@@ -49,12 +56,14 @@ export function layoutPins(items: readonly NearbyItem[], scale: number, selected
   const order = [...items].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || a.rank - b.rank);
   const points = new Map(order.map((item) => [item.id as string, project(item.lat, item.lng, scale)]));
 
+  const photos = photosAt(scale);
+  const hasPhoto = (item: NearbyItem) => photos && !!item.imageUrl;
   const bubbles: { id: string; box: Box }[] = [];
   const waiting: NearbyItem[] = [];
   for (const item of order) {
     const at = points.get(item.id)!;
     const selected = item.id === selectedId;
-    const size = bubbleSize(item);
+    const size = pinSize(item, hasPhoto(item));
     const grown = selected ? PIN.selectedScale : 1;
     const box: Box = {
       left: at.x - (size.width * grown) / 2,
@@ -66,7 +75,7 @@ export function layoutPins(items: readonly NearbyItem[], scale: number, selected
     const room = grow(box, item.tier === "other" ? OTHER_GAP : BUBBLE_GAP);
     if (selected || !bubbles.some((other) => touches(room, other.box))) {
       bubbles.push({ id: item.id, box });
-      placed.set(item.id, { mode: "bubble", name: false });
+      placed.set(item.id, { mode: "bubble", name: false, photo: hasPhoto(item) });
     } else {
       waiting.push(item);
     }
@@ -102,7 +111,7 @@ export function layoutPins(items: readonly NearbyItem[], scale: number, selected
       !dots.some((dot) => touches(box, { left: dot.x - half, right: dot.x + half, top: dot.y - half, bottom: dot.y + half }));
     if (bubble.id === selectedId || clear) {
       names.push(box);
-      placed.set(bubble.id, { mode: "bubble", name: true });
+      placed.set(bubble.id, { mode: "bubble", name: true, photo: hasPhoto(item) });
     }
   }
   return placed;

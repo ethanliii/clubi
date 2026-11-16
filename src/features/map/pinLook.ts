@@ -71,6 +71,19 @@ export function bubbleSize(item: NearbyItem) {
   return item.tier === "top" ? PIN.bubbleTop : PIN.bubble;
 }
 
+/**
+ * A photo pin: the place's picture in a circle, its score on a small chip over the bottom edge.
+ * Zoomed in, a bubble whose place has a picture is drawn this way; zoomed out it is the score pill again.
+ */
+export const PHOTO_PIN = { size: 46, sizeTop: 54, border: 2.5, chipHeight: 16, chipFont: 11, chipDrop: 6 } as const;
+
+/** The room a pin's head takes above its point: the pill, or the photo circle when `photo`. */
+export function pinSize(item: NearbyItem, photo: boolean): { width: number; height: number } {
+  if (!photo) return bubbleSize(item);
+  const size = item.tier === "top" ? PHOTO_PIN.sizeTop : PHOTO_PIN.size;
+  return { width: size, height: size };
+}
+
 /** What a screen reader and a hover tooltip say for a pin. */
 export function pinLabel(item: NearbyItem): string {
   return `${item.name}, ${formatScore(item.score)} for you`;
@@ -84,7 +97,7 @@ export function pinOrder(item: NearbyItem, bubble: boolean, selected: boolean): 
 
 /** Everything a pin's picture depends on besides its mode. When it changes, the pin is redrawn. */
 export function pinSignature(item: NearbyItem, selected: boolean): string {
-  return [item.tier, item.category, formatScore(item.score), item.name, selected ? "1" : "0"].join("|");
+  return [item.tier, item.category, formatScore(item.score), item.name, selected ? "1" : "0", item.imageUrl ?? ""].join("|");
 }
 
 /** Initial zoom on the web map: about 1.4 km across a phone, a short walk in every direction. */
