@@ -26,7 +26,8 @@ import { useMutationToast } from "../../lib/useMutationToast";
 import { useNearby } from "../../lib/useNearby";
 import { colors, fontWeight, layout, palette, radius } from "../../theme";
 
-type Step = { title: string; hint: string; done: boolean; body: ReactNode };
+/** `autoNext`: one tap answers it, so the quiz moves on by itself. */
+type Step = { title: string; hint: string; done: boolean; body: ReactNode; autoNext?: boolean };
 
 /** Today, outside the component (the purity lint). */
 function today(): Date {
@@ -69,6 +70,14 @@ export default function Quiz() {
   const birthdayError = birthdayIso === null || birthdayIso === "" ? null : birthdayProblem(birthdayIso, today());
   const birthdayOk = !!birthdayIso && birthdayError === null;
 
+  // A one-tap answer (this or that) moves on by itself after a beat, so the pick is seen first.
+  const advanceSoon = () => {
+    setTimeout(() => {
+      setDirection(1);
+      setStep((n) => n + 1); // never the last screen (Been here? comes after)
+    }, 260);
+  };
+
   const steps: Step[] = [
     {
       title: "When's your birthday?",
@@ -90,8 +99,8 @@ export default function Quiz() {
       ),
     },
     {
-      title: "Rate these songs",
-      hint: "Tap the stars. Rate at least three.",
+      title: "How hard do these go?",
+      hint: "Rate a few songs. One star = skip, five = I'm on the table.",
       done: Object.keys(a.songs).length >= 3,
       body: (
         <View style={styles.options}>
@@ -115,25 +124,41 @@ export default function Quiz() {
         </View>
       ),
     },
-    {
-      title: "This or that?",
-      hint: "Go with your gut.",
-      done: THIS_OR_THAT.every((_, i) => a.thisOrThat[i] !== undefined),
+    // This or that: one pair per screen, two big cards with OR between them; tapping one moves on.
+    ...THIS_OR_THAT.map((pair, i): Step => ({
+      title: pair.q,
+      hint: `This or that · ${i + 1} of ${THIS_OR_THAT.length}`,
+      done: a.thisOrThat[i] !== undefined,
+      autoNext: true,
       body: (
-        <View style={styles.options}>
-          {THIS_OR_THAT.map((pair, i) => (
-            <View key={pair[0]} style={styles.pair}>
-              {pair.map((label, side) => (
-                <View key={label} style={styles.flex}>
-                  <QuizOption label={label} many={false} selected={a.thisOrThat[i] === side} disabled={busy}
-                    onPress={() => set((x) => { const t = [...x.thisOrThat]; t[i] = side as 0 | 1; return { thisOrThat: t }; })} />
-                </View>
-              ))}
-            </View>
-          ))}
+        <View style={styles.tot}>
+          {pair.a.map((label, side) => {
+            const on = a.thisOrThat[i] === side;
+            return (
+              <View key={label} style={{ gap: 10 }}>
+                {side === 1 ? (
+                  <View style={styles.orRow}>
+                    <View style={styles.orLine} />
+                    <Text style={styles.or}>OR</Text>
+                    <View style={styles.orLine} />
+                  </View>
+                ) : null}
+                <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: on }} aria-checked={on}
+                  disabled={busy}
+                  onPress={() => {
+                    set((x) => { const t = [...x.thisOrThat]; t[i] = side as 0 | 1; return { thisOrThat: t }; });
+                    advanceSoon();
+                  }}
+                  style={({ pressed }) => [styles.totCard, on && styles.totOn, pressed && styles.dimmed]}>
+                  <Text style={[styles.totLabel, on && styles.totLabelOn]}>{label}</Text>
+                  <Text style={[styles.totSub, on && styles.totSubOn]}>{pair.sub[side]}</Text>
+                </Pressable>
+              </View>
+            );
+          })}
         </View>
       ),
-    },
+    })),
     ...a.scenarioKeys.map((key): Step => ({
       title: SCENARIOS[key].text,
       hint: "Choose one",
@@ -252,8 +277,9 @@ export default function Quiz() {
     setStep(to);
   };
 
-  const next = async () => {
-    if (!s.done || busy) return;
+  // Skip leaves the answer empty; the backend cards fall back to neutral picks (toBackendCards).
+  const next = async (skip = false) => {
+    if ((!s.done && !skip) || busy) return;
     if (!isLast) {
       go(step + 1);
       return;
@@ -334,7 +360,13 @@ export default function Quiz() {
           buttonStyle={styles.next}
           onPress={() => void next()}
         />
-        <Text variant="caption" muted center>Shapes your matches, not your profile</Text>
+        {s.done ? (
+          <Text variant="caption" muted center>Shapes your matches, not your profile</Text>
+        ) : (
+          <Pressable accessibilityRole="button" accessibilityLabel="Skip this question" disabled={busy} onPress={() => void next(true)} hitSlop={8}>
+            <Text style={styles.skip}>{isLast ? "Skip and finish" : "Skip this question"}</Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -400,7 +432,6 @@ const styles = StyleSheet.create({
   stars: { flexDirection: "row" },
   star: { fontSize: 22, lineHeight: 26, color: colors.line, paddingHorizontal: 1 },
   starOn: { color: "#f5b301" },
-  pair: { flexDirection: "row", gap: 10 },
   days: { flexDirection: "row", justifyContent: "space-between" },
   day: { alignItems: "center", gap: 6, paddingVertical: 4, minWidth: 40 },
   dayDot: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: colors.line, backgroundColor: palette.field },
@@ -413,4 +444,15 @@ const styles = StyleSheet.create({
   footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 10 },
   fade: { position: "absolute", left: 0, right: 0, top: -28, height: 28, pointerEvents: "none" },
   next: { minHeight: 54 },
+  skip: { color: colors.muted, fontSize: 14, lineHeight: 20, fontWeight: fontWeight.semibold, textAlign: "center", textDecorationLine: "underline" },
+  tot: { gap: 10, marginTop: 4 },
+  totCard: { minHeight: 120, borderRadius: radius.lg, padding: 20, justifyContent: "center", gap: 6, backgroundColor: palette.field, borderWidth: 2, borderColor: "transparent" },
+  totOn: { backgroundColor: colors.fg, borderColor: colors.fg },
+  totLabel: { fontSize: 24, lineHeight: 29, fontWeight: "800", letterSpacing: -0.4, color: colors.fg },
+  totLabelOn: { color: colors.bg },
+  totSub: { fontSize: 15, lineHeight: 20, color: colors.muted },
+  totSubOn: { color: colors.bg, opacity: 0.8 },
+  orRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  orLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
+  or: { fontSize: 13, lineHeight: 16, fontWeight: fontWeight.bold, letterSpacing: 2, color: colors.muted },
 });

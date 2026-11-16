@@ -50,11 +50,16 @@ export const SONGS = [
   { title: "Kill Bill", artist: "SZA", genre: "R&B", hue: 150 },
 ] as const;
 
+/**
+ * One question per pair, two clear sides. Keep the first four in this order and keep left/right as
+ * they are: `toBackendCards` reads index 0 (crowd), 2 (music) and 3 (loudness), `archetype` reads 1 and 3.
+ */
 export const THIS_OR_THAT = [
-  ["Packed dance floor", "Open patio"],
-  ["Dive bar", "Rooftop"],
-  ["DJ set", "Live band"],
-  ["Dancing", "Talking"],
+  { q: "Where do you end up?", a: ["Packed dance floor", "Chill patio"], sub: ["Shoulder to shoulder", "Room to talk"] },
+  { q: "Pick tonight's spot", a: ["Dive bar", "Rooftop lounge"], sub: ["Cheap drinks, no dress code", "Views and a dress code"] },
+  { q: "Who's playing?", a: ["DJ set", "Live band"], sub: ["Keep it going all night", "Real instruments"] },
+  { q: "Your move at midnight", a: ["On the dance floor", "Deep in conversation"], sub: ["Music up", "Music low"] },
+  { q: "How did the plan happen?", a: ["Planned all week", "Decided 10 min ago"], sub: ["Reservations, outfits", "Wherever the group chat lands"] },
 ] as const;
 
 export type ScenarioKey = "oneam" | "packed" | "song" | "onedrink" | "tuesday";
@@ -71,7 +76,7 @@ function pickScenarios(): ScenarioKey[] {
   return keys.sort(() => Math.random() - 0.5).slice(0, 3);
 }
 
-export const SQUAD = ["Solo", "2–3", "4–6", "The whole floor"] as const;
+export const SQUAD = ["Just me", "Me + 1 or 2", "A group of 4–6", "Whoever's down (7+)"] as const;
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export const BUDGET = [
   { amount: "$0", label: "Free campus party" },
@@ -80,12 +85,13 @@ export const BUDGET = [
   { amount: "$100+", label: "No regrets" },
 ] as const;
 
-export type TakeKey = "pregame" | "unplanned" | "friends" | "cover";
+export type TakeKey = "pregame" | "unplanned" | "friends" | "cover" | "late";
 export const TAKES: { key: TakeKey; text: string }[] = [
-  { key: "pregame", text: "Pregame > the actual party" },
-  { key: "unplanned", text: "Best nights are unplanned" },
-  { key: "friends", text: "I go wherever my friends go" },
-  { key: "cover", text: "I'd pay a $25 cover for the right spot" },
+  { key: "pregame", text: "The pregame is better than the party" },
+  { key: "unplanned", text: "The best nights are never planned" },
+  { key: "friends", text: "I'll go anywhere if my friends are there" },
+  { key: "cover", text: "A $25 cover is fine for the right spot" },
+  { key: "late", text: "The night doesn't start until 11" },
 ];
 export const AGREE = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"] as const;
 
