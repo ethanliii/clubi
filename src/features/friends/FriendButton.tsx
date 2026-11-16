@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, IconButton, Sheet, Text, useToast } from "../../components";
+import { Button, Sheet, Text, useToast } from "../../components";
 import { api, type FriendStatus, type Id } from "../../lib/api";
 import { confirm } from "../../lib/confirm";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, spacing } from "../../theme";
+import { spacing } from "../../theme";
+import { RowButton } from "./RowButton";
 
 export type FriendButtonProps = {
   userId: Id<"users">;
@@ -39,53 +40,32 @@ export function FriendButton({
   const cancel = useMutationToast(api.friends.cancel);
   const remove = useMutationToast(api.friends.remove);
   const pending = request.pending || respond.pending || cancel.pending || remove.pending;
-  // In a list the buttons are small pills that hug their label; on a profile they fill the row.
-  const size = compact ? "sm" : "lg";
-  const fit = compact ? styles.compact : undefined;
-  const slop = compact ? COMPACT_SLOP : undefined;
 
   if (status === "self") return null;
 
   if (status === "none") {
-    return (
-      <Button
-        title={addLabel}
-        accessibilityLabel={addLabel}
-        variant={compact ? "light" : "primary"}
-        size={size}
-        disabled={pending}
-        hitSlop={slop}
-        style={fit}
-        onPress={async () => {
-          const result = await request.run({ userId });
-          if (result) toast(result.status === "friends" ? `You and ${displayName} are now friends` : "Request sent", "success");
-        }}
-      />
-    );
+    const add = async () => {
+      const result = await request.run({ userId });
+      if (result) toast(result.status === "friends" ? `You and ${displayName} are now friends` : "Request sent", "success");
+    };
+    if (compact) return <RowButton title={addLabel} kind="outline" disabled={pending} onPress={() => void add()} />;
+    return <Button title={addLabel} accessibilityLabel={addLabel} disabled={pending} onPress={add} />;
   }
 
   if (status === "outgoing") {
-    return (
-      <Button
-        title="Requested"
-        accessibilityLabel="Requested"
-        variant="ghost"
-        disabled={pending || requestId === undefined}
-        size={size}
-        hitSlop={slop}
-        style={fit}
-        onPress={async () => {
-          if (requestId === undefined) return;
-          const sure = await confirm({
-            title: "Take back your friend request?",
-            message: `${displayName} won't be told.`,
-            confirmLabel: "Take it back",
-            cancelLabel: "Keep it",
-          });
-          if (sure) await cancel.run({ requestId });
-        }}
-      />
-    );
+    const takeBack = async () => {
+      if (requestId === undefined) return;
+      const sure = await confirm({
+        title: "Take back your friend request?",
+        message: `${displayName} won't be told.`,
+        confirmLabel: "Take it back",
+        cancelLabel: "Keep it",
+      });
+      if (sure) await cancel.run({ requestId });
+    };
+    const off = pending || requestId === undefined;
+    if (compact) return <RowButton title="Requested" kind="soft" disabled={off} onPress={() => void takeBack()} />;
+    return <Button title="Requested" accessibilityLabel="Requested" variant="secondary" disabled={off} onPress={takeBack} />;
   }
 
   if (status === "incoming") {
@@ -94,28 +74,13 @@ export function FriendButton({
       const result = await respond.run({ requestId, accept });
       if (result !== undefined && accept) toast(`You and ${displayName} are now friends`, "success");
     };
+    const off = pending || requestId === undefined;
     if (compact) {
-      // One tap to accept; declining is the small cross beside it.
+      // The solid button says yes; the quiet word beside it says no.
       return (
-        <View style={styles.pair}>
-          <Button
-            title="Accept"
-            accessibilityLabel="Accept"
-            size="sm"
-            disabled={pending || requestId === undefined}
-            hitSlop={COMPACT_SLOP}
-            style={styles.compact}
-            onPress={answer(true)}
-          />
-          <IconButton
-            icon="close"
-            accessibilityLabel="Decline"
-            plain
-            size={36}
-            color={colors.muted}
-            disabled={pending || requestId === undefined}
-            onPress={answer(false)}
-          />
+        <View style={styles.pairCompact}>
+          <RowButton title="Accept" kind="solid" disabled={off} onPress={() => void answer(true)()} />
+          <RowButton title="Decline" kind="quiet" disabled={off} onPress={() => void answer(false)()} />
         </View>
       );
     }
@@ -142,16 +107,17 @@ export function FriendButton({
 
   return (
     <>
-      <Button
-        title="Friends"
-        accessibilityLabel="Friends"
-        variant="ghost"
-        disabled={pending}
-        size={size}
-        hitSlop={slop}
-        style={fit}
-        onPress={() => setMenuOpen(true)}
-      />
+      {compact ? (
+        <RowButton title="Friends" kind="outline" disabled={pending} onPress={() => setMenuOpen(true)} />
+      ) : (
+        <Button
+          title="Friends"
+          accessibilityLabel="Friends"
+          variant="secondary"
+          disabled={pending}
+          onPress={() => setMenuOpen(true)}
+        />
+      )}
       <Sheet visible={menuOpen} onClose={() => setMenuOpen(false)} title={displayName}>
         <Text muted>You are friends. You see each other&apos;s rankings and posts.</Text>
         <Button
@@ -173,12 +139,9 @@ export function FriendButton({
   );
 }
 
-/** A list button is 36 tall; this makes what the thumb can hit 48. */
-const COMPACT_SLOP = { top: 6, bottom: 6, left: 4, right: 4 };
-
 const styles = StyleSheet.create({
-  compact: { width: "auto", paddingHorizontal: 16 },
   pair: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  pairCompact: { flexDirection: "row", alignItems: "center", gap: 2 },
   pairWide: { width: "100%" },
   half: { flex: 1, width: "auto" },
   close: { alignSelf: "center" },

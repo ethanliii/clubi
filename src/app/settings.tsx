@@ -77,9 +77,9 @@ export default function SettingsScreen() {
               <Skeleton width={96} height={96} round={48} />
               <Skeleton width={140} height={20} />
             </View>
-            <Skeleton height={210} round={radius.xl} />
-            <Skeleton height={150} round={radius.xl} />
-            <Skeleton height={260} round={radius.xl} />
+            <Skeleton height={200} round={radius.lg} />
+            <Skeleton height={150} round={radius.lg} />
+            <Skeleton height={260} round={radius.lg} />
           </View>
         ) : (
           <>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   content: { gap: spacing.xl + spacing.xs, paddingBottom: spacing.xxl * 2 },
   loading: { gap: spacing.xl },
   loadingFace: { alignItems: "center", gap: spacing.md, paddingBottom: spacing.sm },
-  choice: { gap: spacing.md, paddingHorizontal: ROW_INSET, paddingTop: 14, paddingBottom: ROW_INSET },
+  choice: { gap: spacing.md, paddingHorizontal: ROW_INSET, paddingTop: spacing.sm, paddingBottom: spacing.lg - 2 },
   choiceText: { gap: 2 },
   apart: { marginTop: spacing.md },
 });

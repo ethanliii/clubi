@@ -1,14 +1,13 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Button, EmptyState, Skeleton, Text } from "../../components";
 import type { GroupItem, GroupResult, Kind, TripDetail, TripShortlistItem } from "../../lib/api";
 import { categoryLabel } from "../../lib/format";
 import { userPath, venuePath } from "../../lib/links";
-import { fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, radius, spacing } from "../../theme";
 import { AddFace, Face, FaceRow } from "./Faces";
 import { MemberScores, ScoreFaces } from "./MemberScores";
-import { GUTTER } from "./Page";
 import { PlaceCard } from "./PlaceCard";
 import { PlacePhoto } from "./PlacePhoto";
 import { SectionLabel } from "./ScreenTop";
@@ -67,7 +66,7 @@ function PicksSkeleton() {
     <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.picks}>
       {[0, 1].map((index) => (
         <View key={index} style={styles.skeleton}>
-          <Skeleton height={196} round={radius.xl} />
+          <Skeleton height={188} round={radius.lg} />
           <Skeleton width="62%" height={18} />
           <Skeleton width="40%" height={12} />
         </View>
@@ -77,9 +76,9 @@ function PicksSkeleton() {
 }
 
 /**
- * "Picks for the group": `api.discover.forGroup` in the order it came, as photo cards. The score
- * on the photo is the group's; under each card are every member's own score, how much they agree,
- * and the two thumbs.
+ * "Picks for the group": `api.discover.forGroup` in the order it came, as photo cards. The ring
+ * beside the name is the group's score; under each card are every member's own score, how much
+ * they agree, and the two thumbs.
  */
 export function GroupPicks({
   group,
@@ -142,14 +141,12 @@ export function GroupPicks({
               aside={<VoteButtons myVote={voteOf(item.id)} onVote={(tapped) => onVote(item.kind, item.id, tapped)} />}
             >
               {solo ? (
-                // On my own there is one score, already on the photo: show friends who ranked it.
+                // On my own there is one score, already beside the name: show friends who ranked it.
                 <ScoreFaces scores={item.friends} />
               ) : (
-                <View style={styles.pickPeople}>
-                  <View style={styles.flex}>
-                    <MemberScores scores={item.memberScores} meId={meId} />
-                  </View>
-                  <Text variant="caption" muted>{`${Math.round(item.agreement * 100)}% agree`}</Text>
+                <View>
+                  <MemberScores scores={item.memberScores} meId={meId} />
+                  <Text variant="caption" muted style={styles.agree}>{`${Math.round(item.agreement * 100)}% agree`}</Text>
                 </View>
               )}
             </PlaceCard>
@@ -161,6 +158,7 @@ export function GroupPicks({
           title={`Show all ${group.items.length} picks`}
           accessibilityLabel="Show all picks"
           variant="ghost"
+          size="md"
           onPress={() => setShowAll(true)}
         />
       ) : null}
@@ -168,12 +166,12 @@ export function GroupPicks({
   );
 }
 
-const TILE = 168;
+const THUMB = 56;
 
 /**
- * "Shortlist": what the group has voted up, in the backend's order, as a row of photo tiles that
- * scrolls sideways, each with its vote counts. A tile's picture is its own `imageUrl` when the
- * backend sends one; otherwise `photoOf` borrows it from the matching pick.
+ * "Shortlist": what the group has voted up, in the backend's order, as numbered rows ("1. Name")
+ * with the vote counts at the right. A row's picture is its own `imageUrl` when the backend sends
+ * one; otherwise `photoOf` borrows it from the matching pick.
  */
 export function Shortlist({
   items,
@@ -191,31 +189,27 @@ export function Shortlist({
   return (
     <View style={styles.section}>
       <SectionLabel title="Shortlist" count={items.length} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.strip}
-        contentContainerStyle={styles.stripContent}
-      >
-        {items.map((item) => (
-          <View key={item.id} style={styles.tile}>
+      <View>
+        {items.map((item, index) => (
+          <View key={item.id} style={[styles.listed, index > 0 && styles.divided]}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={item.name}
               onPress={() => router.push(venuePath(item.kind, item.id))}
-              style={({ pressed }) => [styles.tileOpen, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.listedOpen, pressed && styles.pressed]}
             >
               <PlacePhoto
-                uri={(item as { imageUrl?: string }).imageUrl ?? photoOf?.(item.id)}
+                uri={item.imageUrl ?? photoOf?.(item.id)}
                 category={item.category}
-                height={112}
-                round={radius.lg}
+                height={THUMB}
+                width={THUMB}
+                round={radius.md}
               />
-              <View>
-                <Text numberOfLines={1} style={styles.tileName}>
-                  {item.name}
+              <View style={styles.flex}>
+                <Text numberOfLines={1} style={styles.listedName}>
+                  {`${index + 1}. ${item.name}`}
                 </Text>
-                <Text variant="caption" muted numberOfLines={1}>
+                <Text muted numberOfLines={1} style={styles.listedMeta}>
                   {[categoryLabel(item.category), item.addedBy ? `added by ${item.addedBy.displayName.split(" ")[0]}` : ""]
                     .filter((part) => part !== "")
                     .join(" · ")}
@@ -234,22 +228,22 @@ export function Shortlist({
             )}
           </View>
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { gap: spacing.md + 2 },
+  section: { gap: spacing.md },
   heading: { gap: 2 },
-  picks: { gap: spacing.xl + 4 },
+  picks: { gap: spacing.xl },
   skeleton: { gap: spacing.sm + 2 },
   flex: { flex: 1 },
-  pickPeople: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  pressed: { opacity: 0.75 },
-  strip: { flexGrow: 0, marginHorizontal: -GUTTER },
-  stripContent: { paddingHorizontal: GUTTER, gap: spacing.md },
-  tile: { width: TILE, gap: spacing.sm },
-  tileOpen: { gap: spacing.sm },
-  tileName: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold },
+  agree: { marginTop: 2 },
+  pressed: { opacity: 0.7 },
+  listed: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingVertical: spacing.sm + 2 },
+  divided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  listedOpen: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 44 },
+  listedName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  listedMeta: { fontSize: 14, lineHeight: 19 },
 });

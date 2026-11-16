@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ScoreBadge, Text } from "../../components";
 import type { Category, Id, Kind } from "../../lib/api";
+import { categoryLabel } from "../../lib/format";
 import { venuePath } from "../../lib/links";
-import { colors, fontWeight, spacing } from "../../theme";
-import { PlacePhoto } from "./PlacePhoto";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
 export type RankedRowItem = {
   kind: Kind;
@@ -18,7 +18,8 @@ export type RankedRowItem = {
 };
 
 /**
- * One line of a ranked list, exactly as the backend sent it: its position, photo, name and score.
+ * One line of a ranked list, exactly as the backend sent it: "1. Name", a grey line under it
+ * (`subtitle`, else the kind of place) and the score in its ring at the right.
  * Tapping it opens the venue. `trailing` sits outside the tappable part (the "Remove" button).
  */
 export function RankedRow({
@@ -37,33 +38,22 @@ export function RankedRow({
   trailing?: ReactNode;
 }) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, divider && styles.divider]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={item.name}
         onPress={() => router.push(venuePath(item.kind, item.id))}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}
       >
-        {showPosition ? (
-          <Text style={[styles.position, item.position === 1 && styles.first]}>{item.position}</Text>
-        ) : null}
-        <PlacePhoto uri={item.imageUrl} category={item.category} width={56} height={56} round={12} />
-        <View style={[styles.rest, divider && styles.divider]}>
-          <View style={styles.text}>
-            <Text numberOfLines={2} style={styles.name}>
-              {item.name}
-            </Text>
-            {subtitle ? (
-              <Text variant="caption" muted numberOfLines={1}>
-                {subtitle}
-              </Text>
-            ) : null}
-          </View>
-          {/* The badge aligns itself to the top; the wrapper centres it on the row. */}
-          <View style={styles.score}>
-            <ScoreBadge score={item.score} size="md" />
-          </View>
+        <View style={styles.text}>
+          <Text numberOfLines={2} style={styles.name}>
+            {showPosition ? `${item.position}. ${item.name}` : item.name}
+          </Text>
+          <Text numberOfLines={1} style={styles.meta}>
+            {subtitle ?? categoryLabel(item.category)}
+          </Text>
         </View>
+        <ScoreBadge score={item.score} size="md" style={styles.score} />
       </Pressable>
       {trailing}
     </View>
@@ -72,28 +62,11 @@ export function RankedRow({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
-  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md },
-  pressed: { opacity: 0.6 },
-  position: {
-    width: 20,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: fontWeight.bold,
-    fontVariant: ["tabular-nums"],
-    color: colors.muted,
-  },
-  first: { color: colors.fg },
-  // The hairline starts at the text, not under the photo, so the photos read as one column.
-  rest: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    minHeight: 76,
-    paddingVertical: 10,
-  },
-  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
+  main: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 68, paddingVertical: spacing.md },
+  pressed: { opacity: 0.55 },
   text: { flex: 1, gap: spacing.xxs },
-  score: { minWidth: 44, alignItems: "flex-end" },
-  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold },
+  name: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
+  meta: { fontSize: 13, lineHeight: 17, color: colors.muted },
+  score: { alignSelf: "center" },
 });

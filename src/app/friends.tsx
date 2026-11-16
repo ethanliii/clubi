@@ -1,8 +1,8 @@
 import { useQuery } from "convex/react";
 import { useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, EmptyState, Header, Screen, SkeletonRows, Text } from "../components";
-import { FriendButton, PersonRow, personFacts, SearchBar } from "../features/friends";
+import { EmptyState, Header, Screen, SkeletonRows, Text } from "../components";
+import { FriendButton, PersonRow, personFacts, RowButton, SearchBar } from "../features/friends";
 import { api, type FriendSuggestion, type FriendsOverview } from "../lib/api";
 import { pluralize } from "../lib/format";
 import { useDebounced } from "../lib/useDebounced";
@@ -25,14 +25,10 @@ function Section({ title, count, children }: { title: string; count?: number; ch
   return (
     <View>
       <View style={styles.sectionHead}>
-        <Text variant="title" accessibilityRole="header">
+        <Text accessibilityRole="header" style={styles.sectionTitle}>
           {title}
         </Text>
-        {count !== undefined ? (
-          <Text variant="title" style={styles.count}>
-            {count}
-          </Text>
-        ) : null}
+        {count !== undefined ? <Text style={styles.count}>{count}</Text> : null}
       </View>
       {children}
     </View>
@@ -120,10 +116,9 @@ function Overview({
               ])}
               right={
                 friend.tasteMatchPct !== undefined ? (
-                  <View accessible accessibilityLabel={`${friend.tasteMatchPct}% match`} style={styles.match}>
-                    <Text style={styles.matchPct}>{`${friend.tasteMatchPct}%`}</Text>
-                    <Text style={styles.matchLabel}>match</Text>
-                  </View>
+                  <Text accessibilityLabel={`${friend.tasteMatchPct}% match`} style={styles.match}>
+                    {`${friend.tasteMatchPct}% match`}
+                  </Text>
                 ) : undefined
               }
             />
@@ -162,14 +157,10 @@ function Overview({
               last={index === outgoing.length - 1}
               subtitle={personFacts([`@${request.user.username}`, mutualLine(request.mutualCount)])}
               right={
-                <Button
+                <RowButton
                   title="Cancel"
-                  accessibilityLabel="Cancel"
-                  variant="secondary"
-                  size="sm"
+                  kind="soft"
                   disabled={cancel.pending}
-                  hitSlop={6}
-                  style={styles.rowButton}
                   onPress={() => void cancel.run({ requestId: request.requestId })}
                 />
               }
@@ -214,11 +205,9 @@ export default function FriendsScreen() {
 
 const styles = StyleSheet.create({
   scroller: { flex: 1 },
-  content: { gap: spacing.xl + spacing.xs, paddingTop: spacing.xs, paddingBottom: spacing.xxl * 2 },
-  sectionHead: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm, marginBottom: spacing.xs },
-  count: { color: colors.muted, fontWeight: fontWeight.medium },
-  match: { alignItems: "flex-end", minWidth: 48 },
-  matchPct: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold },
-  matchLabel: { fontSize: 11, lineHeight: 14, color: colors.muted },
-  rowButton: { width: "auto", paddingHorizontal: 16 },
+  content: { gap: spacing.xl, paddingTop: spacing.xs, paddingBottom: spacing.xxl * 2 },
+  sectionHead: { flexDirection: "row", alignItems: "baseline", gap: 6, marginBottom: 2 },
+  sectionTitle: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
+  count: { fontSize: 15, lineHeight: 24, fontWeight: fontWeight.medium, color: colors.muted },
+  match: { fontSize: 13, lineHeight: 18, color: colors.muted },
 });

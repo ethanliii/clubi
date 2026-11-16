@@ -43,7 +43,7 @@ export default function TripScreen() {
             <Skeleton key={index} width={56} height={56} round={28} />
           ))}
         </View>
-        <Skeleton height={196} round={radius.xl} />
+        <Skeleton height={188} round={radius.lg} />
         <Skeleton width="60%" height={18} />
       </Screen>
     );
@@ -229,7 +229,7 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
               variant="ghost"
               disabled={respond.pending}
               onPress={() => void answer(false)}
-              style={styles.flex}
+              style={styles.decline}
             />
           </View>
         </View>
@@ -289,19 +289,12 @@ function TripBody({ trip, onGone }: { trip: TripDetail; onGone: () => void }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  decline: { flex: 1, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line },
   top: { gap: spacing.xs + 2 },
   facts: { fontSize: 15 },
   loadingFaces: { flexDirection: "row", gap: spacing.md },
-  invite: { gap: spacing.xs, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface },
+  invite: { gap: spacing.xs, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface },
   inviteTitle: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold },
   buttons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
-  // The payoff: a full pill with a soft pink glow, so it reads as the one thing to do next.
-  plan: {
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md + 4,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-  },
+  plan: { borderRadius: radius.pill },
 });

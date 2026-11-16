@@ -7,7 +7,7 @@ import { citySpot } from "../features/trips/city";
 import { Face, FaceRow } from "../features/trips/Faces";
 import { FriendChips, toggleId } from "../features/trips/FriendChips";
 import { MemberScores } from "../features/trips/MemberScores";
-import { PlaceCard } from "../features/trips/PlaceCard";
+import { PlaceRow } from "../features/trips/PlaceCard";
 import { FieldLabel, ScreenTop } from "../features/trips/ScreenTop";
 import { VibeChips, type Vibe } from "../features/trips/vibes";
 import { api, type Id, type PlanResult } from "../lib/api";
@@ -15,8 +15,6 @@ import { useDemoLocation } from "../lib/demoLocation";
 import { useNow } from "../lib/useNow";
 import { useMe } from "../state/session";
 import { colors, fontWeight, radius, spacing } from "../theme";
-
-const PHOTO = 168;
 
 /** One step of the night on the timeline: the dot and line on the left, the stop on the right. */
 function Step({ last, children }: { last: boolean; children: ReactNode }) {
@@ -36,9 +34,8 @@ function StopsSkeleton() {
     <View accessibilityRole="progressbar" accessibilityLabel="Loading">
       {[0, 1, 2].map((index) => (
         <Step key={index} last={index === 2}>
-          <Skeleton width={72} height={16} />
-          <Skeleton height={PHOTO} round={radius.xl} />
-          <Skeleton width="60%" height={16} />
+          <Skeleton width={72} height={14} />
+          <Skeleton height={84} round={radius.md + 2} />
         </Step>
       ))}
     </View>
@@ -146,9 +143,9 @@ export default function PlanScreen() {
           {shown.stops.map((stop, index) => (
             <Step key={stop.id} last={index === shown.stops.length - 1}>
               <Text style={styles.slot}>{stop.slotLabel}</Text>
-              <PlaceCard item={stop} now={now} photoHeight={PHOTO}>
+              <PlaceRow item={stop} now={now}>
                 <MemberScores scores={stop.memberScores} meId={me?.userId} />
-              </PlaceCard>
+              </PlaceRow>
             </Step>
           ))}
         </View>
@@ -157,8 +154,8 @@ export default function PlanScreen() {
   );
 }
 
-const RAIL = 22;
-const DOT = 12;
+const RAIL = 16;
+const DOT = 10;
 
 const styles = StyleSheet.create({
   group: { gap: spacing.sm + 2 },
@@ -169,17 +166,9 @@ const styles = StyleSheet.create({
   step: { flexDirection: "row", gap: spacing.md },
   rail: { width: RAIL, alignItems: "center" },
   // The dot sits on the slot label's line; the line runs from it down to the next dot.
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    marginTop: 6,
-    borderWidth: 2.5,
-    borderColor: colors.fg,
-    backgroundColor: colors.bg,
-  },
-  line: { flex: 1, width: 2, marginTop: 6, marginBottom: -2, borderRadius: 1, backgroundColor: colors.line },
-  stepBody: { flex: 1, gap: spacing.md },
-  stepGap: { paddingBottom: spacing.xl + 4 },
-  slot: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  dot: { width: DOT, height: DOT, borderRadius: DOT / 2, marginTop: 4, backgroundColor: colors.accent },
+  line: { flex: 1, width: 2, marginTop: 4, marginBottom: -4, borderRadius: 1, backgroundColor: colors.line },
+  stepBody: { flex: 1, gap: spacing.sm },
+  stepGap: { paddingBottom: spacing.xl },
+  slot: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold, color: colors.accent },
 });

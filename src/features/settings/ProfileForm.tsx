@@ -6,7 +6,7 @@ import { api, type SettingsResult } from "../../lib/api";
 import { errorMessage } from "../../lib/errors";
 import { pickPhoto, uploadPhoto } from "../../lib/photos";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, spacing } from "../../theme";
+import { colors, palette, spacing } from "../../theme";
 import { FieldRow } from "./FieldRow";
 import { SettingsGroup } from "./Group";
 
@@ -16,7 +16,7 @@ const FIELDS: Field[] = ["displayName", "bio", "homeCity", "birthday"];
 const DISPLAY_NAME_MAX = 40;
 const BIO_MAX = 160;
 const HOME_CITY_MAX = 60;
-const AVATAR = 96;
+const AVATAR = 88;
 
 /** The photo at the top; tapping it is "Change photo": pick, upload to Convex storage, then `settings.setAvatar`. */
 function AvatarPicker({ settings }: { settings: SettingsResult }) {
@@ -154,7 +154,7 @@ export function ProfileForm({ settings }: { settings: SettingsResult }) {
 }
 
 const styles = StyleSheet.create({
-  form: { gap: spacing.lg },
+  form: { gap: spacing.xl },
   header: { alignItems: "center", gap: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.sm },
   pressed: { opacity: 0.7 },
   avatarBusy: {
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: AVATAR / 2,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: palette.backdrop,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.raised,
+    backgroundColor: palette.field,
     borderWidth: 3,
     borderColor: colors.bg,
     alignItems: "center",

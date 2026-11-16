@@ -5,7 +5,7 @@ import { colors, fontSize, palette, radius, spacing } from "../../theme";
 /** react-native-web draws a focus ring around inputs; the bar is its own focus cue. Native ignores it. */
 const WEB_NO_RING = Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null;
 
-/** The search box: a soft bar with a magnifier, and a clear button once something is typed. */
+/** The search box: a grey pill with a magnifier, and a clear button once something is typed. */
 export function SearchBar({
   value,
   onChangeText,
@@ -50,12 +50,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    height: 46,
-    paddingLeft: 14,
+    height: 44,
+    paddingLeft: 16,
     paddingRight: spacing.sm,
-    borderRadius: radius.lg,
+    borderRadius: radius.pill,
     backgroundColor: palette.field,
   },
   // 16 keeps iOS Safari from zooming the page when the box is focused.
-  input: { flex: 1, height: 46, color: colors.fg, fontSize: fontSize.bodyLg, paddingVertical: 0 },
+  input: { flex: 1, height: 44, color: colors.fg, fontSize: fontSize.bodyLg, paddingVertical: 0 },
 });

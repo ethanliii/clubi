@@ -2,11 +2,12 @@ import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Avatar, Icon, IconButton, Skeleton, Text, type IconName } from "../../components";
 import { api, type FeedItem, type Visibility } from "../../lib/api";
-import { categoryHue, categoryLabel, formatRelativeTime, formatScore } from "../../lib/format";
+import { categoryLabel, formatRelativeTime, formatScore } from "../../lib/format";
 import { ratePath, userPath, venuePath } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors, fontWeight, ratingColor, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 import { POST_MEDIA_HEIGHT, POST_MEDIA_RADIUS, PostMedia } from "./PostMedia";
+import { ScoreRing } from "./ScoreRing";
 
 /** The three choices behind "Who sees it", in the order they are offered. */
 export const VISIBILITY_OPTIONS: { value: Visibility; label: string; icon: IconName }[] = [
@@ -23,14 +24,14 @@ export type PostCardProps = {
   now: number;
   /** The comment button: the feed opens the comment sheet, the post page focuses its comment box. */
   onComments: () => void;
-  /** The "⋯" button, drawn on my own post only. */
+  /** The "⋯" button, drawn at the end of the action row on my own post only. */
   onMenu?: () => void;
-  /** Tapping the time opens the post's own page. Left out on that page. */
+  /** Tapping the line under the headline (standing and time) opens the post's own page. Left out on that page. */
   onOpenPost?: () => void;
 };
 
 /**
- * One post, read top to bottom: who and when, the picture with the place and the score on it,
+ * One post, read top to bottom: "<Name> ranked <Place>" with the score in its ring, the picture,
  * what they said, the short answers, and the like, comment and rank buttons.
  * Everything shown is what `FeedItem` carries; nothing is computed here.
  */
@@ -40,18 +41,22 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
   const liked = post.myReaction !== undefined;
   const reactionCount = post.reactionCount ?? 0;
   const commentCount = post.commentCount ?? 0;
-  const answers = post.insightChips ?? [];
+  // The short answers and the tags, as they came, on one grey line.
+  const facts = [...(post.insightChips ?? []), ...post.tags];
   const visibility = VISIBILITY_OPTIONS.find((option) => option.value === (post.visibility ?? "friends"));
   const time = formatRelativeTime(post.createdAt, now);
   const hasScore = post.score > 0;
   // The place's own photo, once the backend sends one with the post.
   const placePhotoUrl = (target as { imageUrl?: string }).imageUrl;
 
-  // The backend's label ends with the score ("#1 of their bars · 9.5"); the score is already the
-  // big number on the picture, so that ending is not repeated. Any other label is shown as it came.
+  // The backend's label ends with the score ("#1 of their bars · 9.5"); the score is already in
+  // the ring, so that ending is not repeated. Any other label is shown as it came.
   const scoreEnding = ` · ${formatScore(post.score)}`;
   const standing =
     post.label === target.name ? null : post.label.endsWith(scoreEnding) ? post.label.slice(0, -scoreEnding.length) : post.label;
+
+  // Under the headline: where it stands in their list, or what kind of place it is.
+  const detail = standing ?? categoryLabel(target.category);
 
   const openVenue = () => router.push(venuePath(target.kind, target.id));
   const openAuthor = () => router.push(userPath(author.userId));
@@ -61,118 +66,84 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
   return (
     <View style={styles.post}>
       <View style={styles.top}>
-        {/* The avatar opens the profile too; the name beside it is the button screen readers and tests find. */}
         <Pressable
-          accessible={false}
-          aria-hidden
-          tabIndex={-1}
+          accessibilityRole="button"
+          accessibilityLabel={`${author.displayName}'s profile`}
+          hitSlop={4}
           onPress={openAuthor}
           style={({ pressed }) => pressed && styles.pressed}
         >
           <Avatar name={author.displayName} uri={author.avatarUrl} size={40} />
         </Pressable>
         <View style={styles.who}>
-          <View style={styles.line}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${author.displayName}'s profile`}
-              hitSlop={10}
-              onPress={openAuthor}
-              style={({ pressed }) => [styles.shrink, pressed && styles.pressed]}
-            >
-              <Text numberOfLines={1} style={styles.author}>
-                {author.displayName}
-              </Text>
-            </Pressable>
-            {onOpenPost ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open post"
-                hitSlop={12}
-                onPress={onOpenPost}
-                style={({ pressed }) => pressed && styles.pressed}
-              >
+          {/* "<Name> ranked <Place>": the name opens the person, the place opens the place. */}
+          <Text numberOfLines={3} style={styles.headline}>
+            <Text accessibilityLabel={`${author.displayName}'s profile`} onPress={openAuthor} style={styles.strong}>
+              {author.displayName}
+            </Text>
+            <Text style={styles.verb}> ranked </Text>
+            <Text accessibilityLabel={`Open ${target.name}`} onPress={openVenue} style={styles.strong}>
+              {target.name}
+            </Text>
+          </Text>
+          <Pressable
+            accessibilityRole={onOpenPost ? "button" : undefined}
+            accessibilityLabel={onOpenPost ? "Open post" : `${detail}, ${time}`}
+            disabled={!onOpenPost}
+            hitSlop={8}
+            onPress={onOpenPost}
+            style={({ pressed }) => [styles.line, pressed && styles.pressed]}
+          >
+            <Text muted numberOfLines={1} style={[styles.meta, styles.shrink]}>
+              {detail}
+            </Text>
+            <Text muted style={styles.meta}>
+              · {time}
+            </Text>
+            {mine && visibility ? (
+              <View accessibilityLabel={`Who sees it: ${visibility.label}`} style={styles.visibility}>
+                <Icon name={visibility.icon} size={12} color={colors.muted} />
                 <Text muted style={styles.meta}>
-                  {time}
+                  {visibility.label}
                 </Text>
-              </Pressable>
-            ) : (
-              <Text muted style={styles.meta}>
-                {time}
-              </Text>
-            )}
-          </View>
-          {standing || (mine && visibility) ? (
-            <View style={styles.line}>
-              {standing ? (
-                <Text muted numberOfLines={1} style={[styles.meta, styles.shrink]}>
-                  {standing}
-                </Text>
-              ) : null}
-              {mine && visibility ? (
-                <View accessibilityLabel={`Who sees it: ${visibility.label}`} style={styles.visibility}>
-                  <Icon name={visibility.icon} size={12} color={colors.muted} />
-                  <Text muted style={styles.meta}>
-                    {visibility.label}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
+              </View>
+            ) : null}
+          </Pressable>
         </View>
-        {mine && onMenu ? (
-          <IconButton icon="more" accessibilityLabel="Post options" size={44} plain color={colors.muted} onPress={onMenu} style={styles.menu} />
-        ) : null}
+        {hasScore ? <ScoreRing score={post.score} /> : null}
       </View>
 
-      <PostMedia
-        photoUrls={post.photoUrls}
-        placePhotoUrl={placePhotoUrl}
-        name={target.name}
-        detail={categoryLabel(target.category)}
-        score={hasScore ? post.score : undefined}
-        hue={categoryHue(target.category)}
-        onPress={openVenue}
-      />
+      <PostMedia photoUrls={post.photoUrls} placePhotoUrl={placePhotoUrl} name={target.name} onPress={openVenue} />
 
-      {post.caption || answers.length > 0 || post.tags.length > 0 ? (
-        <View style={styles.said}>
-          {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
-          {answers.length > 0 || post.tags.length > 0 ? (
-            <View style={styles.facts}>
-              {answers.map((answer, index) => (
-                <View key={`${answer}-${index}`} accessibilityLabel={answer} style={styles.answer}>
-                  <Text style={styles.answerText}>{answer}</Text>
-                </View>
-              ))}
-              {post.tags.length > 0 ? (
-                <Text muted numberOfLines={1} style={[styles.meta, styles.shrink]}>
-                  {post.tags.join(" · ")}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
-        </View>
+      {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
+      {facts.length > 0 ? (
+        <Text muted numberOfLines={2} style={styles.meta}>
+          {facts.join(" · ")}
+        </Text>
       ) : null}
 
       <View style={styles.actions}>
         <Action
           icon={liked ? "heartFilled" : "heart"}
           accessibilityLabel="Like"
-          color={liked ? colors.accent : colors.fg}
+          color={liked ? palette.danger : palette.soft}
           selected={liked}
           disabled={reacting}
           count={reactionCount}
           onPress={onLike}
         />
-        <Action icon="comment" accessibilityLabel="Comments" color={colors.fg} count={commentCount} onPress={onComments} />
+        <Action icon="comment" accessibilityLabel="Comments" color={palette.soft} count={commentCount} onPress={onComments} />
         <View style={styles.flex} />
-        {post.myScoreForIt !== undefined ? (
-          <Text muted style={styles.meta}>
-            You gave it{" "}
-            <Text style={[styles.mine, { color: ratingColor(post.myScoreForIt) }]}>{formatScore(post.myScoreForIt)}</Text>
-          </Text>
-        ) : !mine ? (
+        {mine && onMenu ? (
+          <IconButton icon="more" accessibilityLabel="Post options" size={44} plain color={palette.soft} onPress={onMenu} style={styles.menu} />
+        ) : mine ? null : post.myScoreForIt !== undefined ? (
+          <View accessibilityLabel={`You gave it ${formatScore(post.myScoreForIt)}`} style={styles.yours}>
+            <Text muted style={styles.meta}>
+              You gave it
+            </Text>
+            <ScoreRing score={post.myScoreForIt} size={32} />
+          </View>
+        ) : (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Rank it too"
@@ -180,10 +151,10 @@ export function PostCard({ post, mine, now, onComments, onMenu, onOpenPost }: Po
             onPress={() => router.push(ratePath(target.kind, target.id))}
             style={({ pressed }) => [styles.rankToo, pressed && styles.pressed]}
           >
+            <Icon name="plusCircle" size={20} color={palette.soft} />
             <Text style={styles.rankTooText}>Rank it too</Text>
-            <Icon name="chevron" size={14} color={colors.fg} />
           </Pressable>
-        ) : null}
+        )}
       </View>
     </View>
   );
@@ -217,7 +188,7 @@ function Action({
       onPress={onPress}
       style={({ pressed }) => [styles.action, pressed && styles.pressed]}
     >
-      <Icon name={icon} size={23} color={color} />
+      <Icon name={icon} size={21} color={color} />
       {count > 0 ? <Text style={styles.count}>{count}</Text> : null}
     </Pressable>
   );
@@ -230,9 +201,10 @@ export function PostSkeleton() {
       <View style={styles.top}>
         <Skeleton width={40} height={40} round={20} />
         <View style={[styles.flex, styles.lines]}>
-          <Skeleton width="45%" height={14} />
-          <Skeleton width="30%" height={11} />
+          <Skeleton width="70%" height={14} />
+          <Skeleton width="40%" height={11} />
         </View>
+        <Skeleton width={44} height={44} round={22} />
       </View>
       <Skeleton height={POST_MEDIA_HEIGHT} round={POST_MEDIA_RADIUS} />
       <Skeleton width="70%" height={14} />
@@ -251,34 +223,38 @@ export function PostSkeletons({ count = 2 }: { count?: number }) {
   );
 }
 
-/** The space between two posts in a list. No line: the pictures separate them. */
-export const POST_GAP = 36;
+/** The hairline between two posts in a list, drawn edge to edge by the list. */
+export function PostDivider() {
+  return <View style={styles.divider} />;
+}
+
+/** The space above and below the hairline between two posts. */
+export const POST_GAP = 14;
 
 const styles = StyleSheet.create({
-  post: { gap: spacing.md },
+  post: { gap: 10 },
   flex: { flex: 1 },
   shrink: { flexShrink: 1 },
   top: { flexDirection: "row", alignItems: "center", gap: 10 },
-  who: { flex: 1, gap: 1 },
-  line: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  author: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold },
+  who: { flex: 1, gap: 2 },
+  headline: { fontSize: 15, lineHeight: 20, color: colors.fg },
+  strong: { fontWeight: fontWeight.bold, color: colors.fg },
+  verb: { fontWeight: fontWeight.regular, color: palette.soft },
+  line: { flexDirection: "row", alignItems: "center", gap: 4 },
   meta: { fontSize: 13, lineHeight: 18 },
-  visibility: { flexDirection: "row", alignItems: "center", gap: 3 },
+  visibility: { flexDirection: "row", alignItems: "center", gap: 3, marginLeft: 4 },
+  caption: { fontSize: 15, lineHeight: 21 },
+  // The row hugs what is above it; the icons are quiet until tapped.
+  actions: { flexDirection: "row", alignItems: "center", gap: spacing.lg, marginTop: -6, marginBottom: -8, minHeight: 44 },
+  action: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 40, minHeight: 44 },
+  count: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.medium, color: palette.soft, fontVariant: ["tabular-nums"] },
   // The dots line up with the picture's right edge.
-  menu: { marginRight: -12 },
-  said: { gap: 6 },
-  caption: { fontSize: 16, lineHeight: 23 },
-  facts: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: spacing.sm, rowGap: 6 },
-  answer: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.surface },
-  answerText: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.medium },
-  // The row hugs the text above it.
-  actions: { flexDirection: "row", alignItems: "center", gap: spacing.xl, marginTop: -6, minHeight: 44 },
-  action: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 32, minHeight: 44 },
-  count: { fontSize: 14, lineHeight: 20, fontWeight: fontWeight.medium, fontVariant: ["tabular-nums"] },
-  mine: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.bold },
-  rankToo: { flexDirection: "row", alignItems: "center", gap: 2, minHeight: 44 },
-  rankTooText: { fontSize: 14, lineHeight: 20, fontWeight: fontWeight.semibold },
+  menu: { marginRight: -11 },
+  yours: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
+  rankToo: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44 },
+  rankTooText: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold, color: palette.soft },
   pressed: { opacity: 0.6 },
   lines: { gap: spacing.sm },
-  skeletons: { gap: POST_GAP },
+  skeletons: { gap: POST_GAP * 2 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginVertical: POST_GAP },
 });

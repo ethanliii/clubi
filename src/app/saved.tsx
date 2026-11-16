@@ -15,7 +15,7 @@ const TABS: { type: SaveType; label: string }[] = [
   { type: "going", label: "Going" },
 ];
 
-const PHOTO = 88;
+const PHOTO = 76;
 
 /** One saved place: photo, name, when it is on. The filled mark on the right takes it off the list. */
 function SavedRow({
@@ -48,13 +48,10 @@ function SavedRow({
           <Text numberOfLines={2} style={styles.name}>
             {item.name}
           </Text>
-          {item.startsAt !== undefined ? (
-            <Text numberOfLines={1} style={styles.when}>
-              {formatEventTime(item.startsAt, now)}
-            </Text>
-          ) : null}
           <Text numberOfLines={1} style={styles.meta}>
-            {categoryLabel(item.category)}
+            {item.startsAt !== undefined
+              ? `${formatEventTime(item.startsAt, now)} · ${categoryLabel(item.category)}`
+              : categoryLabel(item.category)}
           </Text>
         </View>
       </Pressable>
@@ -76,7 +73,7 @@ function SkeletonList() {
     <View accessibilityRole="progressbar" accessibilityLabel="Loading" style={styles.list}>
       {[0, 1, 2, 3].map((key) => (
         <View key={key} style={styles.rowMain}>
-          <Skeleton width={PHOTO} height={PHOTO} round={radius.lg} />
+          <Skeleton width={PHOTO} height={PHOTO} round={radius.lg - 2} />
           <View style={styles.rowText}>
             <Skeleton width={170} height={16} />
             <Skeleton width={90} height={12} />
@@ -107,10 +104,9 @@ export default function SavedScreen() {
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: on }}
               onPress={() => setType(tab.type)}
-              style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.tab, on && styles.tabOn, pressed && styles.pressed]}
             >
               <Text style={[styles.tabLabel, on && styles.tabLabelOn]}>{tab.label}</Text>
-              <View style={[styles.tabLine, on && styles.tabLineOn]} />
             </Pressable>
           );
         })}
@@ -142,24 +138,31 @@ export default function SavedScreen() {
 }
 
 const styles = StyleSheet.create({
-  tabs: {
-    flexDirection: "row",
-    gap: spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: palette.hairline,
+  // Two pills: the chosen one is dark, the other a quiet grey.
+  tabs: { flexDirection: "row", gap: spacing.sm },
+  tab: {
+    minHeight: 40,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    backgroundColor: palette.field,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  tab: { minHeight: 44, justifyContent: "flex-end", gap: 10 },
-  tabLabel: { fontSize: fontSize.bodyLg, lineHeight: 22, fontWeight: fontWeight.semibold, color: colors.muted },
-  tabLabelOn: { color: colors.fg },
-  tabLine: { height: 2, borderRadius: 1, backgroundColor: "transparent" },
-  tabLineOn: { backgroundColor: colors.fg },
-  list: { gap: spacing.lg },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  rowMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 14 },
+  tabOn: { backgroundColor: colors.fg },
+  tabLabel: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.semibold, color: colors.fg },
+  tabLabelOn: { color: colors.white },
+  list: {},
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+  rowMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: spacing.md },
   pressed: { opacity: 0.6 },
   rowText: { flex: 1, gap: 3 },
-  name: { fontSize: fontSize.bodyLg, lineHeight: 21, fontWeight: fontWeight.semibold },
-  when: { fontSize: 13, lineHeight: 18 },
+  name: { fontSize: fontSize.bodyLg, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
   meta: { fontSize: 13, lineHeight: 18, color: colors.muted },
-  photo: { width: PHOTO, borderRadius: radius.lg },
+  photo: { width: PHOTO, borderRadius: radius.lg - 2 },
 });

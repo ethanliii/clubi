@@ -2,9 +2,9 @@ import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { EmptyState, IconButton, Text } from "../../components";
+import { EmptyState, Icon, IconButton, Text } from "../../components";
 import { CardRow } from "../../features/home/CardRow";
-import { Hero, HeroSkeleton } from "../../features/home/Hero";
+import { SearchField } from "../../features/home/SearchField";
 import { Shortcuts } from "../../features/home/Shortcuts";
 import { api } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
@@ -16,7 +16,7 @@ import { colors, fontWeight } from "../../theme";
 /** The backend caps the count at 99; at the cap there may be more. */
 const UNREAD_CAP = 99;
 /** The screen's side padding. Rows of cards run through it to both edges. */
-const GUTTER = 20;
+const GUTTER = 16;
 
 export default function Home() {
   const { lat, lng, ready } = useDemoLocation();
@@ -31,16 +31,20 @@ export default function Home() {
     tonight !== undefined &&
     upcoming !== undefined &&
     tonight.topPicks.length + tonight.friendsGoing.length + tonight.events.length + upcoming.length === 0;
-  // The backend's first pick leads the screen; the rest of its list follows as a row, in its order.
-  const lead = tonight?.topPicks[0];
+  const openMap = () => router.push(paths.map);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.flex}>
-            <Text style={styles.date}>{today}</Text>
-            <Text accessibilityRole="header" style={styles.heading}>
+            <View style={styles.where}>
+              <Icon name="navigate" size={13} color={colors.muted} />
+              <Text numberOfLines={1} style={styles.date}>
+                Near you · {today}
+              </Text>
+            </View>
+            <Text accessibilityRole="header" numberOfLines={1} style={styles.heading}>
               Tonight
             </Text>
           </View>
@@ -53,12 +57,14 @@ export default function Home() {
           />
         </View>
 
-        {tonight === undefined ? <HeroSkeleton /> : lead ? <Hero item={lead} now={now} /> : null}
+        <SearchField label="Search places and events" onPress={openMap} />
 
         <Shortcuts
+          gutter={GUTTER}
           onPlan={() => router.push(planPath())}
-          onTrips={() => router.push(paths.trips)}
           onSaved={() => router.push(paths.saved)}
+          onTrips={() => router.push(paths.trips)}
+          onRankings={() => router.push(paths.rankings)}
         />
 
         {nothing ? (
@@ -66,14 +72,44 @@ export default function Home() {
             icon="map"
             title="Nothing nearby yet. Try the map."
             actionLabel="Open map"
-            onAction={() => router.push(paths.map)}
+            onAction={openMap}
           />
         ) : (
           <View style={styles.rows}>
-            <CardRow title="More for you" items={tonight?.topPicks.slice(1)} gutter={GUTTER} now={now} />
-            <CardRow title="Where friends go" items={tonight?.friendsGoing} shape="wide" gutter={GUTTER} now={now} />
-            <CardRow title="Events tonight" items={tonight?.events} shape="wide" gutter={GUTTER} now={now} />
-            <CardRow title="Coming up" items={upcoming} gutter={GUTTER} now={now} />
+            <CardRow
+              title="Top picks for you"
+              items={tonight?.topPicks}
+              shape="large"
+              gutter={GUTTER}
+              now={now}
+              moreLabel="See top picks on the map"
+              onMore={openMap}
+            />
+            <CardRow
+              title="Where friends go"
+              items={tonight?.friendsGoing}
+              gutter={GUTTER}
+              now={now}
+              moreLabel="See what friends ranked in the feed"
+              onMore={() => router.push(paths.feed)}
+            />
+            <CardRow
+              title="Events tonight"
+              items={tonight?.events}
+              shape="large"
+              gutter={GUTTER}
+              now={now}
+              moreLabel="See tonight's events on the map"
+              onMore={openMap}
+            />
+            <CardRow
+              title="Coming up for you"
+              items={upcoming}
+              gutter={GUTTER}
+              now={now}
+              moreLabel="See upcoming events on the map"
+              onMore={openMap}
+            />
           </View>
         )}
       </ScrollView>
@@ -83,10 +119,11 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: GUTTER, paddingTop: 8, paddingBottom: 40, gap: 16 },
+  content: { paddingHorizontal: GUTTER, paddingTop: 6, paddingBottom: 32, gap: 10 },
   flex: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 4 },
-  date: { fontSize: 14, lineHeight: 19, color: colors.muted },
-  heading: { fontSize: 36, lineHeight: 42, fontWeight: fontWeight.bold, letterSpacing: -1, color: colors.fg },
-  rows: { gap: 36, marginTop: 20 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 2 },
+  where: { flexDirection: "row", alignItems: "center", gap: 5 },
+  date: { flex: 1, fontSize: 13, lineHeight: 18, color: colors.muted },
+  heading: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.6, color: colors.fg },
+  rows: { gap: 22, marginTop: 8 },
 });

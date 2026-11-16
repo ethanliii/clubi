@@ -6,25 +6,26 @@ import { ScoreBadge, Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
 import { venuePath } from "../../lib/links";
-import { colors, fontWeight, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, radius, scrim, spacing } from "../../theme";
 import { PlacePhoto } from "./PlacePhoto";
 
 /** "Cafe · $$ · 350 m" from what the backend sent. */
-function metaLine(item: NearbyItem): string {
+export function metaLine(item: NearbyItem): string {
   return [categoryLabel(item.category, item.subcategory), formatPrice(item.priceLevel), formatDistance(item.distanceMeters)]
     .filter((part) => part !== "")
     .join(" · ");
 }
 
 /**
- * One place or event as a photo card: the picture first, with the score on it (for a group, the
- * group's score), then its name, what it is and the backend's reason. Tapping it opens the venue.
+ * One place or event as a photo card: the picture with nothing around it, then the name in bold
+ * with the score ring at its right (for a group, the group's score), one grey line of what it is,
+ * and the backend's reason. Tapping it opens the venue.
  * A place with no photo gets a shorter band of the category picture, so real photos lead the page.
  */
 export function PlaceCard({
   item,
   now,
-  photoHeight = 196,
+  photoHeight = 188,
   showRank = false,
   aside,
   children,
@@ -32,14 +33,11 @@ export function PlaceCard({
   item: NearbyItem;
   now: number;
   photoHeight?: number;
-  /** The backend's rank on the photo's corner. */
+  /** The backend's rank in front of the name: "1. Name". */
   showRank?: boolean;
-  /**
-   * Sits to the right of the name, under the photo (the two thumbs). It is drawn over the card,
-   * not inside it: the card is one big button, and a button inside a button does not work on the web.
-   */
+  /** At the right of the line under the card (the two thumbs). Not part of the card's own button. */
   aside?: ReactNode;
-  /** Under the card and not part of the button: each person's score. */
+  /** At the left of that same line: each person's score. */
   children?: ReactNode;
 }) {
   const when = item.startsAt !== undefined ? formatEventTime(item.startsAt, now) : null;
@@ -61,18 +59,11 @@ export function PlaceCard({
           {when ? (
             <LinearGradient
               pointerEvents="none"
-              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.78)"]}
+              colors={[...scrim.bottom.colors]}
+              locations={[...scrim.bottom.locations]}
               style={styles.scrim}
             />
           ) : null}
-          {showRank ? (
-            <View style={styles.rank}>
-              <Text style={styles.rankText}>{item.rank}</Text>
-            </View>
-          ) : null}
-          <View style={styles.score}>
-            <ScoreBadge score={item.score} />
-          </View>
           {when ? (
             <Text numberOfLines={1} style={[styles.when, credit ? styles.whenBesideCredit : null]}>
               {when}
@@ -84,51 +75,79 @@ export function PlaceCard({
             </Text>
           ) : null}
         </View>
-        <View style={[styles.text, aside ? styles.textBesideAside : null]}>
-          <Text numberOfLines={2} style={styles.name}>
+        <View style={styles.head}>
+          <View style={styles.text}>
+            <Text numberOfLines={2} style={styles.name}>
+              {showRank ? `${item.rank}. ${item.name}` : item.name}
+            </Text>
+            <Text muted numberOfLines={1} style={styles.meta}>
+              {performers ? `${performers} · ${metaLine(item)}` : metaLine(item)}
+            </Text>
+            <Text numberOfLines={2} style={styles.why}>
+              {item.why}
+            </Text>
+          </View>
+          <ScoreBadge score={item.score} />
+        </View>
+      </Pressable>
+      {aside || children ? (
+        <View style={styles.foot}>
+          <View style={styles.people}>{children}</View>
+          {aside}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const THUMB = 84;
+
+/**
+ * The same place as a compact row: a square photo, the name in bold, one grey line, the reason,
+ * and the score ring at the right. Used where three of them must fit on one screen.
+ */
+export function PlaceRow({ item, now, children }: { item: NearbyItem; now: number; /** Under the row: each person's score. */ children?: ReactNode }) {
+  const when = item.startsAt !== undefined ? formatEventTime(item.startsAt, now) : null;
+  return (
+    <View style={styles.rowWrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name}, ${formatScore(item.score)}. ${item.why}`}
+        onPress={() => router.push(venuePath(item.kind, item.id))}
+        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      >
+        <PlacePhoto uri={item.imageUrl} category={item.category} height={THUMB} width={THUMB} round={radius.md + 2} />
+        <View style={styles.text}>
+          <Text numberOfLines={2} style={styles.rowName}>
             {item.name}
           </Text>
-          <Text muted numberOfLines={1}>
-            {performers ? `${performers} · ${metaLine(item)}` : metaLine(item)}
+          <Text muted numberOfLines={1} style={styles.meta}>
+            {when ? `${when} · ${metaLine(item)}` : metaLine(item)}
           </Text>
           <Text numberOfLines={2} style={styles.why}>
             {item.why}
           </Text>
         </View>
+        <ScoreBadge score={item.score} />
       </Pressable>
-      {aside ? <View style={[styles.aside, { top: height + spacing.sm + 2 }]}>{aside}</View> : null}
       {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: spacing.sm + 2 },
+  card: { gap: spacing.xs },
   open: { gap: spacing.sm + 2 },
-  pressed: { opacity: 0.8 },
-  scrim: { position: "absolute", left: 0, right: 0, bottom: 0, height: 84, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
-  rank: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    minWidth: 28,
-    height: 28,
-    paddingHorizontal: 8,
-    borderRadius: 14,
-    backgroundColor: "rgba(11,10,15,0.72)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rankText: { color: colors.white, fontSize: 13, lineHeight: 17, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
-  score: { position: "absolute", top: 10, right: 10 },
+  pressed: { opacity: 0.7 },
+  scrim: { position: "absolute", left: 0, right: 0, bottom: 0, height: 84, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg },
   when: {
     position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: 12,
-    color: colors.white,
-    fontSize: 14,
-    lineHeight: 18,
+    left: 12,
+    right: 12,
+    bottom: 10,
+    color: palette.onPhoto,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: fontWeight.semibold,
   },
   whenBesideCredit: { right: "45%" },
@@ -141,16 +160,19 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 6,
     overflow: "hidden",
-    backgroundColor: "rgba(11,10,15,0.55)",
-    color: colors.white,
-    opacity: 0.85,
+    backgroundColor: palette.backdrop,
+    color: palette.onPhoto,
     fontSize: 10,
     lineHeight: 13,
   },
-  text: { gap: 3 },
-  // Two 44pt thumbs and the gap between them, plus air.
-  textBesideAside: { paddingRight: 108, minHeight: 44 },
-  aside: { position: "absolute", right: 0 },
-  name: { fontSize: 18, lineHeight: 23, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
-  why: { color: colors.fg, opacity: 0.9 },
+  head: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  text: { flex: 1, gap: 2 },
+  name: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
+  meta: { fontSize: 14, lineHeight: 19 },
+  why: { fontSize: 14, lineHeight: 19, color: palette.soft },
+  foot: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 44 },
+  people: { flex: 1 },
+  rowWrap: { gap: spacing.sm },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  rowName: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.bold, letterSpacing: -0.2 },
 });

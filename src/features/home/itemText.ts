@@ -1,16 +1,16 @@
 import type { NearbyItem } from "../../lib/api";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
 
-/** "Cocktail bar · $$ · 350 m" from what the backend sent; missing parts are left out. */
-export function metaLine(item: NearbyItem): string {
-  return [categoryLabel(item.category, item.subcategory), formatPrice(item.priceLevel), formatDistance(item.distanceMeters)]
-    .filter((part) => part !== "")
-    .join(" · ");
-}
-
-/** An event's start ("Today · 9 PM"), or null for a place. */
-export function whenLine(item: NearbyItem, now: number): string | null {
-  return item.startsAt !== undefined ? formatEventTime(item.startsAt, now) : null;
+/**
+ * The one grey line under a card's name, from what the backend sent; missing parts are left out.
+ * A place: "350 m · $$ · Cocktail bar". An event: "Today · 9 PM · 350 m".
+ */
+export function metaLine(item: NearbyItem, now: number): string {
+  const parts =
+    item.startsAt !== undefined
+      ? [formatEventTime(item.startsAt, now), formatDistance(item.distanceMeters)]
+      : [formatDistance(item.distanceMeters), formatPrice(item.priceLevel), categoryLabel(item.category, item.subcategory)];
+  return parts.filter((part) => part !== "").join(" · ");
 }
 
 /** What a screen reader says for the whole card. */

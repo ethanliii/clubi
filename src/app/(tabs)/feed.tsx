@@ -4,8 +4,7 @@ import { useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { Button, EmptyState, IconButton, Loading, Screen, Text } from "../../components";
 import { CommentsSheet } from "../../features/feed/Comments";
-import { dayLabel } from "../../features/feed/dayLabel";
-import { POST_GAP, PostCard, PostSkeletons } from "../../features/feed/PostCard";
+import { PostCard, PostDivider, PostSkeletons } from "../../features/feed/PostCard";
 import { PostMenu } from "../../features/feed/PostMenu";
 import { useFeed } from "../../features/feed/useFeed";
 import { api, type Id } from "../../lib/api";
@@ -13,7 +12,7 @@ import { formatCount } from "../../lib/format";
 import { paths, postPath } from "../../lib/links";
 import { useNow } from "../../lib/useNow";
 import { useMe } from "../../state/session";
-import { fontWeight, spacing } from "../../theme";
+import { spacing } from "../../theme";
 
 export default function FeedScreen() {
   const me = useMe();
@@ -47,30 +46,20 @@ export default function FeedScreen() {
       <FlatList
         data={feed.posts}
         keyExtractor={(post) => post.postId}
-        renderItem={({ item, index }) => {
+        renderItem={({ item }) => {
           const mine = item.author.userId === me?.userId;
-          const previous = feed.posts[index - 1];
-          const day = dayLabel(item.createdAt, now);
-          // The first posts need no "Today" over them; a day is named once the feed moves past it.
-          const showDay = previous ? dayLabel(previous.createdAt, now) !== day : day !== "Today";
           return (
-            <View style={styles.item}>
-              {showDay ? (
-                <Text muted style={styles.day}>
-                  {day}
-                </Text>
-              ) : null}
-              <PostCard
-                post={item}
-                mine={mine}
-                now={now}
-                onComments={() => setComments({ postId: item.postId, open: true })}
-                onMenu={mine ? () => setMenu({ postId: item.postId, open: true }) : undefined}
-                onOpenPost={() => router.push(postPath(item.postId))}
-              />
-            </View>
+            <PostCard
+              post={item}
+              mine={mine}
+              now={now}
+              onComments={() => setComments({ postId: item.postId, open: true })}
+              onMenu={mine ? () => setMenu({ postId: item.postId, open: true }) : undefined}
+              onOpenPost={() => router.push(postPath(item.postId))}
+            />
           );
         }}
+        ItemSeparatorComponent={Divider}
         ListEmptyComponent={
           feed.loading ? (
             <PostSkeletons />
@@ -118,14 +107,22 @@ export default function FeedScreen() {
   );
 }
 
+/** The hairline between two posts, running to both edges of the screen. */
+function Divider() {
+  return (
+    <View style={styles.divider}>
+      <PostDivider />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md, minHeight: 44 },
   flex: { flex: 1 },
-  item: { gap: spacing.lg },
-  day: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.semibold },
+  divider: { marginHorizontal: -spacing.lg },
   // The list runs edge to edge and down to the tab bar; `Screen` pads the header.
   list: { flex: 1, marginHorizontal: -spacing.lg, marginBottom: -spacing.xl },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxl, gap: POST_GAP },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl },
   more: { alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.lg },
   caughtUp: { fontSize: 13, lineHeight: 18, paddingVertical: spacing.md },
 });

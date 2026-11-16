@@ -1,21 +1,24 @@
 import { Children, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text } from "../../components";
-import { colors, palette, radius, spacing } from "../../theme";
-
-/** The inset every row shares, so labels, dividers and the group's title line up. */
-export const ROW_INSET = spacing.lg - 2;
+import { colors, fontWeight, palette, spacing } from "../../theme";
 
 /**
- * One group of a settings screen, the way a phone's own settings does it: a quiet name, one soft
- * panel holding the rows with a hairline between them, and at most one line of explanation under it.
+ * The inset every row shares. The rows sit straight on the white page, so it is zero: labels,
+ * hairlines and the group's name all start at the page gutter.
+ */
+export const ROW_INSET = 0;
+
+/**
+ * One group of a settings screen: a small grey name, the rows straight on the white page with a
+ * hairline between them, and at most one line of explanation under it.
  */
 export function SettingsGroup({ title, footer, children }: { title?: string; footer?: string; children: ReactNode }) {
   const rows = Children.toArray(children);
   return (
     <View style={styles.group}>
       {title ? (
-        <Text variant="label" accessibilityRole="header" style={styles.title}>
+        <Text accessibilityRole="header" style={styles.title}>
           {title}
         </Text>
       ) : null}
@@ -84,11 +87,18 @@ export function SettingsRow({
 }
 
 const styles = StyleSheet.create({
-  group: { gap: spacing.sm },
-  title: { paddingHorizontal: ROW_INSET },
-  panel: { borderRadius: radius.xl, backgroundColor: palette.field, overflow: "hidden" },
-  hairline: { height: 1, marginLeft: ROW_INSET, backgroundColor: palette.hairline },
-  footer: { paddingHorizontal: ROW_INSET },
+  group: {},
+  title: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: fontWeight.semibold,
+    color: colors.muted,
+    paddingHorizontal: ROW_INSET,
+    paddingBottom: spacing.xs,
+  },
+  panel: {},
+  hairline: { height: StyleSheet.hairlineWidth, marginLeft: ROW_INSET, backgroundColor: colors.line },
+  footer: { paddingHorizontal: ROW_INSET, paddingTop: spacing.xs },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -97,9 +107,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: ROW_INSET,
     paddingVertical: spacing.sm,
   },
-  pressed: { backgroundColor: palette.fieldPressed },
+  pressed: { opacity: 0.5 },
   dimmed: { opacity: 0.4 },
   label: { flex: 1 },
-  danger: { color: palette.danger },
+  danger: { color: palette.danger, fontWeight: fontWeight.semibold },
   value: { flexShrink: 1, maxWidth: "62%", textAlign: "right" },
 });

@@ -8,7 +8,7 @@ import { colors, fontWeight } from "../../theme";
 const TABS: Record<string, { label: string; icon: TabIconName | null }> = {
   index: { label: "Home", icon: "home" },
   map: { label: "Map", icon: "map" },
-  rate: { label: "Rate", icon: null },
+  rate: { label: "Rank a place", icon: null },
   feed: { label: "Feed", icon: "feed" },
   profile: { label: "Profile", icon: "profile" },
 };
@@ -54,11 +54,11 @@ function TabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
               tab.icon === null ? (
                 // The one accented thing in the bar: rank a place.
                 <View style={[styles.rank, pressed && styles.rankPressed]}>
-                  <Icon name="plus" size={24} color={colors.white} />
+                  <Icon name="plus" size={22} color={colors.white} />
                 </View>
               ) : (
                 <View style={[styles.tab, pressed && styles.tabPressed]}>
-                  <TabIcon name={tab.icon} active={focused} color={color} cut={colors.bg} />
+                  <TabIcon name={tab.icon} active={focused} color={color} />
                   <Text style={[styles.label, { color }, focused && styles.labelOn]}>{tab.label}</Text>
                 </View>
               )
@@ -74,21 +74,21 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 6,
-    paddingHorizontal: 6,
+    paddingTop: 4,
+    paddingHorizontal: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.line,
     backgroundColor: colors.bg,
   },
-  item: { flex: 1, height: 50, alignItems: "center", justifyContent: "center" },
-  tab: { alignItems: "center", gap: 3 },
+  item: { flex: 1, height: 52, alignItems: "center", justifyContent: "center" },
+  tab: { alignItems: "center", gap: 2 },
   tabPressed: { opacity: 0.55 },
-  label: { fontSize: 10, lineHeight: 12, fontWeight: fontWeight.medium, letterSpacing: 0.1 },
-  labelOn: { fontWeight: fontWeight.semibold },
+  label: { fontSize: 11, lineHeight: 14, fontWeight: fontWeight.medium },
+  labelOn: { fontWeight: fontWeight.bold },
   rank: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",

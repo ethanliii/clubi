@@ -1,14 +1,14 @@
 import { StyleSheet, View } from "react-native";
-import { Avatar, Text } from "../../components";
+import { Avatar, ScoreBadge, Text } from "../../components";
 import { formatScore } from "../../lib/format";
-import { colors, fontWeight, ratingColor, spacing } from "../../theme";
+import { colors, spacing } from "../../theme";
 
 type MemberScore = { userId: string; displayName: string; avatarUrl?: string; score: number };
 
 /**
  * Who loves it and who is lukewarm: each person's face with their own score for the place in its
  * rating colour, exactly as the backend sent them.
- * Draws nothing for a group of one, because that one score is already the badge on the photo.
+ * Draws nothing for a group of one, because that one score is already the ring beside the name.
  */
 export function MemberScores({ scores, meId }: { scores: MemberScore[]; meId: string | undefined }) {
   if (scores.length < 2) return null;
@@ -24,11 +24,11 @@ export function ScoreFaces({ scores, meId }: { scores: MemberScore[]; meId?: str
     <View accessibilityLabel={`Scores: ${line}`} style={styles.row}>
       {scores.map((member) => (
         <View key={member.userId} style={styles.person}>
-          <Avatar name={member.displayName} uri={member.avatarUrl} size={24} style={styles.avatar} />
+          <Avatar name={member.displayName} uri={member.avatarUrl} size={22} style={styles.avatar} />
           <Text numberOfLines={1} style={styles.name}>
             {nameOf(member)}
           </Text>
-          <Text style={[styles.score, { color: ratingColor(member.score) }]}>{formatScore(member.score)}</Text>
+          <ScoreBadge score={member.score} size="sm" variant="plain" />
         </View>
       ))}
     </View>
@@ -36,9 +36,8 @@ export function ScoreFaces({ scores, meId }: { scores: MemberScore[]; meId?: str
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: spacing.md + 2, rowGap: spacing.xs + 2 },
-  person: { flexDirection: "row", alignItems: "center", gap: 5 },
+  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: spacing.md, rowGap: spacing.xs },
+  person: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 24 },
   avatar: { borderWidth: 0 },
   name: { fontSize: 13, lineHeight: 17, color: colors.muted, maxWidth: 80 },
-  score: { fontSize: 14, lineHeight: 17, fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"] },
 });

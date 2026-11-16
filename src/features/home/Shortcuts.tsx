@@ -1,64 +1,68 @@
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { ScrollView, Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text, type IconName } from "../../components";
-import { colors, fontWeight } from "../../theme";
+import { colors, fontWeight, palette } from "../../theme";
 
 /**
- * The ways out of Home: "Plan my night" is the main one (solid, light), Trips and Saved sit beside it.
- * One row, thumb height, no explanations.
+ * The ways out of Home as one row of light-grey pills that scrolls sideways: plan a night, saved
+ * places, trips, my rankings. `gutter` is the screen's side padding, so the row runs to both edges.
  */
-export function Shortcuts({ onPlan, onTrips, onSaved }: { onPlan: () => void; onTrips: () => void; onSaved: () => void }) {
-  // On the narrowest phones the three labels only fit without the two small icons.
-  const roomy = useWindowDimensions().width >= 360;
+export function Shortcuts({
+  gutter,
+  onPlan,
+  onSaved,
+  onTrips,
+  onRankings,
+}: {
+  gutter: number;
+  onPlan: () => void;
+  onSaved: () => void;
+  onTrips: () => void;
+  onRankings: () => void;
+}) {
   return (
-    <View style={[styles.row, !roomy && styles.tightRow]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Plan my night"
-        onPress={onPlan}
-        style={({ pressed }) => [styles.button, styles.primary, pressed && styles.pressed]}
-      >
-        <Text numberOfLines={1} style={[styles.label, styles.primaryLabel]}>
-          Plan my night
-        </Text>
-      </Pressable>
-      <Quiet label="Trips" icon={roomy ? "users" : null} onPress={onTrips} />
-      <Quiet label="Saved" icon={roomy ? "bookmark" : null} onPress={onSaved} />
-    </View>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={[styles.bleed, { marginHorizontal: -gutter }]}
+      contentContainerStyle={[styles.row, { paddingHorizontal: gutter }]}
+    >
+      <Pill label="Plan my night" icon="spark" onPress={onPlan} />
+      <Pill label="Saved" icon="bookmark" onPress={onSaved} />
+      <Pill label="Trips" icon="users" onPress={onTrips} />
+      <Pill label="My rankings" icon="star" onPress={onRankings} />
+    </ScrollView>
   );
 }
 
-function Quiet({ label, icon, onPress }: { label: string; icon: IconName | null; onPress: () => void }) {
+function Pill({ label, icon, onPress }: { label: string; icon: IconName; onPress: () => void }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [styles.button, styles.quiet, icon === null && styles.tight, pressed && styles.pressed]}
-    >
-      {icon ? <Icon name={icon} size={18} color={colors.fg} /> : null}
-      <Text numberOfLines={1} style={styles.label}>
-        {label}
-      </Text>
+    // The pill looks 38 tall; the pressable around it is 44.
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.hit}>
+      {({ pressed }) => (
+        <View style={[styles.pill, pressed && styles.pressed]}>
+          <Icon name={icon} size={16} color={colors.fg} />
+          <Text numberOfLines={1} style={styles.label}>
+            {label}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: 8 },
-  tightRow: { gap: 6 },
-  tight: { paddingHorizontal: 12 },
-  button: {
+  bleed: { flexGrow: 0 },
+  row: { gap: 8 },
+  hit: { height: 44, justifyContent: "center" },
+  pill: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    height: 50,
-    borderRadius: 25,
-    paddingHorizontal: 16,
+    gap: 6,
+    height: 38,
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    backgroundColor: palette.field,
   },
-  primary: { flex: 1, paddingHorizontal: 12, backgroundColor: colors.fg },
-  quiet: { backgroundColor: colors.surface },
-  pressed: { opacity: 0.75 },
-  label: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.fg },
-  primaryLabel: { color: colors.bg },
+  pressed: { backgroundColor: palette.fieldPressed },
+  label: { fontSize: 14, lineHeight: 19, fontWeight: fontWeight.semibold, color: colors.fg },
 });

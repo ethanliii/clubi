@@ -23,7 +23,7 @@ export function ShowPhoto({ eventId, size }: { eventId: Id<"events">; size: numb
       category={event?.category ?? "live"}
       height={size}
       width={size}
-      round={radius.lg}
+      round={radius.md + 2}
     />
   );
 }
