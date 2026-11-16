@@ -1,8 +1,8 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { FlatList, Keyboard, Platform, Pressable, StyleSheet, Switch, View, useWindowDimensions } from "react-native";
+import { FlatList, Keyboard, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EmptyState, Icon, IconButton, SkeletonRows, Text } from "../../components";
+import { EmptyState, Icon, SkeletonRows, Text } from "../../components";
 import { FILTER_HEIGHT, FilterChips } from "../../features/map/FilterChips";
 import { DEFAULT_FILTER } from "../../features/map/filters";
 import { MapCanvas, TILE_ATTRIBUTION } from "../../features/map/MapCanvas";
@@ -19,7 +19,7 @@ import { colors, fontWeight, palette, spacing } from "../../theme";
 
 const NO_ITEMS: NearbyItem[] = [];
 /** Shown even before the first answer arrives: the credit is a licence requirement. */
-const DATA_ATTRIBUTION = "© OpenStreetMap contributors";
+const DATA_ATTRIBUTION = "© OpenStreetMap";
 const ATTRIBUTION_URL = "https://www.openstreetmap.org/copyright";
 
 const GUTTER = spacing.lg - 2;
@@ -29,7 +29,7 @@ const FILTER_GAP = 10;
 /** The strip above the list (or the pin's card) that holds the credit and "Recenter". */
 const FLOAT = 56;
 /** The handle, the title and its line of detail: what the list's own header takes. */
-const SHEET_HEADER = 84;
+const SHEET_HEADER = 68;
 const CARD_MARGIN = spacing.md;
 
 /** What the list is, in the words of the filter that made it. */
@@ -43,13 +43,10 @@ const TITLES: Record<Filter, string> = {
   all: "Everything near you",
 };
 
-/** react-native-web paints an "on" switch teal unless told otherwise; native ignores these. */
-const WEB_SWITCH = Platform.OS === "web" ? { activeThumbColor: colors.white, activeTrackColor: colors.accent } : null;
-
 /** Peek: the title and the best pick. Half: the map and the list share the screen. Full: up to the search field. */
 function sheetHeights(screen: number, searchBottom: number): SheetHeights {
   const full = Math.max(280, screen - searchBottom - FILTER_GAP);
-  const peek = Math.min(full, SHEET_HEADER + ROW_HEIGHT + spacing.xs);
+  const peek = Math.min(full, SHEET_HEADER + ROW_HEIGHT + spacing.sm);
   const mid = Math.min(full, Math.max(peek, Math.round(screen * 0.5)));
   return { peek, mid, full };
 }
@@ -59,14 +56,15 @@ export default function MapScreen() {
   const window = useWindowDimensions();
   // Home's search field opens this tab with a new `search` value: the field here takes the keyboard.
   const { search: focusSearch } = useLocalSearchParams<{ search?: string }>();
-  const { lat, lng, ready, isDemo, setDemo } = useDemoLocation();
+  const { lat, lng, ready, isDemo } = useDemoLocation();
   const [filter, setFilter] = useState<Filter>(DEFAULT_FILTER);
   const nearby = useNearby(filter);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recenterKey, setRecenterKey] = useState(0);
   const [snap, setSnap] = useState<SheetSnap>("peek");
   const [search, setSearch] = useState("");
-  const [options, setOptions] = useState(false);
+  // Search stays open (white page, "Cancel") from the first tap on the field until it is cancelled.
+  const [searchOpen, setSearchOpen] = useState(false);
   // The real height of this screen (the window minus the tab bar), once it has been laid out.
   const [measured, setMeasured] = useState<number | null>(null);
   // How far the list is scrolled: at its very top, a pull down moves the panel instead.
@@ -86,8 +84,10 @@ export default function MapScreen() {
   const covered = selected ? PEEK_CARD_HEIGHT + CARD_MARGIN : heights[snap === "full" ? "mid" : snap];
   const padding = { top: filtersBottom + spacing.sm, bottom: covered + FLOAT };
 
-  const attribution = [nearby?.attribution ?? DATA_ATTRIBUTION, TILE_ATTRIBUTION].filter(Boolean).join(" · ");
-  const searching = search.trim().length >= 2;
+  // The full credit is what a screen reader hears; the short form is what fits on the map.
+  const attribution = [nearby?.attribution ?? "© OpenStreetMap contributors", TILE_ATTRIBUTION].filter(Boolean).join(" · ");
+  const credit = TILE_ATTRIBUTION ? `${DATA_ATTRIBUTION} · OpenMapTiles` : DATA_ATTRIBUTION;
+  const searching = searchOpen || search.trim().length >= 2;
 
   const open = (item: NearbyItem) => router.push(venuePath(item.kind, item.id));
 
@@ -101,12 +101,8 @@ export default function MapScreen() {
   const chooseFilter = (next: Filter) => {
     setFilter(next);
     setSelectedId(null);
-  };
-
-  const toggleOptions = () => {
-    setOptions((shown) => !shown);
-    // The option row needs room under the title.
-    if (!options && snap === "peek") setSnap("mid");
+    // A picked pin leaves the camera zoomed in on one block: a new filter starts from the wide view again.
+    setRecenterKey((key) => key + 1);
   };
 
   const onSnap = useCallback((next: SheetSnap) => setSnap(next), []);
@@ -121,8 +117,8 @@ export default function MapScreen() {
         onPress={() => void openUrl(ATTRIBUTION_URL)}
         style={styles.credit}
       >
-        <Text numberOfLines={2} style={styles.creditText}>
-          {attribution}
+        <Text numberOfLines={1} style={styles.creditText}>
+          {credit}
         </Text>
       </Pressable>
       <Pressable
@@ -142,7 +138,7 @@ export default function MapScreen() {
       ? "Finding what's good…"
       : items.length === 0
         ? "Nothing here yet"
-        : `${pluralize(items.length, "spot")} · Ranked for you`;
+        : `${pluralize(items.length, "spot")} · Best nearby first`;
 
   return (
     <View style={styles.screen} onLayout={(event) => setMeasured(event.nativeEvent.layout.height)}>
@@ -156,6 +152,9 @@ export default function MapScreen() {
         recenterKey={recenterKey}
         padding={padding}
       />
+
+      {/* Pulled all the way up, the list meets the search field: no strip of map is left between them. */}
+      {snap === "full" && selected === null ? <View style={[styles.cover, { height: searchBottom + FILTER_GAP + 24 }]} /> : null}
 
       {searching ? null : (
         <View style={[styles.filters, { top: searchBottom + FILTER_GAP }]}>
@@ -173,45 +172,15 @@ export default function MapScreen() {
         listOffset={listOffset}
         header={
           <View style={styles.sheetHeader}>
-            <View style={styles.flex}>
-              <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>
-                {TITLES[filter]}
-              </Text>
-              <Text numberOfLines={1} style={styles.detail}>
-                {isDemo ? `${detail} · Demo area` : detail}
-              </Text>
-            </View>
-            <IconButton
-              icon="more"
-              accessibilityLabel="Map options"
-              size={36}
-              selected={options}
-              onPress={toggleOptions}
-            />
+            <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>
+              {TITLES[filter]}
+            </Text>
+            <Text numberOfLines={1} style={styles.detail}>
+              {detail}
+            </Text>
           </View>
         }
       >
-        {options ? (
-          <View style={styles.option}>
-            <View style={styles.flex}>
-              <Text aria-hidden style={styles.optionTitle}>
-                Demo location
-              </Text>
-              <Text aria-hidden style={styles.optionBody}>
-                Browse San Francisco instead.
-              </Text>
-            </View>
-            <Switch
-              accessibilityLabel="Demo location"
-              value={isDemo}
-              onValueChange={setDemo}
-              trackColor={{ false: colors.raised, true: colors.accent }}
-              thumbColor={colors.white}
-              ios_backgroundColor={colors.raised}
-              {...WEB_SWITCH}
-            />
-          </View>
-        ) : null}
         {nearby === undefined ? (
           <View style={styles.sheetPad}>
             <SkeletonRows count={4} />
@@ -222,8 +191,6 @@ export default function MapScreen() {
               icon="map"
               title="Nothing here yet"
               body="We're loading places for this area."
-              actionLabel={isDemo ? undefined : "Try the demo area"}
-              onAction={isDemo ? undefined : () => setDemo(true)}
               style={styles.empty}
             />
           </View>
@@ -247,7 +214,7 @@ export default function MapScreen() {
               if (snap === "full" && event.nativeEvent.contentOffset.y < -48) setSnap("mid");
             }}
             renderItem={({ item, index }) => (
-              <MapRow item={item} showRank last={index === items.length - 1} onPress={() => open(item)} />
+              <MapRow item={item} last={index === items.length - 1 || snap === "peek"} onPress={() => open(item)} />
             )}
           />
         )}
@@ -271,19 +238,21 @@ export default function MapScreen() {
           onPress={() => {
             Keyboard.dismiss();
             setSearch("");
+            setSearchOpen(false);
           }}
           style={styles.dim}
         />
       ) : null}
 
       <View style={[styles.search, { top: searchTop }]} pointerEvents="box-none">
-        <SearchBox value={search} onChangeText={setSearch} focusKey={focusSearch} />
+        <SearchBox value={search} onChangeText={setSearch} focusKey={focusSearch} open={searchOpen} onOpenChange={setSearchOpen} />
         {searching ? (
           <SearchResults
             text={search}
             lat={lat}
             lng={lng}
             ready={ready}
+            nearby={items}
             maxHeight={Math.max(200, height - searchBottom - spacing.xl * 2)}
           />
         ) : null}
@@ -304,6 +273,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
 
   filters: { position: "absolute", left: 0, right: 0 },
+  cover: { position: "absolute", top: 0, left: 0, right: 0, backgroundColor: colors.bg },
   // While searching, everything but the field and its results steps back.
   dim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 3, backgroundColor: colors.bg },
   // The results drop down over the filters, the list and the pin's card.
@@ -322,10 +292,11 @@ const styles = StyleSheet.create({
   credit: {
     flexShrink: 1,
     minWidth: 0,
+    maxWidth: 170,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: palette.glass,
+    backgroundColor: "rgba(255,255,255,0.7)",
   },
   creditText: { fontSize: 9, lineHeight: 12, color: colors.muted },
   round: {
@@ -343,7 +314,7 @@ const styles = StyleSheet.create({
   },
   roundPressed: { backgroundColor: palette.field },
 
-  sheetHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md, height: SHEET_HEADER - 28 },
+  sheetHeader: { justifyContent: "center", height: SHEET_HEADER - 28 },
   // The small bold capitals of a section label, as over the feed.
   title: {
     fontSize: 13,
@@ -354,19 +325,6 @@ const styles = StyleSheet.create({
     color: colors.fg,
   },
   detail: { marginTop: 2, fontSize: 13, lineHeight: 17, color: colors.muted },
-  option: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: 14,
-    backgroundColor: palette.field,
-  },
-  optionTitle: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, color: colors.fg },
-  optionBody: { fontSize: 13, lineHeight: 17, color: colors.muted },
   sheetPad: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
   empty: { paddingVertical: spacing.lg },
 

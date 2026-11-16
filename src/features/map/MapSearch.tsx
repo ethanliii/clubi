@@ -6,7 +6,7 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Icon, SkeletonRows, Text } from "../../components";
-import { api } from "../../lib/api";
+import { api, type NearbyItem } from "../../lib/api";
 import { venuePath } from "../../lib/links";
 import { useDebounced } from "../../lib/useDebounced";
 import { useKeptQuery } from "../../lib/useKeptQuery";
@@ -21,9 +21,14 @@ export function SearchBox({
   value,
   onChangeText,
   focusKey,
+  open: held = false,
+  onOpenChange,
 }: {
   value: string;
   onChangeText: (text: string) => void;
+  /** The screen keeps search open (white page, "Cancel") from the first tap until it is cancelled. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   /** Each new value puts the cursor in the field and brings up the keyboard (Home's search field sends one). */
   focusKey?: string;
 }) {
@@ -32,9 +37,10 @@ export function SearchBox({
   useEffect(() => {
     if (focusKey) inputRef.current?.focus();
   }, [focusKey]);
-  const open = focused || value !== "";
+  const open = held || focused || value !== "";
   const cancel = () => {
     onChangeText("");
+    onOpenChange?.(false);
     inputRef.current?.blur();
     Keyboard.dismiss();
   };
@@ -51,7 +57,10 @@ export function SearchBox({
           selectionColor={colors.accent}
           value={value}
           onChangeText={onChangeText}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            onOpenChange?.(true);
+          }}
           onBlur={() => setFocused(false)}
           autoCapitalize="none"
           autoCorrect={false}
@@ -98,7 +107,10 @@ export function SearchResults({
   lng,
   ready,
   maxHeight,
+  nearby,
 }: {
+  /** What is already on the map: the first few show before anything is typed. */
+  nearby?: NearbyItem[];
   text: string;
   lat: number;
   lng: number;
@@ -110,7 +122,27 @@ export function SearchResults({
   const active = typed.length >= MIN_LETTERS;
   const asked = debounced.length >= MIN_LETTERS;
   const results = useKeptQuery(api.places.search, ready && asked ? { text: debounced, lat, lng } : "skip", debounced);
-  if (!active) return null;
+  if (!active) {
+    const first = (nearby ?? []).slice(0, 6);
+    if (first.length === 0) return null;
+    return (
+      <View style={[styles.results, { maxHeight }]}>
+        <Text accessibilityRole="header" style={styles.label}>
+          Nearby
+        </Text>
+        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
+          {first.map((item, index) => (
+            <MapRow
+              key={item.id}
+              item={item}
+              last={index === first.length - 1}
+              onPress={() => router.push(venuePath(item.kind, item.id))}
+            />
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
 
   // Still waiting when the query is loading, or the user has typed on since the last request.
   const waiting = results === undefined || debounced !== typed;
@@ -188,6 +220,17 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   padded: { padding: spacing.lg, gap: 4 },
+  label: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    color: colors.fg,
+  },
   none: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, color: colors.fg },
   noneBody: { fontSize: 14, lineHeight: 20, color: colors.muted },
 });

@@ -6,7 +6,7 @@
 import { useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   Avatar,
   AvatarStack,
@@ -55,6 +55,8 @@ export function GroupPicker({
   onChoose: (choice: GroupChoice) => void;
 }) {
   const trips = useQuery(api.trips.list, visible ? {} : "skip");
+  // A plan with nobody else in it is not a group.
+  const plans = trips?.filter((trip) => trip.memberCount >= 2);
   const overview = useQuery(api.friends.list, visible ? {} : "skip");
   const [picked, setPicked] = useState<Id<"users">[]>(() => (current?.kind === "friends" ? current.memberIds : []));
   const [naming, setNaming] = useState(false);
@@ -122,23 +124,23 @@ export function GroupPicker({
   }
 
   return (
-    <Sheet visible={visible} onClose={close} title="Change group" scroll={false}>
+    <Sheet visible={visible} onClose={close} title={current === null ? "Who's going?" : "Change group"} scroll={false}>
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.scroller}>
         <SectionHeader title="Your plans" />
-        {trips === undefined ? (
+        {plans === undefined ? (
           <SkeletonRows count={2} />
-        ) : trips.length === 0 ? (
+        ) : plans.length === 0 ? (
           <Text muted style={styles.note}>
             No plans yet. Pick friends below and save them as a plan.
           </Text>
         ) : (
-          trips.map((trip, index) => (
+          plans.map((trip, index) => (
             <ListRow
               key={trip.tripId}
               title={trip.name}
               subtitle={tripLine(trip)}
               accessibilityLabel={`Show picks for ${trip.name}`}
-              divider={index < trips.length - 1}
+              divider={index < plans.length - 1}
               left={
                 <View style={styles.planIcon}>
                   <Icon name="users" size={20} color={colors.accent} />
@@ -192,27 +194,34 @@ export function GroupPicker({
 
       {friends.length > 0 ? (
         <View style={styles.footer}>
-          <Text variant="caption" muted center>
-            {picked.length === 0
-              ? "Pick who's coming."
-              : full
+          {picked.length > 0 ? (
+            <Text variant="caption" muted center>
+              {full
                 ? `You and ${picked.length} friends: that's the most a group can be.`
                 : `You and ${pluralize(picked.length, "friend")}`}
-          </Text>
-          <Button
-            title="Show picks for us"
-            accessibilityLabel="Show picks for us"
+            </Text>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Show picks"
+            accessibilityState={{ disabled: picked.length === 0 }}
             disabled={picked.length === 0}
             onPress={() => onChoose({ kind: "friends", memberIds: picked })}
-          />
-          <Button
-            title="Save as a plan"
-            accessibilityLabel="Save as a plan"
-            variant="secondary"
-            size="md"
-            disabled={picked.length === 0}
-            onPress={() => setNaming(true)}
-          />
+            style={({ pressed }) => [styles.primary, picked.length === 0 && styles.primaryOff, pressed && styles.primaryPressed]}
+          >
+            <Text style={[styles.primaryText, picked.length === 0 && styles.primaryTextOff]}>Show picks</Text>
+          </Pressable>
+          {picked.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Save as a plan"
+              hitSlop={8}
+              onPress={() => setNaming(true)}
+              style={({ pressed }) => [styles.link, pressed && styles.primaryPressed]}
+            >
+              <Text style={styles.linkText}>Save as a plan</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </Sheet>
@@ -251,5 +260,12 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: palette.hairline,
   },
+  primary: { height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent },
+  primaryOff: { backgroundColor: palette.field },
+  primaryPressed: { opacity: 0.8 },
+  primaryText: { fontSize: 16, lineHeight: 21, fontWeight: "700", color: colors.white },
+  primaryTextOff: { color: colors.muted },
+  link: { alignSelf: "center", minHeight: 32, justifyContent: "center", marginTop: 4 },
+  linkText: { fontSize: 15, lineHeight: 20, fontWeight: "600", color: colors.accent },
   who: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 });

@@ -3,7 +3,7 @@
  * top, then the name, one grey line of detail, the backend's reason and the score. Tapping it opens
  * the place or event; the cross puts the list back.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
@@ -11,14 +11,31 @@ import { formatDistance, formatEventTime, formatScore } from "../../lib/format";
 import { colors, fontWeight, palette, spacing } from "../../theme";
 import { MapPhoto } from "./MapPhoto";
 import { PHOTO_ROUND, ScoreRing, metaLine } from "./MapRow";
+import { displayName } from "./names";
 
 const PHOTO = 148;
 const ROUND = 16;
-const TEXT = 88;
+const TEXT = 104;
+/** The optional line under a hairline at the bottom of the card (the group map's member scores). */
+export const PEEK_FOOTER_HEIGHT = 40;
 /** The card's height, for the map to keep the picked pin clear of it. */
 export const PEEK_CARD_HEIGHT = PHOTO + TEXT;
 
-export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: () => void; onClose: () => void }) {
+export function PeekCard({
+  item,
+  onOpen,
+  onClose,
+  note,
+  footer,
+}: {
+  item: NearbyItem;
+  onOpen: () => void;
+  onClose: () => void;
+  /** Replaces the backend's reason on the last grey line. */
+  note?: string;
+  /** One more line inside the card, under a hairline. */
+  footer?: ReactNode;
+}) {
   const [shown] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const animation = Animated.spring(shown, { toValue: 1, useNativeDriver: Platform.OS !== "web", bounciness: 4, speed: 16 });
@@ -33,14 +50,14 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
     <Animated.View
       style={[
         styles.shadow,
-        compact && styles.shadowCompact,
+        { height: (compact ? TEXT : PEEK_CARD_HEIGHT) + (footer ? PEEK_FOOTER_HEIGHT : 0) },
         { opacity: shown, transform: [{ translateY: shown.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }] },
       ]}
     >
       <View style={styles.card}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Open ${item.name}, ${formatScore(item.score)} for you. ${item.why}`}
+          accessibilityLabel={`Open ${displayName(item.name)}, ${formatScore(item.score)} for you. ${note ?? item.why}`}
           onPress={onOpen}
           style={({ pressed }) => pressed && styles.pressed}
         >
@@ -48,19 +65,20 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
           <View style={[styles.text, compact && styles.textCompact]}>
             {compact ? <MapPhoto item={item} width={56} height={56} round={PHOTO_ROUND} /> : null}
             <View style={styles.titles}>
-              <Text numberOfLines={1} style={styles.name}>
-                {item.name}
+              <Text numberOfLines={2} style={styles.name}>
+                {displayName(item.name)}
               </Text>
               <Text numberOfLines={1} style={styles.meta}>
                 {when ? <Text style={styles.when}>{when}</Text> : null}
                 {when ? ` · ${formatDistance(item.distanceMeters)}` : metaLine(item)}
               </Text>
               <Text numberOfLines={1} style={styles.why}>
-                {item.why}
+                {note ?? item.why}
               </Text>
             </View>
             <ScoreRing score={item.score} />
           </View>
+          {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -69,7 +87,7 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
           onPress={onClose}
           style={({ pressed }) => [styles.close, compact && styles.closeCompact, pressed && styles.closePressed]}
         >
-          <Icon name="close" size={16} color={colors.fg} />
+          <Icon name="close" size={compact ? 13 : 16} color={colors.fg} />
         </Pressable>
       </View>
     </Animated.View>
@@ -79,7 +97,6 @@ export function PeekCard({ item, onOpen, onClose }: { item: NearbyItem; onOpen: 
 const styles = StyleSheet.create({
   // The shadow sits on an outer box: the card itself clips its photo to the rounded corners.
   shadow: {
-    height: PEEK_CARD_HEIGHT,
     borderRadius: ROUND,
     backgroundColor: colors.bg,
     shadowColor: colors.black,
@@ -88,10 +105,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 10,
   },
-  shadowCompact: { height: TEXT },
-  // Room at the right for the cross, which has no photo to sit on here.
-  textCompact: { paddingRight: 52 },
-  closeCompact: { top: (TEXT - 32) / 2, shadowOpacity: 0, elevation: 0, backgroundColor: palette.field },
+  // Without a photo the cross is a small disc in the card's corner, clear of the score.
+  textCompact: { paddingRight: 44 },
+  closeCompact: { top: 8, right: 8, width: 26, height: 26, borderRadius: 13, shadowOpacity: 0, elevation: 0, backgroundColor: palette.field },
+  footer: {
+    height: PEEK_FOOTER_HEIGHT,
+    justifyContent: "center",
+    marginHorizontal: spacing.lg - 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.hairline,
+  },
   card: { flex: 1, borderRadius: ROUND, overflow: "hidden", backgroundColor: colors.bg },
   pressed: { opacity: 0.88 },
   text: {

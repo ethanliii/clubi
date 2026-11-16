@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackButton, Button, EmptyState, ErrorBoundary, Icon, SkeletonRows, Text } from "../../components";
 import { MapCanvas, TILE_ATTRIBUTION } from "../map/MapCanvas";
 import { MapSheet, type SheetHeights, type SheetSnap } from "../map/MapSheet";
-import { PEEK_CARD_HEIGHT, PeekCard } from "../map/PeekCard";
+import { PEEK_CARD_HEIGHT, PEEK_FOOTER_HEIGHT, PeekCard } from "../map/PeekCard";
 import { api, type GroupItem, type NearbyItem, type PlanMember } from "../../lib/api";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { errorMessage } from "../../lib/errors";
@@ -20,16 +20,16 @@ import { pluralize } from "../../lib/format";
 import { openUrl, tripPath, venuePath } from "../../lib/links";
 import { useKeptQuery } from "../../lib/useKeptQuery";
 import { useMe } from "../../state/session";
-import { colors, fontWeight, palette, radius, spacing } from "../../theme";
+import { colors, fontWeight, palette, spacing } from "../../theme";
 import { BAR_GAP, BAR_HEIGHT, CHIP_HEIGHT, GroupBar } from "./GroupBar";
 import { GroupPicker } from "./GroupPicker";
-import { AgreementHint, GROUP_ROW_HEIGHT, GroupRow, MemberChips } from "./GroupRow";
+import { GROUP_ROW_HEIGHT, GroupRow, MemberLine, agreementWords } from "./GroupRow";
 import { choiceKey, firstName, parseChoice, type GroupChoice } from "./group";
 
 const NO_ITEMS: GroupItem[] = [];
 const NO_MEMBERS: PlanMember[] = [];
 /** Shown even before the first answer arrives: the credit is a licence requirement. */
-const DATA_ATTRIBUTION = "© OpenStreetMap contributors";
+const DATA_ATTRIBUTION = "© OpenStreetMap";
 const ATTRIBUTION_URL = "https://www.openstreetmap.org/copyright";
 
 const GUTTER = spacing.lg - 2;
@@ -37,10 +37,8 @@ const TOP_GAP = spacing.sm;
 /** The strip above the list (or the pin's card) that holds the credit and "Recenter". */
 const FLOAT = 56;
 /** The handle, the title and its line of detail. */
-const SHEET_HEADER = 84;
+const SHEET_HEADER = 68;
 const CARD_MARGIN = spacing.md;
-/** The members' scores, shown on their own small card above the picked pin's card. */
-const STRIP = 78;
 
 function sheetHeights(screen: number, barBottom: number, bottomInset: number): SheetHeights {
   const full = Math.max(280, screen - barBottom - spacing.sm);
@@ -166,13 +164,15 @@ function GroupMap({ choice, onChangeGroup }: { choice: GroupChoice | null; onCha
 
   const barTop = insets.top + TOP_GAP;
   const barBottom = barTop + BAR_HEIGHT;
-  const chipsBottom = barBottom + BAR_GAP + CHIP_HEIGHT;
+  // "Open plan" sits under the bar only for a saved plan.
+  const chipsBottom = barBottom + (tripId !== null && trip ? BAR_GAP + CHIP_HEIGHT : 0);
   const height = measured ?? window.height;
   const heights = sheetHeights(height, barBottom, insets.bottom);
-  const covered = selected ? PEEK_CARD_HEIGHT + CARD_MARGIN + STRIP + spacing.sm + insets.bottom : heights[snap === "full" ? "mid" : snap];
+  const covered = selected ? PEEK_CARD_HEIGHT + PEEK_FOOTER_HEIGHT + CARD_MARGIN + insets.bottom : heights[snap === "full" ? "mid" : snap];
   const padding = { top: chipsBottom + spacing.sm, bottom: covered + FLOAT };
 
-  const attribution = [DATA_ATTRIBUTION, TILE_ATTRIBUTION].filter(Boolean).join(" · ");
+  const attribution = ["© OpenStreetMap contributors", TILE_ATTRIBUTION].filter(Boolean).join(" · ");
+  const credit = TILE_ATTRIBUTION ? `${DATA_ATTRIBUTION} · OpenMapTiles` : DATA_ATTRIBUTION;
   const open = (item: NearbyItem) => router.push(venuePath(item.kind, item.id));
   const pick = (item: NearbyItem | null) => {
     // A second tap on the picked pin opens it, the same as tapping its card.
@@ -190,8 +190,8 @@ function GroupMap({ choice, onChangeGroup }: { choice: GroupChoice | null; onCha
         onPress={() => void openUrl(ATTRIBUTION_URL)}
         style={styles.credit}
       >
-        <Text numberOfLines={2} style={styles.creditText}>
-          {attribution}
+        <Text numberOfLines={1} style={styles.creditText}>
+          {credit}
         </Text>
       </Pressable>
       <Pressable
@@ -233,8 +233,8 @@ function GroupMap({ choice, onChangeGroup }: { choice: GroupChoice | null; onCha
       <EmptyState
         icon="users"
         title="Pick a group"
-        body="Choose a plan, or pick a few friends, and the map shows what fits all of you."
-        actionLabel="Change group"
+        body="Choose a plan or a few friends."
+        actionLabel="Choose a group"
         onAction={onChangeGroup}
         style={styles.empty}
       />
@@ -347,16 +347,14 @@ function GroupMap({ choice, onChangeGroup }: { choice: GroupChoice | null; onCha
             {float}
           </View>
           <View style={[styles.cardWrap, { paddingBottom: CARD_MARGIN + insets.bottom }]} pointerEvents="box-none">
-            <View style={styles.strip}>
-              <View style={styles.stripTop}>
-                <Text numberOfLines={1} style={styles.stripTitle}>
-                  How it scores for each of you
-                </Text>
-                <AgreementHint item={selected} />
-              </View>
-              <MemberChips item={selected} meId={me?.userId} style={styles.stripChips} />
-            </View>
-            <PeekCard key={selected.id} item={selected} onOpen={() => open(selected)} onClose={() => setSelectedId(null)} />
+            <PeekCard
+              key={selected.id}
+              item={selected}
+              note={agreementWords(selected) ?? undefined}
+              footer={selected.memberScores.length > 0 ? <MemberLine item={selected} meId={me?.userId} /> : undefined}
+              onOpen={() => open(selected)}
+              onClose={() => setSelectedId(null)}
+            />
           </View>
         </View>
       ) : null}
@@ -400,10 +398,11 @@ const styles = StyleSheet.create({
   credit: {
     flexShrink: 1,
     minWidth: 0,
+    maxWidth: 170,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: palette.glass,
+    backgroundColor: "rgba(255,255,255,0.7)",
   },
   creditText: { fontSize: 9, lineHeight: 12, color: colors.muted },
   round: {
@@ -429,22 +428,5 @@ const styles = StyleSheet.create({
   empty: { paddingVertical: spacing.lg },
 
   cardDock: { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 2 },
-  cardWrap: { paddingHorizontal: CARD_MARGIN, paddingBottom: CARD_MARGIN, gap: spacing.sm },
-  strip: {
-    minHeight: STRIP,
-    justifyContent: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg - 2,
-    paddingVertical: spacing.md,
-    borderRadius: radius.xl,
-    backgroundColor: colors.bg,
-    shadowColor: colors.black,
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 8,
-  },
-  stripTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
-  stripTitle: { flexShrink: 1, fontSize: 13, lineHeight: 17, fontWeight: fontWeight.semibold, color: colors.fg },
-  stripChips: { flexWrap: "wrap" },
+  cardWrap: { paddingHorizontal: CARD_MARGIN, paddingBottom: CARD_MARGIN },
 });

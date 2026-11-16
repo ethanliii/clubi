@@ -1,6 +1,6 @@
 /**
  * What floats on top of the group map: the back button, a white pill with the group's faces and
- * its name ("Friday night · 3 people"), and under it the "Change group" chip.
+ * its name (tap it to change the group), and under it "Open plan" when the group is a saved plan.
  */
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { AvatarStack, BackButton, Icon, Skeleton, Text, type IconName } from "../../components";
@@ -85,16 +85,17 @@ export function GroupBar({
               <AvatarStack people={members} max={3} size={28} />
               <Text numberOfLines={1} style={styles.name}>
                 {name}
-                <Text style={styles.count}>{` · ${people}`}</Text>
               </Text>
             </>
           )}
+          {loading ? null : <Icon name="chevronDown" size={16} color={colors.muted} />}
         </Pressable>
       </View>
-      <View style={styles.chips} pointerEvents="box-none">
-        <FloatChip label="Change group" icon="users" accent onPress={onChangeGroup} />
-        {onOpenPlan ? <FloatChip label="Open plan" icon="calendar" onPress={onOpenPlan} /> : null}
-      </View>
+      {onOpenPlan ? (
+        <View style={styles.chips} pointerEvents="box-none">
+          <FloatChip label="Open plan" icon="calendar" onPress={onOpenPlan} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm + 2,
     paddingLeft: spacing.sm + 2,
-    paddingRight: spacing.lg,
+    paddingRight: spacing.md + 2,
     borderRadius: BAR_HEIGHT / 2,
     backgroundColor: colors.bg,
     ...Platform.select({ web: { cursor: "pointer" } as object, default: {} }),
@@ -134,7 +135,6 @@ const styles = StyleSheet.create({
   },
   placeholder: { flex: 1, fontSize: 15, lineHeight: 20, color: colors.muted },
   name: { flex: 1, minWidth: 0, fontSize: 15, lineHeight: 20, fontWeight: fontWeight.bold, letterSpacing: -0.2, color: colors.fg },
-  count: { fontSize: 14, lineHeight: 20, fontWeight: fontWeight.regular, letterSpacing: 0, color: colors.muted },
 
   chips: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   chip: {

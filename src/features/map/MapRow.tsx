@@ -8,6 +8,7 @@ import type { NearbyItem } from "../../lib/api";
 import { categoryLabel, formatDistance, formatEventTime, formatPrice, formatScore } from "../../lib/format";
 import { colors, fontWeight, palette, ratingColor, spacing } from "../../theme";
 import { MapPhoto } from "./MapPhoto";
+import { displayName } from "./names";
 
 export const ROW_PHOTO = 60;
 /** One rounding for every photo on the map screen. */
@@ -36,20 +37,17 @@ export function ScoreRing({ score }: { score: number }) {
 export function MapRow({
   item,
   onPress,
-  showRank = false,
   last = false,
 }: {
   item: NearbyItem;
   onPress: () => void;
-  /** Number the row with the backend's `rank`: "1. Name". */
-  showRank?: boolean;
   last?: boolean;
 }) {
   const when = item.startsAt !== undefined ? formatEventTime(item.startsAt) : null;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${formatScore(item.score)} for you. ${item.why}`}
+      accessibilityLabel={`${displayName(item.name)}, ${formatScore(item.score)} for you. ${item.why}`}
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
@@ -57,7 +55,7 @@ export function MapRow({
       <View style={[styles.body, !last && styles.divider]}>
         <View style={styles.text}>
           <Text numberOfLines={1} style={styles.name}>
-            {showRank ? `${item.rank}. ${item.name}` : item.name}
+            {displayName(item.name, true)}
           </Text>
           <Text numberOfLines={1} style={styles.meta}>
             {when ? <Text style={styles.when}>{when}</Text> : null}

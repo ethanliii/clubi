@@ -15,6 +15,7 @@ import { LIGHT_MAP_STYLE } from "./darkMapStyle";
 import { layoutPins, scaleForRegion, type PinMode } from "./pinLayout";
 import { PIN, START_LAT_DELTA, bubbleSize, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_LAT_DELTA } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
+import { displayName } from "./names";
 
 /** Apple and Google draw their own credit on the map, so there is nothing to add for the picture. */
 export const TILE_ATTRIBUTION = "";
@@ -288,7 +289,7 @@ const Pin = memo(function Pin({
       <View style={[styles.tip, { borderTopWidth: geo.tip, borderTopColor: selected ? PIN.selectedFill : PIN.fill }]} />
       {named ? (
         <Text allowFontScaling={false} numberOfLines={1} style={[styles.name, selected && styles.nameSelected]}>
-          {item.name}
+          {displayName(item.name, true)}
         </Text>
       ) : null}
     </View>

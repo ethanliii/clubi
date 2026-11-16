@@ -16,6 +16,7 @@ import { colors } from "../../theme";
 import { layoutPins, scaleForZoom, type PinPlacement } from "./pinLayout";
 import { PIN, START_ZOOM, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_ZOOM } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
+import { displayName } from "./names";
 
 /** The map picture's own credit. The screen shows it after "© OpenStreetMap contributors". */
 export const TILE_ATTRIBUTION = "OpenFreeMap © OpenMapTiles";
@@ -167,7 +168,7 @@ function pinElement(item: NearbyItem, selected: boolean, placement: PinPlacement
   const name = document.createElement("div");
   name.className = "clubi-name";
   name.setAttribute("aria-hidden", "true");
-  name.textContent = item.name;
+  name.textContent = displayName(item.name, true);
 
   pin.append(dot, bubble, name);
   return pin;
@@ -261,8 +262,19 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
     if (!map) return;
     const { items: list, selectedId: picked } = latest.current;
     const placements = layoutPins(list, scaleForZoom(map.getZoom()), picked);
+    // A pin under the floating search field and filters, or behind the list, would show as a
+    // cut-off stub at their edge: it is not drawn until the map is moved and it comes clear.
+    const { padding: clear } = latest.current;
+    const tall = map.getContainer().clientHeight;
+    const topLine = clear.top - 8;
+    const bottomLine = tall - clear.bottom + 56;
     for (const [id, entry] of drawnRef.current) {
-      const placement = placements.get(id) ?? HIDDEN;
+      let placement = placements.get(id) ?? HIDDEN;
+      if (placement.mode !== "hidden" && id !== picked && tall > 0) {
+        const y = map.project([entry.item.lng, entry.item.lat]).y;
+        const head = placement.mode === "bubble" ? 40 : 8;
+        if ((y > 0 && y - head < topLine) || (y > bottomLine - 26 && y < tall + 60)) placement = HIDDEN;
+      }
       const pin = entry.anchor.firstElementChild as HTMLElement | null;
       if (!pin) continue;
       if (pin.dataset.mode !== placement.mode) {
@@ -315,6 +327,14 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
     // Pins only change places with each other when the zoom changes; a pan moves them all together.
     let frame = 0;
     map.on("zoom", () => {
+      if (frame !== 0) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        arrange();
+      });
+    });
+    // A pan brings pins out from under the search field and the list, and slides others under them.
+    map.on("moveend", () => {
       if (frame !== 0) return;
       frame = requestAnimationFrame(() => {
         frame = 0;

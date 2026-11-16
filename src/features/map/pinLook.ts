@@ -31,8 +31,8 @@ const CATEGORY_GLYPH: Record<Category, string> = {
   outdoors: "M12 3l5.5 8h-3l4.5 6.5H5L9.5 11h-3zM12 17.5V21",
   // Two joined notes.
   live: "M9 17.5V6l10-2v11.5M9 17.5a2.3 2.3 0 11-4.6 0 2.3 2.3 0 014.6 0zM19 15.5a2.3 2.3 0 11-4.6 0 2.3 2.3 0 014.6 0z",
-  // A four-point spark.
-  popup: "M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z",
+  // A ticket.
+  popup: "M3 8.5V6h18v2.5a3.5 3.5 0 000 7V18H3v-2.5a3.5 3.5 0 000-7zM14.5 6v12",
 };
 const FALLBACK_GLYPH = "M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11z";
 
