@@ -11,8 +11,10 @@ import {
 import { Text } from "../../components";
 import { colors, fontWeight, palette } from "../../theme";
 
-/** The picture's shape: close to 16:9, so a whole post and the next one's headline fit on a screen. */
-const PHOTO_HEIGHT = 200;
+/** Portrait, like Instagram: width 4, height 5. */
+const ASPECT = 4 / 5;
+/** For the loading skeleton only (a typical phone column). */
+const PHOTO_HEIGHT = 420;
 const RADIUS = 12;
 
 /**
@@ -67,7 +69,7 @@ export function PostMedia({
               accessibilityRole="button"
               accessibilityLabel={`Open ${name}, photo ${index + 1} of ${photos.length}`}
               onPress={onPress}
-              style={{ width, height: PHOTO_HEIGHT }}
+              style={{ width, height: width / ASPECT }}
             >
               <Image source={{ uri: url }} resizeMode="cover" onError={() => fail(url)} style={styles.image} />
             </Pressable>
@@ -106,7 +108,7 @@ export const POST_MEDIA_HEIGHT = PHOTO_HEIGHT;
 export const POST_MEDIA_RADIUS = RADIUS;
 
 const styles = StyleSheet.create({
-  frame: { width: "100%", height: PHOTO_HEIGHT, borderRadius: RADIUS, overflow: "hidden", backgroundColor: colors.surface },
+  frame: { width: "100%", aspectRatio: ASPECT, borderRadius: RADIUS, overflow: "hidden", backgroundColor: colors.surface },
   image: { width: "100%", height: "100%" },
   pressed: { opacity: 0.9 },
   counter: {
