@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { internalAction, internalMutation, internalQuery, type MutationCtx } from "../_generated/server";
+import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "../_generated/server";
 import { haversineMeters, normalizeName, readConfig, writeConfig } from "../ingest";
 import { sameName } from "../lib/performers";
 
@@ -30,7 +30,7 @@ const FIELD_MASK = [
   "places.nationalPhoneNumber",
 ].join(",");
 const MAX_PLACES_PER_RUN = 40;
-const MATCH_METERS = 75;
+const MATCH_METERS = 120;
 const BIAS_RADIUS_METERS = 200;
 const RESULTS_PER_SEARCH = 5;
 const REQUEST_GAP_MS = 1100;
@@ -122,20 +122,87 @@ export function similarNames(a: string, b: string): boolean {
   return distinctive && (long.startsWith(short + " ") || long.endsWith(" " + short) || long.includes(" " + short + " "));
 }
 
-/** The search result that is this catalog place: within 75 m, a similar name, still in business. Nearest first. */
-export function googleMatch(place: { name: string; lat: number; lng: number }, results: GooglePlace[] | undefined): GooglePlace | null {
-  let best: { result: GooglePlace; meters: number } | null = null;
+/**
+ * Words that say what kind of place it is or where it is. Sharing one proves nothing: "Mission Bar"
+ * is not "Mission Chinese Food", and "Bar" is not "Bar Agricole".
+ */
+const COMMON_WORDS = new Set([
+  "bar", "bars", "cafe", "caffe", "coffee", "restaurant", "kitchen", "grill", "pub", "club", "lounge", "tavern", "saloon", "house",
+  "park", "playground", "plaza", "square", "garden", "gardens", "pizza", "pizzeria", "taqueria", "sushi", "thai", "deli", "bakery",
+  "brewery", "brewing", "wine", "market", "shop", "store", "hotel", "gallery", "museum", "theater", "theatre", "studio", "center",
+  "san", "francisco", "sf", "bay", "city", "mission", "dogpatch", "potrero", "soma", "castro", "marina", "haight", "sunset",
+  "richmond", "valencia", "street", "st", "ave", "avenue", "pier", "north", "south", "east", "west", "new", "old", "little", "big",
+  "golden", "gate", "el", "la", "le", "los", "las", "de", "del", "a", "and", "saint", "creek", "hill", "point", "beach", "room", "hall",
+  "blue", "red", "green", "black", "white", "lucky", "happy", "royal", "pacific", "california", "union", "first", "second", "third",
+  "american", "chinese", "china", "japanese", "mexican", "italian", "indian", "vietnamese", "korean", "french", "cuisine", "food",
+  "noodle", "ramen", "burger", "burgers", "taco", "tacos", "tea", "juice", "bbq", "express",
+]);
+/** Within this distance any shared telling word is enough: "Twenty Five Lusk" is Google's "25 Lusk" 16 m away. */
+const SHARED_WORD_METERS = 75;
+const MIN_SHARED_WORD = 4;
+const nameKey = (name: string) => normalizeName(name).replace(/( and)+$/, "");
+const isSignificant = (word: string) => !!word && !FILLER_WORDS.has(word) && !COMMON_WORDS.has(word);
+const firstSignificant = (key: string) => key.split(" ").find(isSignificant);
+
+/**
+ * How sure the names are of being one place. 2: equal, a typo apart, the same words reordered, or one
+ * name inside the other ("Niku" in "Niku Steakhouse"). 1: they start with the same telling word
+ * ("Jackson Park" and "Jackson Playground Park"). 0: different names. Distance is checked by the caller.
+ */
+export function nameStrength(a: string, b: string): 0 | 1 | 2 {
+  const x = nameKey(a);
+  const y = nameKey(b);
+  if (!x || !y) return 0;
+  if (x === y || similarNames(a, b)) return 2;
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  const inside = long.startsWith(short + " ") || long.endsWith(" " + short) || long.includes(" " + short + " ");
+  if (inside && short.split(" ").some(isSignificant)) return 2;
+  const first = firstSignificant(x);
+  return first !== undefined && first === firstSignificant(y) && first.length >= MIN_SHARED_WORD && !/^\d/.test(first) ? 1 : 0;
+}
+
+const tellingWords = (key: string) => key.split(" ").filter((word) => isSignificant(word) && word.length >= MIN_SHARED_WORD && !/^\d/.test(word));
+
+/** True when the names have a telling word in common, wherever it stands: "Rolph Playground" and "James Rolph Jr. Playground". */
+export function sharesWord(a: string, b: string): boolean {
+  const words = new Set(tellingWords(nameKey(a)));
+  return tellingWords(nameKey(b)).some((word) => words.has(word));
+}
+
+/**
+ * What a search says about a catalog place. `match` is the result that is this place: within 120 m
+ * with a matching name (or within 75 m with any telling word in common), still in business, the
+ * surest name first and then the nearest. `closed` is
+ * true instead when the result that is surely this place (strength 2) is closed for good and nothing
+ * open matches as surely.
+ */
+export function googleVerdict(
+  place: { name: string; lat: number; lng: number }, results: GooglePlace[] | undefined,
+): { match: GooglePlace | null; closed: boolean } {
+  let best: { result: GooglePlace; meters: number; strength: number } | null = null;
+  let closed = false;
   for (const result of results ?? []) {
     const lat = result.location?.latitude;
     const lng = result.location?.longitude;
     if (!result.id || typeof lat !== "number" || typeof lng !== "number") continue;
-    if (result.businessStatus === "CLOSED_PERMANENTLY") continue;
     const meters = haversineMeters(place, { lat, lng });
-    if (meters > MATCH_METERS || !similarNames(place.name, result.displayName?.text ?? "")) continue;
-    if (!best || meters < best.meters) best = { result, meters };
+    if (meters > MATCH_METERS) continue;
+    const text = result.displayName?.text ?? "";
+    const strength = nameStrength(place.name, text) || (meters <= SHARED_WORD_METERS && sharesWord(place.name, text) ? 1 : 0);
+    if (strength === 0) continue;
+    if (result.businessStatus === "CLOSED_PERMANENTLY") {
+      if (strength === 2) closed = true;
+      continue;
+    }
+    if (!best || strength > best.strength || (strength === best.strength && meters < best.meters)) best = { result, meters, strength };
   }
-  return best?.result ?? null;
+  if (closed && (best === null || best.strength < 2)) return { match: null, closed: true };
+  return { match: best?.result ?? null, closed: false };
 }
+
+/** The search result that is this catalog place (see googleVerdict), or null. */
+export const googleMatch = (place: { name: string; lat: number; lng: number }, results: GooglePlace[] | undefined): GooglePlace | null =>
+  googleVerdict(place, results).match;
 
 type Enrichable = Pick<Doc<"places">, "hours" | "priceLevel" | "website" | "phone">;
 
@@ -174,7 +241,7 @@ export const enrichmentCandidates = internalQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }): Promise<Candidate[]> => {
     const max = Math.min(MAX_PLACES_PER_RUN, Math.max(1, limit ?? MAX_PLACES_PER_RUN));
-    const checked: Record<string, number> = (await readConfig(ctx, CHECKED_KEY))?.value ?? {};
+    const checked = await readLog<number>(ctx, CHECKED_KEY);
     const now = Date.now();
     const picked = new Map<Id<"places">, Candidate>();
     const consider = (place: Doc<"places"> | null) => {
@@ -240,13 +307,24 @@ async function recordEnrichment(ctx: MutationCtx, patches: FoundPatch[], checked
   return patched;
 }
 
+/**
+ * A per-place log kept in appConfig (when a place was looked up, why it has no photo). It is stored
+ * as a list of [placeId, value] pairs: a Convex object holds at most 1024 fields, a list 8192 items.
+ * Logs written as an object before that limit was met are still read.
+ */
+async function readLog<T>(ctx: QueryCtx, key: string): Promise<Record<string, T>> {
+  const value = (await readConfig(ctx, key))?.value;
+  return Array.isArray(value) ? Object.fromEntries(value as [string, T][]) : { ...(value ?? {}) };
+}
+const writeLog = <T>(ctx: MutationCtx, key: string, log: Record<string, T>) => writeConfig(ctx, key, Object.entries(log));
+
 async function logChecked(ctx: MutationCtx, key: string, placeIds: Id<"places">[]) {
   if (placeIds.length === 0) return;
-  const log: Record<string, number> = (await readConfig(ctx, key))?.value ?? {};
+  const log = await readLog<number>(ctx, key);
   const now = Date.now();
   for (const placeId of placeIds) log[placeId] = now;
   const entries = Object.entries(log).sort((a, b) => a[1] - b[1]).slice(-MAX_CHECKED);
-  await writeConfig(ctx, key, Object.fromEntries(entries));
+  await writeLog(ctx, key, Object.fromEntries(entries));
 }
 
 /** Write the enrichment and remember which places were looked up. Gap-filling is checked again against the row as it is now. */
@@ -329,29 +407,38 @@ export const enrichPlaces = internalAction({
 const DETAILS_ENDPOINT = "https://places.googleapis.com/v1/places/";
 const MEDIA_ENDPOINT = "https://places.googleapis.com/v1/";
 const PHOTO_FIELD_MASK = FIELD_MASK + ",places.photos";
-const DETAILS_FIELD_MASK = "id,photos";
+const DETAILS_FIELD_MASK = "id,photos,businessStatus";
 const PHOTO_WIDTH_PX = 800;
 /** Hard caps on all photo work this deployment ever does. Counted in appConfig before each request. */
-export const MAX_PHOTO_LOOKUPS = 250;
-export const MAX_PHOTO_FETCHES = 250;
+export const MAX_PHOTO_LOOKUPS = 1500;
+export const MAX_PHOTO_FETCHES = 1500;
 const PHOTO_BUDGET_KEY = "googlePhotoBudget";
-const PHOTO_CHECKED_KEY = "googlePhotoChecked";
-const PHOTO_GAP_MS = 250;
+// "2": the log of the first, stricter matcher ("googlePhotoChecked") is no longer read, so each of its
+// misses is looked up once more under the looser rule and then logged here.
+const PHOTO_CHECKED_KEY = "googlePhotoChecked2";
+const PHOTO_MISS_KEY = "googlePhotoMissNotes";
+const PHOTO_GAP_MS = 100;
 const PHOTOS_PER_RUN = 40;
-const MAX_PHOTOS_PER_RUN = 80;
+const MAX_PHOTOS_PER_RUN = 240;
+const MAX_PHOTO_WORKERS = 8;
 const PHOTO_CHOICES = 5;
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const MAX_ATTRIBUTION_NAMES = 2;
 const PHOTO_NAME = /^places\/[^/?#]+\/photos\/[^/?#]+$/;
-/** How deep each list is read, and how many ids one plan may hold. */
-const PLAN_DEPTH = 200;
-const MAX_PLAN = 600;
+/** How many ids the lists may put at the head of one plan, and how many rankings are read for it. */
+const MAX_PLAN = 800;
+const MAX_RANKINGS_READ = 4000;
+/** The radii the lists are read at: the default one people see first, then the wider one. */
+const PLAN_RADII = [2500, 6000];
 const DEMO_LAT = 37.7608;
 const DEMO_LNG = -122.3861;
-/** Invented demo pop-ups carry this tag: Google has nothing for them. */
+/** Invented demo pop-ups carry this tag (or one of these names): Google has nothing for them, and they are left alone. */
 const DEMO_TAG = "demo";
+const DEMO_NAMES = ["crane cove sunset dj set", "22nd street natural wine"];
+export const isDemoPlace = (place: { name: string; tags?: string[] }) =>
+  !!place.tags?.includes(DEMO_TAG) || /demo pop-?up/i.test(place.name) || DEMO_NAMES.includes(place.name.trim().toLowerCase());
 /** The lists people open first, and how far down each must be covered before any goes deeper. */
-export const PHOTO_LISTS = { all: 60, bars: 40, food: 40, tonight: 30, outdoors: 20 } as const;
+export const PHOTO_LISTS = { all: 60, tonight: 60, bars: 60, food: 60, outdoors: 60, events: 60 } as const;
 type PhotoList = keyof typeof PHOTO_LISTS;
 
 /**
@@ -397,34 +484,45 @@ type PhotoCandidate = Candidate & { googlePlaceId?: string };
 type PhotoBudget = { lookups: number; photos: number };
 const emptyBudget = (): PhotoBudget => ({ lookups: 0, photos: 0 });
 
+type PhotoTiers = { lists: number; ranked: number; seeded: number; rest: number };
+
 /**
- * The next places to get a photo, in order: the hand-seeded ones, then `ids` as given. Left out are
- * places that have an image, were already checked for a photo, were searched for on Google without a
- * match, or are demo pop-ups. `waiting` counts everything in the plan still without a photo.
+ * The next places to get a photo, in order: `ids` as given (what the lists show), then every place
+ * someone has ranked (most rankings first), then the hand-seeded ones, then the whole catalog outward
+ * from the centre. Left out are places that have an image, were already checked for a photo, are
+ * closed for good, or are demo pop-ups. `waiting` counts everything still to do, `tiers` by group.
  */
 export const photoCandidates = internalQuery({
-  args: { ids: v.array(v.id("places")), limit: v.number() },
-  handler: async (ctx, { ids, limit }): Promise<{ places: PhotoCandidate[]; waiting: number }> => {
-    const photoChecked: Record<string, number> = (await readConfig(ctx, PHOTO_CHECKED_KEY))?.value ?? {};
-    const searched: Record<string, number> = (await readConfig(ctx, CHECKED_KEY))?.value ?? {};
-    const seeded = await ctx.db
-      .query("places")
-      .withIndex("by_source", (q) => q.eq("source", "seed"))
-      .take(SEED_SCAN);
+  args: { ids: v.array(v.id("places")), limit: v.number(), lat: v.optional(v.number()), lng: v.optional(v.number()) },
+  handler: async (ctx, { ids, limit, lat, lng }): Promise<{ places: PhotoCandidate[]; waiting: number; tiers: PhotoTiers }> => {
+    const photoChecked = await readLog<number>(ctx, PHOTO_CHECKED_KEY);
+    const all = await ctx.db.query("places").collect();
+    const byId = new Map(all.map((place) => [place._id, place]));
     const picked = new Map<Id<"places">, PhotoCandidate>();
-    const consider = (place: Doc<"places"> | null) => {
-      if (!place || picked.has(place._id) || place.imageUrl || photoChecked[place._id] !== undefined) return;
-      if (place.tags?.includes(DEMO_TAG)) return;
-      if (!place.googlePlaceId && searched[place._id] !== undefined) return;
+    const consider = (place: Doc<"places"> | undefined) => {
+      if (!place || picked.has(place._id) || place.imageUrl || place.permanentlyClosed || photoChecked[place._id] !== undefined) return;
+      if (isDemoPlace(place)) return;
       picked.set(place._id, {
         placeId: place._id, name: place.name, lat: place.lat, lng: place.lng, city: place.city,
         hours: place.hours, priceLevel: place.priceLevel, website: place.website, phone: place.phone,
         googlePlaceId: place.googlePlaceId,
       });
     };
-    for (const place of seeded) consider(place);
-    for (const placeId of ids.slice(0, MAX_PLAN)) consider(await ctx.db.get(placeId));
-    return { places: [...picked.values()].slice(0, Math.max(0, limit)), waiting: picked.size };
+    const tiers: PhotoTiers = { lists: 0, ranked: 0, seeded: 0, rest: 0 };
+    const tier = (name: keyof PhotoTiers, places: (Doc<"places"> | undefined)[]) => {
+      const before = picked.size;
+      for (const place of places) consider(place);
+      tiers[name] = picked.size - before;
+    };
+    tier("lists", ids.slice(0, MAX_PLAN).map((id) => byId.get(id)));
+    const rankings = await ctx.db.query("rankings").order("desc").take(MAX_RANKINGS_READ);
+    const rankCounts = new Map<Id<"places">, number>();
+    for (const { placeId } of rankings) if (placeId !== undefined) rankCounts.set(placeId, (rankCounts.get(placeId) ?? 0) + 1);
+    tier("ranked", [...rankCounts.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => byId.get(id)));
+    tier("seeded", all.filter((place) => place.source === "seed"));
+    const centre = { lat: lat ?? DEMO_LAT, lng: lng ?? DEMO_LNG };
+    tier("rest", all.map((place) => ({ place, meters: haversineMeters(centre, place) })).sort((a, b) => a.meters - b.meters).map(({ place }) => place));
+    return { places: [...picked.values()].slice(0, Math.max(0, limit)), waiting: picked.size, tiers };
   },
 });
 
@@ -463,9 +561,18 @@ export const savePhotoResult = internalMutation({
     settled: v.boolean(),
     found: v.optional(v.object(foundFields)),
     photo: v.optional(v.object({ storageId: v.id("_storage"), url: v.string(), attribution: v.optional(v.string()) })),
+    /** Google says the place is closed for good: it is flagged (never deleted) and discovery hides it. */
+    closed: v.optional(v.boolean()),
+    /** Why there is no photo, kept for `photoMisses`. */
+    miss: v.optional(v.string()),
   },
-  handler: async (ctx, { placeId, searched, settled, found, photo }): Promise<{ patched: boolean; stored: boolean }> => {
+  handler: async (ctx, { placeId, searched, settled, found, photo, closed, miss }): Promise<{ patched: boolean; stored: boolean }> => {
     const patched = (await recordEnrichment(ctx, found ? [{ placeId, ...found }] : [], searched ? [placeId] : [])) > 0;
+    if (closed && (await ctx.db.get(placeId))) await ctx.db.patch(placeId, { permanentlyClosed: true });
+    if (miss !== undefined) {
+      const notes = await readLog<string>(ctx, PHOTO_MISS_KEY);
+      await writeLog(ctx, PHOTO_MISS_KEY, { ...notes, [placeId]: miss });
+    }
     let stored = false;
     if (photo) {
       const place = await ctx.db.get(placeId);
@@ -490,6 +597,8 @@ type PhotoRun = {
   stored: number;         // places that now have a photo
   noMatch: number;
   noPhoto: number;
+  closed: number;         // places Google says are closed for good, now hidden
+  tiers?: PhotoTiers;     // what is still waiting, by group
   /** Places Google has no match or no photo for, with the nearest thing the search did return. */
   misses: string[];
   budget: PhotoBudget & { maxLookups: number; maxPhotos: number };
@@ -511,21 +620,59 @@ function nearestResult(place: { lat: number; lng: number }, results: GooglePlace
   return `nearest is "${near.result.displayName?.text ?? "?"}" at ${Math.round(near.meters)} m${closed}`;
 }
 
-/** Places that were checked for a photo and have none: `npx convex run imports/google:photoMisses`. */
+/**
+ * Places that were checked for a photo and have none, each with why:
+ * `npx convex run imports/google:photoMisses`. `closed` are the ones Google says are closed for good.
+ */
 export const photoMisses = internalQuery({
   args: {},
-  handler: async (ctx): Promise<{ checked: number; withPhoto: number; noMatch: string[]; noPhoto: string[] }> => {
-    const log: Record<string, number> = (await readConfig(ctx, PHOTO_CHECKED_KEY))?.value ?? {};
-    const out = { checked: 0, withPhoto: 0, noMatch: [] as string[], noPhoto: [] as string[] };
+  handler: async (ctx): Promise<{ checked: number; withPhoto: number; noMatch: string[]; noPhoto: string[]; closed: string[] }> => {
+    const log = await readLog<number>(ctx, PHOTO_CHECKED_KEY);
+    const notes = await readLog<string>(ctx, PHOTO_MISS_KEY);
+    const out = { checked: 0, withPhoto: 0, noMatch: [] as string[], noPhoto: [] as string[], closed: [] as string[] };
+    const byId = new Map<string, Doc<"places">>((await ctx.db.query("places").collect()).map((place) => [place._id, place]));
     for (const id of Object.keys(log)) {
-      const placeId = ctx.db.normalizeId("places", id);
-      const place = placeId === null ? null : await ctx.db.get(placeId);
+      const place = byId.get(id);
       if (!place) continue;
       out.checked++;
-      if (place.imageStorageId) out.withPhoto++;
-      else if (!place.imageUrl) (place.googlePlaceId ? out.noPhoto : out.noMatch).push(place.name);
+      if (place.permanentlyClosed) out.closed.push(place.name);
+      else if (place.imageStorageId) out.withPhoto++;
+      else if (!place.imageUrl) (place.googlePlaceId ? out.noPhoto : out.noMatch).push(notes[id] ?? place.name);
     }
     return out;
+  },
+});
+
+/**
+ * Where the photo work stands: `npx convex run imports/google:photoCoverage`. With `ids`, also says
+ * for each of those places whether it has an image and, if not, why.
+ */
+export const photoCoverage = internalQuery({
+  args: { ids: v.optional(v.array(v.string())) },
+  handler: async (ctx, { ids }) => {
+    const log = await readLog<number>(ctx, PHOTO_CHECKED_KEY);
+    const notes = await readLog<string>(ctx, PHOTO_MISS_KEY);
+    const used: PhotoBudget = { ...emptyBudget(), ...((await readConfig(ctx, PHOTO_BUDGET_KEY))?.value ?? {}) };
+    const all = await ctx.db.query("places").collect();
+    const closed = all.filter((place) => place.permanentlyClosed);
+    const without = (ids ?? []).flatMap((id) => {
+      const place = all.find((p) => p._id === id);
+      if (!place || place.imageUrl) return [];
+      const why = isDemoPlace(place) ? "demo pop-up, left alone"
+        : place.permanentlyClosed ? "closed for good"
+        : notes[id] ?? (log[id] !== undefined ? "checked, no photo" : "not looked up yet");
+      return [`${place.name} [${place.category}]: ${why.startsWith(place.name + ": ") ? why.slice(place.name.length + 2) : why}`];
+    });
+    return {
+      places: all.length,
+      withImage: all.filter((place) => place.imageUrl).length,
+      withGooglePhoto: all.filter((place) => place.imageStorageId).length,
+      permanentlyClosed: closed.length,
+      closedNames: closed.map((place) => place.name),
+      checked: Object.keys(log).length,
+      budget: { ...used, maxLookups: MAX_PHOTO_LOOKUPS, maxPhotos: MAX_PHOTO_FETCHES },
+      without,
+    };
   },
 });
 
@@ -537,19 +684,19 @@ export const photoMisses = internalQuery({
 export const retryPhotoMisses = internalMutation({
   args: { names: v.array(v.string()) },
   handler: async (ctx, { names }): Promise<{ released: string[] }> => {
-    const photoLog: Record<string, number> = (await readConfig(ctx, PHOTO_CHECKED_KEY))?.value ?? {};
-    const searchLog: Record<string, number> = (await readConfig(ctx, CHECKED_KEY))?.value ?? {};
+    const photoLog = await readLog<number>(ctx, PHOTO_CHECKED_KEY);
+    const searchLog = await readLog<number>(ctx, CHECKED_KEY);
     const released: string[] = [];
     for (const id of Object.keys(photoLog)) {
       const placeId = ctx.db.normalizeId("places", id);
       const place = placeId === null ? null : await ctx.db.get(placeId);
-      if (!place || place.imageUrl || !names.includes(place.name)) continue;
+      if (!place || place.imageUrl || place.permanentlyClosed || !names.includes(place.name)) continue;
       delete photoLog[id];
       delete searchLog[id];
       released.push(place.name);
     }
-    await writeConfig(ctx, PHOTO_CHECKED_KEY, photoLog);
-    await writeConfig(ctx, CHECKED_KEY, searchLog);
+    await writeLog(ctx, PHOTO_CHECKED_KEY, photoLog);
+    await writeLog(ctx, CHECKED_KEY, searchLog);
     return { released };
   },
 });
@@ -569,13 +716,18 @@ async function askGoogle(url: string, init: RequestInit): Promise<Response | str
 
 /**
  * Give the places people see around a point a real photo:
- * `npx convex run imports/google:enrichPhotos '{"limit": 40}'` (the centre defaults to the demo location).
- * The plan is the hand-seeded places, then the places `discover.nearby` returns there for "all",
- * "bars", "food", "tonight" and "outdoors", best first. Each run does up to `limit` of them and
- * reports how many are still `waiting`; run it again for the rest. Stops for good at the caps.
+ * `npx convex run imports/google:enrichPhotos '{"limit": 120, "workers": 6}'` (the centre defaults to the
+ * demo location). The plan, best first: what `discover.nearby` returns there for "all", "tonight",
+ * "bars", "food", "outdoors" and "events" at 2.5 km and then at 6 km, then every ranked place, the
+ * hand-seeded ones, and the rest of the catalog outward from the centre. Each run does up to `limit`
+ * of them, `workers` at a time, and reports how many are still `waiting`; run it again for the rest
+ * (`skipLists` leaves the lists out once they are done). Stops for good at the caps.
  */
 export const enrichPhotos = internalAction({
-  args: { lat: v.optional(v.number()), lng: v.optional(v.number()), limit: v.optional(v.number()) },
+  args: {
+    lat: v.optional(v.number()), lng: v.optional(v.number()), limit: v.optional(v.number()),
+    workers: v.optional(v.number()), skipLists: v.optional(v.boolean()),
+  },
   handler: async (ctx, args): Promise<PhotoRun | { skipped: string }> => {
     const key = process.env.GOOGLE_MAPS_KEY;
     if (!key) return { skipped: "no GOOGLE_MAPS_KEY" };
@@ -583,27 +735,46 @@ export const enrichPhotos = internalAction({
     const lat = args.lat ?? DEMO_LAT;
     const lng = args.lng ?? DEMO_LNG;
     const limit = Math.min(MAX_PHOTOS_PER_RUN, Math.max(1, args.limit ?? PHOTOS_PER_RUN));
+    const workers = Math.min(MAX_PHOTO_WORKERS, Math.max(1, Math.round(args.workers ?? 1)));
 
-    const lists: Partial<Record<PhotoList, (string | null)[]>> = {};
-    for (const filter of Object.keys(PHOTO_LISTS) as PhotoList[]) {
-      const { items } = await ctx.runQuery(api.discover.nearby, { lat, lng, filter, limit: PLAN_DEPTH });
-      lists[filter] = items.map((item) => (item.kind === "place" ? item.id : null));
+    const planned: string[] = [];
+    for (const radiusMeters of args.skipLists ? [] : PLAN_RADII) {
+      const lists: Partial<Record<PhotoList, (string | null)[]>> = {};
+      for (const filter of Object.keys(PHOTO_LISTS) as PhotoList[]) {
+        const { items } = await ctx.runQuery(api.discover.nearby, { lat, lng, filter, limit: PHOTO_LISTS[filter], radiusMeters });
+        lists[filter] = items.map((item) => (item.kind === "place" ? item.id : null));
+      }
+      planned.push(...photoOrder(lists));
     }
-    const ids = photoOrder(lists).slice(0, MAX_PLAN) as Id<"places">[];
-    const { places, waiting } = await ctx.runQuery(internal.imports.google.photoCandidates, { ids, limit });
+    const ids = [...new Set(planned)].slice(0, MAX_PLAN) as Id<"places">[];
+    const { places, waiting, tiers } = await ctx.runQuery(internal.imports.google.photoCandidates, { ids, limit, lat, lng });
 
     const run: PhotoRun = {
-      planned: places.length, waiting, searches: 0, details: 0, photoFetches: 0, stored: 0, noMatch: 0, noPhoto: 0, misses: [],
+      planned: places.length, waiting, searches: 0, details: 0, photoFetches: 0, stored: 0, noMatch: 0, noPhoto: 0, closed: 0, tiers, misses: [],
       budget: { lookups: 0, photos: 0, maxLookups: MAX_PHOTO_LOOKUPS, maxPhotos: MAX_PHOTO_FETCHES },
     };
     const headers = { "X-Goog-Api-Key": key };
     const pause = () => new Promise((resolve) => setTimeout(resolve, PHOTO_GAP_MS));
     let requests = 0;
+    // The workers share the budget row and the logs, so their writes take turns: side by side they
+    // would keep invalidating each other. The requests to Google still overlap.
+    let turn: Promise<unknown> = Promise.resolve();
+    const inTurn = <T>(write: () => Promise<T>): Promise<T> => {
+      const result = turn.then(write, write);
+      turn = result.catch(() => undefined);
+      return result;
+    };
+    const reserve = (kind: "lookup" | "photo") => inTurn(() => ctx.runMutation(internal.imports.google.reservePhotoCall, { kind }));
+    const save = (result: {
+      placeId: Id<"places">; searched: boolean; settled: boolean; found?: ReturnType<typeof googleToPatch>;
+      photo?: { storageId: Id<"_storage">; url: string; attribution?: string }; closed?: boolean; miss?: string;
+    }) => inTurn(() => ctx.runMutation(internal.imports.google.savePhotoResult, result));
 
-    for (const place of places) {
-      if (!(await ctx.runMutation(internal.imports.google.reservePhotoCall, { kind: "lookup" })).ok) {
+    /** One place, start to finish. False once nothing more should be asked in this run. */
+    const handle = async (place: PhotoCandidate): Promise<boolean> => {
+      if (!(await reserve("lookup")).ok) {
         run.stopped = "lookup budget spent";
-        break;
+        return false;
       }
       if (requests++ > 0) await pause();
       const searched = !place.googlePlaceId;
@@ -619,31 +790,41 @@ export const enrichPhotos = internalAction({
       if (typeof answer === "string") {
         // A refused key or a spent quota will not get better within this run.
         run.error = answer;
-        break;
+        return false;
       }
       let match: GooglePlace | null;
+      let closed = false;
       let results: GooglePlace[] | undefined;
       try {
         const body = await answer.json();
-        results = searched ? (body as { places?: GooglePlace[] }).places : undefined;
-        match = searched ? googleMatch(place, results) : (body as GooglePlace);
+        if (searched) {
+          results = (body as { places?: GooglePlace[] }).places;
+          ({ match, closed } = googleVerdict(place, results));
+        } else {
+          closed = (body as GooglePlace).businessStatus === "CLOSED_PERMANENTLY";
+          match = closed ? null : (body as GooglePlace);
+        }
       } catch {
         run.error = "Google Places sent something unreadable";
-        break;
+        return false;
       }
       if (searched) run.searches++;
       else run.details++;
       const found = searched && match ? googleToPatch(place, match) : undefined;
       const photo = bestPhoto(match?.photos);
       if (!match || !photo) {
-        if (!match) run.noMatch++;
+        if (closed) run.closed++;
+        else if (!match) run.noMatch++;
         else run.noPhoto++;
-        run.misses.push(match ? `${place.name}: no photo on Google` : `${place.name}: ${nearestResult(place, results)}`);
-        await ctx.runMutation(internal.imports.google.savePhotoResult, { placeId: place.placeId, searched, settled: true, found });
-        continue;
+        const miss = closed ? `${place.name}: closed for good on Google`
+          : match ? `${place.name}: no photo on Google`
+          : `${place.name}: ${nearestResult(place, results)}`;
+        run.misses.push(miss);
+        await save({ placeId: place.placeId, searched, settled: true, found, miss, closed: closed || undefined });
+        return true;
       }
 
-      const photoAllowed = (await ctx.runMutation(internal.imports.google.reservePhotoCall, { kind: "photo" })).ok;
+      const photoAllowed = (await reserve("photo")).ok;
       let stored: { storageId: Id<"_storage">; url: string } | null = null;
       let failure: string | undefined;
       if (photoAllowed) {
@@ -667,20 +848,45 @@ export const enrichPhotos = internalAction({
         }
       }
       // What the search found is kept either way. Without its photo the place stays unsettled, to be tried again.
-      const saved = await ctx.runMutation(internal.imports.google.savePhotoResult, {
-        placeId: place.placeId, searched, settled: stored !== null, found,
-        photo: stored ? { ...stored, attribution: photoAttribution(photo) } : undefined,
-      });
+      let saved: { stored: boolean };
+      try {
+        saved = await save({
+          placeId: place.placeId, searched, settled: stored !== null, found,
+          photo: stored ? { ...stored, attribution: photoAttribution(photo) } : undefined,
+        });
+      } catch (error) {
+        // The picture belongs to no place: do not leave it behind in file storage.
+        if (stored) await ctx.storage.delete(stored.storageId);
+        throw error;
+      }
       if (saved.stored) run.stored++;
       if (!photoAllowed) {
         run.stopped = "photo budget spent";
-        break;
+        return false;
       }
       if (failure) {
         run.error = failure;
-        break;
+        return false;
       }
-    }
+      return true;
+    };
+
+    // `workers` places are in flight at once; the first refusal, failure or spent cap stops them all.
+    let next = 0;
+    let halted = false;
+    const work = async () => {
+      while (!halted && next < places.length) {
+        try {
+          if (!(await handle(places[next++]))) halted = true;
+        } catch (error) {
+          // A write that failed must not lose the run's report: stop, and say what happened.
+          run.error = "a write failed: " + (error instanceof Error ? error.message : String(error)).slice(0, 200);
+          halted = true;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: workers }, work));
+
     const used = await ctx.runQuery(internal.imports.google.photoBudget, {});
     run.budget = used;
     return run;

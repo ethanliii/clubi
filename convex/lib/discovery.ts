@@ -614,8 +614,11 @@ export async function scoreAll(ctx: QueryCtx, candidates: Candidate[], viewer: V
 /** A name with no letter or digit in it ("?", "-") is an import artefact, not a place. */
 const hasRealName = (c: Candidate) => /[\p{L}\p{N}]/u.test(c.kind === "place" ? c.doc.name : c.doc.title);
 
+/** Google says the place is closed for good (imports/google.ts sets the flag; the row is kept). */
+const isClosedForGood = (c: Candidate) => c.kind === "place" && c.doc.permanentlyClosed === true;
+
 export const isVisibleTo = (c: Candidate, viewer: Viewer, now: number) =>
-  hasRealName(c) && timeContext(c, now).openNow !== false && !(viewer.under21 && c.doc.category === "nightlife");
+  hasRealName(c) && !isClosedForGood(c) && timeContext(c, now).openNow !== false && !(viewer.under21 && c.doc.category === "nightlife");
 
 export function matchesFilter(c: Candidate, filter: Filter, now: number): boolean {
   const { category } = c.doc;

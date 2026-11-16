@@ -114,3 +114,70 @@ test("crons: the schedule the brief asks for, and the lines that were there", ()
     "artist alert catch-up": { type: "interval", hours: 24 },
   });
 });
+
+test("removePlaces deletes a place with everything that points at it, re-numbers the lists it left, and touches nothing else", async () => {
+  const { removePlaces } = await load("catalog");
+  const ctx = fakeCtx();
+  ctx.storage = { delete: async () => {} };
+  const place = (name, over = {}) => ctx.db.insert("places", { name, category: "popup", lat: 37.76, lng: -122.39, source: "seed", ...over });
+  const fake = await place("Night Market (demo pop-up)", { tags: ["demo"] });
+  const real = await place("Third Rail");
+  const other = await place("Dogpatch Saloon");
+  const user = await ctx.db.insert("users", { homeCity: "San Francisco" });
+  const friend = await ctx.db.insert("users", { homeCity: "San Francisco" });
+  const rank = (placeId, position, userId = user) => ctx.db.insert("rankings", { userId, category: "popup", bucket: "loved", position, score: 9, placeId });
+  const [r1, r2, r3] = [await rank(real, 1), await rank(fake, 2), await rank(other, 3)];
+  const post = (targetId, rankingId) => ctx.db.insert("posts", { userId: user, targetKind: "place", targetId, createdAt: T0, rankingId });
+  const fakePost = await post(fake, r2);
+  const loosePost = await post(fake);
+  const realPost = await post(real, r1);
+  for (const postId of [fakePost, realPost]) {
+    await ctx.db.insert("reactions", { postId, userId: friend });
+    await ctx.db.insert("comments", { postId, userId: friend, text: "nice", createdAt: T0 });
+  }
+  const compare = (winnerId, loserId) => ctx.db.insert("comparisons", { userId: user, winnerId, loserId, category: "popup", createdAt: T0 });
+  await compare(fake, real);
+  await compare(other, fake);
+  await compare(real, other);
+  const save = (targetId) => ctx.db.insert("saves", { userId: friend, targetKind: "place", targetId, type: "want", createdAt: T0 });
+  await save(fake);
+  await save(real);
+  const tripId = await ctx.db.insert("trips", { ownerId: user, name: "Saturday", createdAt: T0 });
+  const vote = (targetId) => ctx.db.insert("tripVotes", { tripId, userId: user, targetKind: "place", targetId, vote: 1, createdAt: T0 });
+  await vote(fake);
+  await vote(real);
+  const answer = (targetId) => ctx.db.insert("visitAnswers", { userId: user, targetKind: "place", targetId, category: "popup", questionId: "crowd", optionIds: ["a"], createdAt: T0 });
+  await answer(fake);
+  await answer(real);
+  await ctx.db.insert("venueStats", { targetKind: "place", targetId: fake, nAnswers: 1, counts: {}, updatedAt: T0 });
+  const note = (link) => ctx.db.insert("notifications", { userId: friend, type: "friend_posted", title: "t", body: "b", read: false, createdAt: T0, link });
+  await note(`/venue/place/${fake}`);
+  await note(`/post/${fakePost}`);
+  await note(`/venue/place/${real}`);
+  await ctx.db.insert("profilePins", { userId: user, postIds: [fakePost, realPost] });
+  const eventId = await ctx.db.insert("events", { title: "Market night", start: T0 + DAY, category: "popup", lat: 37.76, lng: -122.39, placeId: fake });
+  const tables = ["places", "rankings", "posts", "reactions", "comments", "comparisons", "saves", "tripVotes", "visitAnswers", "venueStats", "notifications", "events"];
+  const count = () => Object.fromEntries(tables.map((table) => [table, ctx.all(table).length]));
+  const before = count();
+
+  const expected = {
+    places: 1, rankings: 1, posts: 2, reactions: 1, comments: 1, comparisons: 2, saves: 1, tripVotes: 1, visitAnswers: 1, venueStats: 1,
+    notifications: 2, pinsEdited: 1, eventsUnlinked: 1, renumberedLists: 1,
+  };
+  const dry = await run(removePlaces, ctx, { names: ["Night Market (demo pop-up)", "No such place"], dryRun: true });
+  assert.deepEqual([dry.dryRun, dry.removed, dry.notFound, dry.truncated], [true, expected, ["No such place"], []]);
+  assert.deepEqual(count(), before, "a dry run deletes nothing");
+
+  const done = await run(removePlaces, ctx, { names: ["Night Market (demo pop-up)"] });
+  assert.deepEqual([done.dryRun, done.removed], [false, expected]);
+  assert.deepEqual(count(), { places: 2, rankings: 2, posts: 1, reactions: 1, comments: 1, comparisons: 1, saves: 1, tripVotes: 1, visitAnswers: 1, venueStats: 0, notifications: 1, events: 1 });
+  assert.equal(await ctx.db.get(fake), null);
+  assert.equal((await ctx.db.get(eventId)).placeId, undefined);
+  assert.deepEqual(ctx.all("profilePins")[0].postIds, [realPost]);
+  assert.equal(await ctx.db.get(loosePost), null);
+  // The two rankings that are left are numbered 1 and 2 again.
+  assert.deepEqual([(await ctx.db.get(r1)).position, (await ctx.db.get(r3)).position], [1, 2]);
+  const rest = JSON.stringify(tables.concat("profilePins").flatMap((table) => ctx.all(table)));
+  assert.ok(!rest.includes(fake) && !rest.includes(fakePost) && !rest.includes(loosePost), "nothing still points at the place or its posts");
+  assert.deepEqual((await run(removePlaces, ctx, { placeIds: [real, other], dryRun: true })).removed.places, 2);
+});

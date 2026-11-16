@@ -202,7 +202,7 @@ export async function rankedListOf(
 }
 
 /** Writes the positions and scores `renumber` computed, touching only the rows that changed. */
-async function writePlacement(
+export async function writePlacement(
   ctx: MutationCtx,
   rows: Doc<"rankings">[],
   placed: ReturnType<typeof renumber<Id<"rankings">>>,
