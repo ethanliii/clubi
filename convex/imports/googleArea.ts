@@ -52,7 +52,7 @@ export const TYPE_GROUPS = {
   food: { primary: false, types: ["restaurant", "cafe", "bakery"] },
   sights: {
     primary: true,
-    types: ["concert_hall", "event_venue", "performing_arts_theater", "amphitheatre", "movie_theater", "museum", "art_gallery", "cultural_center", "park", "garden"],
+    types: ["concert_hall", "performing_arts_theater", "amphitheatre", "movie_theater", "museum", "art_gallery", "cultural_center", "park", "garden"],
   },
 } as const;
 export type TypeGroup = keyof typeof TYPE_GROUPS;
@@ -69,7 +69,8 @@ const KINDS: Record<string, { category: Category; subcategory: string }> = {
   comedy_club: { category: "live", subcategory: "comedy club" },
   concert_hall: { category: "live", subcategory: "music venue" },
   amphitheatre: { category: "live", subcategory: "amphitheatre" },
-  event_venue: { category: "live", subcategory: "event venue" },
+  // "event_venue" is left out on purpose: on Google it is mostly halls for hire, hotel ballrooms and
+  // conference rooms, which ranked as places to go out to.
   performing_arts_theater: { category: "culture", subcategory: "theatre" },
   movie_theater: { category: "culture", subcategory: "cinema" },
   museum: { category: "culture", subcategory: "museum" },
