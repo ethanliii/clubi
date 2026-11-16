@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text } from "../../components";
-import { colors, fontWeight } from "../../theme";
+import { colors, fontWeight, radius } from "../../theme";
 import { NATIVE_DRIVER } from "./Rise";
 
 /**
- * One answer on a quiz card: a big row that dips under the thumb and flips to light when picked.
+ * One answer on a quiz card: a big light-grey row that dips under the thumb and turns black when picked.
  * `many` cards are checkboxes, the rest are radios; the screen owns which options are picked.
  */
 export function QuizOption({
@@ -60,7 +60,7 @@ export function QuizOption({
         </Text>
         <View style={[styles.mark, many && styles.markMany, selected && styles.markOn]}>
           <Animated.View style={{ opacity: tick, transform: [{ scale: tick }] }}>
-            <Icon name="check" size={16} color={colors.fg} />
+            <Icon name="check" size={15} color={colors.fg} />
           </Animated.View>
         </View>
       </Pressable>
@@ -73,25 +73,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    height: 68,
-    paddingLeft: 22,
-    paddingRight: 18,
-    borderRadius: 20,
+    height: 60,
+    paddingLeft: 18,
+    paddingRight: 16,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
-  compact: { height: 58, borderRadius: 18 },
+  compact: { height: 54 },
   optionOn: { backgroundColor: colors.fg },
-  label: { flex: 1, fontSize: 18, lineHeight: 24, fontWeight: fontWeight.semibold, color: colors.fg },
-  labelOn: { color: colors.bg },
+  label: { flex: 1, fontSize: 17, lineHeight: 22, fontWeight: fontWeight.semibold, letterSpacing: -0.2, color: colors.fg },
+  labelOn: { color: colors.white },
   mark: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: colors.line,
+    borderColor: colors.low,
     alignItems: "center",
     justifyContent: "center",
   },
-  markMany: { borderRadius: 8 },
-  markOn: { borderColor: colors.bg, backgroundColor: colors.bg },
+  markMany: { borderRadius: 7 },
+  markOn: { borderColor: colors.white, backgroundColor: colors.white },
 });

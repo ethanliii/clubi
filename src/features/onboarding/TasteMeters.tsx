@@ -7,7 +7,8 @@ type Meter = { label: string; pct: number };
 
 /**
  * The taste card's meters. Each bar fills to the percent the backend sent while its number counts
- * up, one after the other. `highlight` is the label of the strongest meter, drawn in the accent.
+ * up, one after the other: slim accent bars on a grey track. `highlight` is the label of the strongest
+ * meter, whose number is drawn in the accent too.
  * Nothing is computed here.
  */
 export function TasteMeters({
@@ -69,20 +70,19 @@ function TasteMeter({ label, pct, strong, delay }: Meter & { strong: boolean; de
         <Text style={[styles.value, strong && styles.valueStrong]}>{shown}%</Text>
       </View>
       <View style={styles.track}>
-        <Animated.View style={[styles.fill, strong && styles.fillStrong, { width }]} />
+        <Animated.View style={[styles.fill, { width }]} />
       </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { gap: 24 },
-  meter: { gap: 10 },
+  list: { gap: 18 },
+  meter: { gap: 8 },
   labels: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12 },
-  label: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.semibold, color: colors.fg },
-  value: { fontSize: 18, lineHeight: 24, fontWeight: fontWeight.semibold, color: colors.muted, fontVariant: ["tabular-nums"] },
+  label: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, letterSpacing: -0.2, color: colors.fg },
+  value: { fontSize: 15, lineHeight: 21, fontWeight: fontWeight.semibold, color: colors.muted, fontVariant: ["tabular-nums"] },
   valueStrong: { color: colors.accent },
-  track: { height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 4, backgroundColor: colors.fg },
-  fillStrong: { backgroundColor: colors.accent },
+  track: { height: 6, borderRadius: 3, backgroundColor: colors.raised, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 3, backgroundColor: colors.accent },
 });

@@ -17,7 +17,7 @@ import { confirm } from "../../lib/confirm";
 import { errorMessage } from "../../lib/errors";
 import { paths } from "../../lib/links";
 import { useMutationToast } from "../../lib/useMutationToast";
-import { colors } from "../../theme";
+import { colors, fontWeight, layout } from "../../theme";
 
 /**
  * Six cards (docs/UI-SPEC.md section 2), one question a screen. The answer for a card is the list
@@ -86,9 +86,8 @@ export default function Quiz() {
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.top}>
-        <QuizProgress step={step} total={QUIZ_CARDS.length} />
         <View style={styles.bar}>
           {step > 0 ? (
             <Pressable
@@ -103,6 +102,9 @@ export default function Quiz() {
           ) : (
             <View style={styles.back} />
           )}
+          <Text style={styles.count} accessibilityLabel={`Quiz, ${step + 1} of ${QUIZ_CARDS.length}`}>
+            {step + 1} of {QUIZ_CARDS.length}
+          </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Sign out"
@@ -113,6 +115,7 @@ export default function Quiz() {
             <Text style={styles.signOutText}>Sign out</Text>
           </Pressable>
         </View>
+        <QuizProgress step={step} total={QUIZ_CARDS.length} />
       </View>
       <ScrollView
         key={step}
@@ -121,15 +124,12 @@ export default function Quiz() {
         showsVerticalScrollIndicator={false}
       >
         <Rise axis="x" from={direction * 28} style={styles.question}>
-          <Text style={styles.count} accessibilityLabel={`Quiz, ${step + 1} of ${QUIZ_CARDS.length}`}>
-            {step + 1} of {QUIZ_CARDS.length}
-          </Text>
           <Text accessibilityRole="header" style={styles.title}>
             {card.question}
           </Text>
           <Text style={styles.hint}>{card.many ? "Pick as many as you like" : "Pick one"}</Text>
         </Rise>
-        <View accessibilityRole={card.many ? undefined : "radiogroup"} style={compact ? styles.optionsCompact : styles.options}>
+        <View accessibilityRole={card.many ? undefined : "radiogroup"} style={styles.options}>
           {card.options.map((option, index) => (
             <Rise key={option} delay={70 + index * 45} from={18}>
               <QuizOption
@@ -146,47 +146,44 @@ export default function Quiz() {
       </ScrollView>
       <View style={styles.footer}>
         {/* On a short phone the answers scroll; they fade out under the button instead of being cut. */}
-        <LinearGradient colors={["rgba(20,17,25,0)", colors.bg]} style={styles.fade} />
+        <LinearGradient colors={[FADE_FROM, colors.bg]} style={styles.fade} />
         <SpinnerButton
           title={isLast ? "See my taste" : "Next"}
           accessibilityLabel={isLast ? "See my taste" : "Next"}
           busy={pending}
           disabled={picked.length === 0 || leaving}
-          buttonStyle={[styles.next, picked.length === 0 && !pending && styles.nextOff]}
+          buttonStyle={styles.next}
           onPress={() => void next()}
         />
-        {step === 0 ? (
-          <Text variant="caption" muted center>
-            Shapes your matches, not your profile
-          </Text>
-        ) : null}
+        <Text variant="caption" muted center>
+          Shapes your matches, not your profile
+        </Text>
       </View>
     </SafeAreaView>
   );
 }
 
-const SIDE = 22;
+const SIDE = layout.gutter;
+/** The page colour with no opacity (8-digit hex), so the fade above the button has no grey in it. */
+const FADE_FROM = `${colors.bg}00`;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  top: { paddingHorizontal: SIDE, paddingTop: 10 },
-  bar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", height: 52, marginHorizontal: -10 },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  signOut: { height: 44, paddingHorizontal: 10, justifyContent: "center" },
+  top: { paddingHorizontal: SIDE, paddingTop: 4, gap: 6 },
+  bar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", height: 48 },
+  back: { width: 76, height: 44, marginLeft: -10, paddingLeft: 10, justifyContent: "center" },
+  count: { color: colors.fg, fontSize: 15, lineHeight: 20, fontWeight: fontWeight.semibold, fontVariant: ["tabular-nums"] },
+  signOut: { width: 76, height: 44, alignItems: "flex-end", justifyContent: "center" },
   signOutText: { color: colors.muted, fontSize: 15, lineHeight: 20 },
   dimmed: { opacity: 0.5 },
-  // The question sits at the top and the answers sit by the thumb; a short screen scrolls instead.
-  content: { flexGrow: 1, justifyContent: "space-between", paddingHorizontal: SIDE, paddingTop: 12, paddingBottom: 30, gap: 28 },
-  question: { gap: 10 },
-  count: { color: colors.muted, fontSize: 15, lineHeight: 20, fontVariant: ["tabular-nums"] },
-  title: { fontSize: 40, lineHeight: 43, fontWeight: "800", letterSpacing: -1, color: colors.fg },
+  // The question, then the answers straight under it; a short screen scrolls.
+  content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 28, paddingBottom: 30, gap: 24 },
+  question: { gap: 8 },
+  title: { fontSize: 32, lineHeight: 37, fontWeight: "800", letterSpacing: -0.8, color: colors.fg },
   hint: { color: colors.muted, fontSize: 16, lineHeight: 22 },
   options: { gap: 10 },
-  optionsCompact: { gap: 8 },
   footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 10 },
   fade: { position: "absolute", left: 0, right: 0, top: -28, height: 28, pointerEvents: "none" },
-  next: { minHeight: 56 },
-  // Still clearly the button, not a seventh answer: the accent, turned down.
-  nextOff: { backgroundColor: colors.accentSoft },
+  next: { minHeight: 54 },
 });

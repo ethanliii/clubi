@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
@@ -12,7 +11,7 @@ import { tasteHeadline } from "../../features/onboarding/tasteHeadline";
 import { TasteMeters } from "../../features/onboarding/TasteMeters";
 import { paths } from "../../lib/links";
 import { useMe, useSession } from "../../state/session";
-import { colors, fontWeight } from "../../theme";
+import { colors, elevation, fontWeight, layout, palette, radius } from "../../theme";
 
 /**
  * The reveal after the quiz: the four meters the backend worked out (`users.me.tasteSummary`, or the
@@ -40,12 +39,7 @@ export default function TasteCard() {
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
-      <StatusBar style="light" />
-      <LinearGradient
-        colors={["rgba(255,79,154,0.22)", "rgba(255,79,154,0.06)", "rgba(20,17,25,0)"]}
-        locations={[0, 0.5, 1]}
-        style={styles.glow}
-      />
+      <StatusBar style="dark" />
       {meters === undefined ? (
         <Loading label="Working out your taste" />
       ) : (
@@ -60,14 +54,26 @@ export default function TasteCard() {
               </Text>
             </Rise>
           </View>
-          <View style={styles.detail}>
-            <TasteMeters meters={meters} highlight={headline.top} startDelay={650} />
-            {tags.length > 0 ? (
-              <Rise delay={1400}>
-                <Text style={styles.tags}>Into {listOf(tags)}.</Text>
-              </Rise>
-            ) : null}
-          </View>
+          <Rise delay={480} from={18}>
+            <View style={styles.card}>
+              <Text variant="title">Your taste</Text>
+              <TasteMeters meters={meters} highlight={headline.top} startDelay={650} />
+              {tags.length > 0 ? (
+                <Rise delay={1400}>
+                  <View style={styles.into}>
+                    <Text variant="label">You're into</Text>
+                    <View accessible accessibilityLabel={`Into ${listOf(tags)}`} style={styles.tags}>
+                      {tags.map((tag) => (
+                        <View key={tag} style={styles.tag}>
+                          <Text style={styles.tagText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </Rise>
+              ) : null}
+            </View>
+          </Rise>
         </ScrollView>
       )}
       <View style={styles.footer}>
@@ -93,19 +99,29 @@ function listOf(words: readonly string[]): string {
   return `${lower.slice(0, -1).join(", ")} and ${lower[lower.length - 1]}`;
 }
 
-const SIDE = 24;
+const SIDE = layout.gutter;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  glow: { position: "absolute", top: 0, left: 0, right: 0, height: 420 },
-  content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 64, paddingBottom: 20, gap: 40 },
-  name: { gap: 8 },
-  lead: { fontSize: 18, lineHeight: 24, color: colors.muted },
-  title: { fontSize: 54, lineHeight: 55, fontWeight: "800", letterSpacing: -1.8, color: colors.fg },
-  // The meters sit in the middle of whatever height is left under the name.
-  detail: { flexGrow: 1, justifyContent: "center", gap: 30 },
-  tags: { fontSize: 15, lineHeight: 21, color: colors.muted, fontWeight: fontWeight.medium },
-  footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 14 },
-  go: { minHeight: 56 },
+  content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 32, paddingBottom: 20, gap: 22 },
+  name: { gap: 4 },
+  lead: { fontSize: 16, lineHeight: 22, color: colors.muted },
+  title: { fontSize: 32, lineHeight: 37, fontWeight: "800", letterSpacing: -0.8, color: colors.fg },
+  // The one card on the page: white on white, held by a hairline and a soft shadow.
+  card: {
+    gap: 20,
+    padding: 18,
+    borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
+    ...elevation.card,
+  },
+  into: { gap: 10, paddingTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tag: { height: 32, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: palette.field, justifyContent: "center" },
+  tagText: { fontSize: 14, lineHeight: 18, fontWeight: fontWeight.medium, color: colors.fg },
+  footer: { paddingHorizontal: SIDE, paddingTop: 8, paddingBottom: 14, gap: 12 },
+  go: { minHeight: 54 },
 });
