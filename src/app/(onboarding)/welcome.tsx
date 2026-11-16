@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, SocialButton, Text } from "../../components/bryan";
+import { Button, SocialButton, Text, ThemeToggle } from "../../components/bryan";
 import { APP_NAME, TAGLINE } from "../../constants/brand";
 import { VideoBackground } from "../../features/onboarding/VideoBackground";
 import { colors, spacing } from "../../theme";
@@ -30,6 +30,7 @@ export default function Welcome() {
         pointerEvents="none"
       />
       <SafeAreaView style={styles.content}>
+        <View style={{ position: "absolute", top: 54, right: 18, zIndex: 2 }}><ThemeToggle /></View>
         <View style={styles.middle}>
           <Text variant="display" center style={styles.logo}>
             {APP_NAME}

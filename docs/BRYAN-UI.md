@@ -95,6 +95,15 @@ Branch `merge-ui-overhaul` = `main` + `origin/ui-overhaul`. Rule agreed by Bryan
 ## Pass 14 (stand-in photos)
 - `src/constants/placeholderPhotos.ts`: free Unsplash photos per category (nightlife, live, food, culture, outdoors, popup), picked per place with a stable seed. Used by `VenueCard`'s `Photo`, `VenuePhoto` (hue-only callers with a category hue), map pins, Spotlight, profile. Real `imageUrl` (Google Places, backend) always wins; the glow placeholder sits underneath if a stand-in fails to load. Quiz covers stay glow-only.
 
+## Pass 15 (map polish, photo upload, theme button everywhere)
+- **Map list:** drag the handle down to hide it (only the handle, a "N places" line and the OSM credit stay), drag up or tap to bring it back; tapping a pin opens it again. Legend: Friends (pink ring) · Public (grey, people icon) · For you (score color).
+- **Zoom:** + / − buttons (animated `animateToRegion`), rotate/pitch off, and pins stop re-rendering ~1.5 s after they change (`tracksViewChanges` off) so pan/zoom stay smooth.
+- **Pins by zoom:** zoomed out only the top 3–5 (backend `rank`) are photo pins; zoom in and more become photos (8 → 14 → 24 → all). The rest are small score-colored dots you can tap.
+- **Who rated it:** friends rated it → their faces + the top friend's score (pink ring) on the pin, list row and place card; nobody I know → **public score** (grey pill with a people icon, "Public 7.6 · 23 ratings"); no ratings → the "for you" prediction.
+- **Backend (small, additive, for Ethan to review):** `NearbyItem.publicScore?` in `contract.ts` and set in `convex/lib/discovery.ts` (average of everyone else's rankings in the crowd sample, one decimal; totals only).
+- **Add a photo** in the rank flow (Details step): pick from the library (`lib/photos.pickPhoto`), uploaded on Post via `posts.generateUploadUrl`, sent as `rankings.rank({ photoStorageId })`.
+- **Light / dark button** (sun/moon) now also on Home, Search, Map and Welcome (top right), not only Profile / Settings.
+
 ## Backend added on this branch (for Ethan to review, then deploy from `main`)
 Nothing here edits another session's files except the two shared one-liners the rules allow (schema import, `api.d.ts` entries) and one new type at the end of `contract.ts`.
 

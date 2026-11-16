@@ -1,13 +1,14 @@
 import { useMutation, useQuery } from "convex/react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Alert, Image, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { Bucket, Category, InsightAnswer, RankResult, Visibility } from "../../../convex/lib/contract";
 import { BackButton, Button, Chip, EmptyState, Icon, Screen, ScoreBadge, Skeleton, Text } from "../../components/bryan";
 import { useDemoLocation } from "../../lib/demoLocation";
 import { useNearby } from "../../lib/useNearby";
+import { pickPhoto, uploadPhoto, type PickedPhoto } from "../../lib/photos";
 import { colors, radius, spacing } from "../../theme";
 
 type TargetId = Id<"places"> | Id<"events">;
@@ -258,13 +259,25 @@ function Details({ target, bucket, position, comparisons, onPosted }: {
   const [caption, setCaption] = useState("");
   const [visibility, setVisibility] = useState<Visibility>("friends");
   const [posting, setPosting] = useState(false);
+  // Your photo of the night: picked from the library, uploaded to Convex storage on Post.
+  const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
+  const [photo, setPhoto] = useState<PickedPhoto | null>(null);
+  const addPhoto = async () => {
+    try {
+      const picked = await pickPhoto();
+      if (picked) setPhoto(picked);
+    } catch (e) {
+      Alert.alert("Couldn't open photos", e instanceof Error ? e.message : "Allow photo access in Settings");
+    }
+  };
 
   const post = async () => {
     setPosting(true);
     try {
+      const photoStorageId = photo ? await uploadPhoto(await generateUploadUrl({}), photo) : undefined;
       const r = await rank({
         kind: target.kind, id: target.id, bucket, position, comparisons, tags,
-        caption: caption.trim() || undefined, visibility,
+        caption: caption.trim() || undefined, visibility, photoStorageId,
       });
       onPosted(r);
     } catch (e) {
@@ -277,6 +290,21 @@ function Details({ target, bucket, position, comparisons, onPosted }: {
   return (
     <View style={{ gap: spacing.md }}>
       <Text variant="heading">{target.name}</Text>
+      {photo ? (
+        <View>
+          <Image source={{ uri: photo.uri }} style={styles.photoPreview} />
+          <View style={styles.photoActions}>
+            <Chip label="Change photo" onPress={() => void addPhoto()} />
+            <Chip label="Remove" onPress={() => setPhoto(null)} />
+          </View>
+        </View>
+      ) : (
+        <Pressable accessibilityRole="button" accessibilityLabel="Add a photo" onPress={() => void addPhoto()} style={styles.addPhoto}>
+          <Icon name="camera" size={22} color={colors.fg} />
+          <Text style={{ fontWeight: "700" }}>Add a photo</Text>
+          <Text variant="caption" muted>{"Shows on your post and the place's photo strip"}</Text>
+        </Pressable>
+      )}
       <View style={styles.chips}>
         {TAGS.map((t) => (
           <Chip key={t} label={t} on={tags.includes(t)} onPress={() => setTags(tags.includes(t) ? tags.filter((x) => x !== t) : [...tags, t])} />
@@ -370,6 +398,9 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, color: colors.fg, borderRadius: radius.lg, padding: spacing.md },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.line },
   rowGap: { flexDirection: "row", gap: 10 },
+  addPhoto: { alignItems: "center", gap: 4, paddingVertical: 22, borderRadius: radius.xl, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.line, backgroundColor: colors.surface },
+  photoPreview: { width: "100%", height: 220, borderRadius: radius.xl },
+  photoActions: { flexDirection: "row", gap: 8, marginTop: 8 },
   saveBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
   saveOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   bucket: { flexDirection: "row", alignItems: "center", gap: 14, padding: 18, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.line },

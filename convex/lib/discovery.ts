@@ -525,6 +525,8 @@ export async function scoreCandidate(
   const performerNames = c.kind === "event" ? c.doc.performerNames?.slice(0, MAX_PERFORMERS_SHOWN) : undefined;
   const price = c.kind === "place" && c.doc.priceLevel !== undefined ? clip(Math.round(c.doc.priceLevel), 1, 4) : undefined;
   const friends: FriendScore[] = friendRows.slice(0, MAX_FRIENDS_SHOWN).map((row) => friendScoreOf(row));
+  // The crowd's average (everyone but me), one decimal; only a total leaves the backend.
+  const publicScore = raters.length === 0 ? undefined : Math.round((raters.reduce((sum, r) => sum + r.score, 0) / raters.length) * 10) / 10;
   return {
     item: {
       kind: c.kind,
@@ -552,6 +554,7 @@ export async function scoreCandidate(
       going: mySaves?.going ?? false,
       // Counted from the rows loaded here, so it stops near MAX_RATERS_PER_ITEM; places.get counts further.
       ratingCount: rankings.length,
+      publicScore,
     },
     order,
     vector,

@@ -6,7 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { NearbyItem } from "../../../convex/lib/contract";
 import {
-  Avatar, AvatarStack, Button, Chip, EmptyState, Icon, Screen, Skeleton, Text, VenueCard,
+  Avatar, AvatarStack, Button, Chip, EmptyState, Icon, Screen, Skeleton, Text, ThemeToggle, VenueCard,
 } from "../../components/bryan";
 import { SearchMode } from "../../features/search/SearchMode";
 import { paths } from "../../lib/links";
@@ -53,10 +53,13 @@ export default function Search() {
           <Text variant="label">{me?.homeCity ?? "Near you"} · {day}</Text>
           <Text variant="heading">Search</Text>
         </View>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+        <ThemeToggle />
         <Pressable accessibilityRole="button" accessibilityLabel="Notifications" onPress={() => router.push("/notifications")} style={styles.iconButton}>
           <Icon name="bell" size={18} color={colors.fg} />
           {!!unread && <Text style={styles.badge}>{unread > 99 ? "99+" : unread}</Text>}
         </Pressable>
+        </View>
       </View>
 
       <Pressable accessibilityRole="search" accessibilityLabel="Describe your night" onPress={() => setSearching(true)} style={styles.search}>

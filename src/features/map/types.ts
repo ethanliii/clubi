@@ -31,4 +31,6 @@ export type MapSurfaceProps = {
   onSelect: (item: NearbyItem | null) => void;
   /** Bump to move the camera back to `center`. */
   recenterKey: number;
+  /** + / − buttons: bump `key` to zoom one step in (`dir` 1) or out (-1). */
+  zoom?: { key: number; dir: 1 | -1 };
 };
