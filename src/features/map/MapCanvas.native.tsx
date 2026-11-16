@@ -1,6 +1,6 @@
 /**
  * The map on iOS and Android: react-native-maps (Apple Maps in Expo Go on iOS, Google Maps on Android),
- * dark, with the pins drawn as views. The web twin is MapCanvas.web.tsx; both follow pinLook.ts and
+ * light, with the pins drawn as views. The web twin is MapCanvas.web.tsx; both follow pinLook.ts and
  * pinLayout.ts, so the two draw the same pins.
  */
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { Text } from "../../components";
 import type { NearbyItem } from "../../lib/api";
 import { formatScore } from "../../lib/format";
 import { colors, fontWeight } from "../../theme";
-import { DARK_MAP_STYLE } from "./darkMapStyle";
+import { LIGHT_MAP_STYLE } from "./darkMapStyle";
 import { layoutPins, scaleForRegion, type PinMode } from "./pinLayout";
 import { PIN, START_LAT_DELTA, bubbleSize, pinColor, pinGlyph, pinLabel, pinOrder, pinSignature, SELECT_LAT_DELTA } from "./pinLook";
 import type { LatLng, MapCanvasProps } from "./types";
@@ -84,9 +84,9 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
       ref={mapRef}
       style={StyleSheet.absoluteFill}
       initialRegion={initialRegion}
-      userInterfaceStyle="dark"
+      userInterfaceStyle="light"
       mapType={Platform.OS === "ios" ? "mutedStandard" : "standard"}
-      customMapStyle={Platform.OS === "android" ? DARK_MAP_STYLE : undefined}
+      customMapStyle={Platform.OS === "android" ? LIGHT_MAP_STYLE : undefined}
       // Keeps the camera's center, and the map maker's own logo and legal link, clear of the search bar and the list.
       mapPadding={{ top: padding.top, right: 0, bottom: padding.bottom, left: 0 }}
       showsPointsOfInterests={false}
@@ -253,7 +253,7 @@ const Pin = memo(function Pin({
       <View
         style={[
           styles.bubble,
-          { width: bubbleWidth, height: bubbleHeight, backgroundColor: selected ? PIN.selectedFill : color },
+          { width: bubbleWidth, height: bubbleHeight, backgroundColor: selected ? PIN.selectedFill : PIN.fill },
           selected && styles.bubbleSelected,
         ]}
       >
@@ -261,17 +261,17 @@ const Pin = memo(function Pin({
           <Path
             d={pinGlyph(item.category)}
             fill="none"
-            stroke={PIN.ink}
+            stroke={selected ? PIN.selectedInk : color}
             strokeWidth={2.4}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
         </Svg>
-        <Text style={[styles.score, { fontSize: size.font * grown, lineHeight: Math.round(size.font * grown * 1.2) }]}>
+        <Text style={[styles.score, { color: selected ? PIN.selectedInk : color, fontSize: size.font * grown, lineHeight: Math.round(size.font * grown * 1.2) }]}>
           {formatScore(item.score)}
         </Text>
       </View>
-      <View style={[styles.tip, { borderTopWidth: geo.tip, borderTopColor: selected ? PIN.selectedRing : color }]} />
+      <View style={[styles.tip, { borderTopWidth: geo.tip, borderTopColor: selected ? PIN.selectedFill : PIN.fill }]} />
       {named ? (
         <Text numberOfLines={1} style={[styles.name, selected && styles.nameSelected]}>
           {item.name}
@@ -292,16 +292,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
     borderRadius: 99,
-    borderWidth: PIN.edge,
-    borderColor: PIN.edgeColor,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: PIN.hairline,
     shadowColor: colors.black,
-    shadowOpacity: 0.45,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  bubbleSelected: { borderWidth: 3, borderColor: PIN.selectedRing, shadowOpacity: 0.6, shadowRadius: 8, elevation: 9 },
-  score: { fontWeight: fontWeight.bold, color: PIN.ink, fontVariant: ["tabular-nums"], letterSpacing: -0.2 },
+  bubbleSelected: { borderColor: PIN.selectedFill, shadowOpacity: 0.3, shadowRadius: 7, elevation: 7 },
+  score: { fontWeight: fontWeight.bold, fontVariant: ["tabular-nums"], letterSpacing: -0.2 },
   name: {
     position: "absolute",
     left: 0,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     lineHeight: PIN.name.height,
     fontWeight: fontWeight.semibold,
     color: colors.fg,
-    textShadowColor: colors.page,
+    textShadowColor: colors.white,
     textShadowRadius: 4,
     textShadowOffset: { width: 0, height: 1 },
   },
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(74,168,255,0.2)",
+    backgroundColor: PIN.userHalo,
   },
   userDot: {
     width: 16,

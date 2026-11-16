@@ -1,10 +1,10 @@
 /**
- * The map in a browser: MapLibre GL drawing OpenFreeMap's night-blue vector map, with the pins drawn
+ * The map in a browser: MapLibre GL drawing OpenFreeMap's light street map (vector), with the pins drawn
  * as HTML. The native twin is MapCanvas.native.tsx (Apple Maps on iOS); both follow pinLook.ts and
  * pinLayout.ts, so the two draw the same pins.
  *
  * Why vector tiles: OpenStreetMap's picture tiles are made for ordinary screens and go blurry on a
- * Retina one. A vector map is drawn at the screen's own resolution and has a real dark style.
+ * Retina one. A vector map is drawn at the screen's own resolution and stays sharp at every zoom.
  * OpenFreeMap needs no key and no account.
  */
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -26,8 +26,8 @@ export const TILE_ATTRIBUTION = "OpenFreeMap © OpenMapTiles";
  */
 setWorkerUrl(`https://cdn.jsdelivr.net/npm/maplibre-gl@${getVersion()}/dist/maplibre-gl-worker.mjs`);
 
-/** "fiord" is OpenFreeMap's night style with readable streets; their "dark" one is close to black on black. */
-const STYLE_URL = "https://tiles.openfreemap.org/styles/fiord";
+/** "positron" is OpenFreeMap's quiet light style: pale streets and parks, so the pins carry the colour. */
+const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 /** MapLibre counts zoom on 512-pixel tiles, one less than the usual web-map number for the same view. */
 const GL_ZOOM_OFFSET = -1;
 const MIN_ZOOM = 2;
@@ -36,7 +36,7 @@ const MAX_ZOOM = 18;
 const SAME_CLICK_MS = 100;
 /** A pin under the pointer comes to the front, over every other pin. */
 const HOVER_ORDER = 6000;
-const STYLE_ID = "clubi-map-style-3";
+const STYLE_ID = "clubi-map-style-5";
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 const SVG_NS = "http://www.w3.org/2000/svg";
 const B = PIN.bubble;
@@ -61,21 +61,22 @@ const CSS = `
   width: ${B.width}px; height: ${B.height}px; margin: ${-(B.height + PIN.tip)}px 0 0 ${-B.width / 2}px;
   transform-origin: 50% calc(100% + ${PIN.tip}px);
   display: flex; align-items: center; justify-content: center; gap: 3px;
-  border-radius: 99px; background: var(--c); color: ${PIN.ink};
-  box-shadow: 0 0 0 ${PIN.edge}px ${PIN.edgeColor}, 0 3px 8px rgba(0,0,0,.45);
+  border-radius: 99px; background: ${PIN.fill}; color: var(--c);
+  box-shadow: 0 0 0 1px ${PIN.hairline}, 0 2px 6px ${PIN.shadow};
   font-size: ${B.font}px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.2px; line-height: 1;
   opacity: 0; transform: scale(.4); pointer-events: none;
-  transition: transform .18s cubic-bezier(.2,.9,.3,1.2), opacity .14s ease, background-color .14s ease, box-shadow .14s ease;
+  transition: transform .18s cubic-bezier(.2,.9,.3,1.2), opacity .14s ease, background-color .14s ease, color .14s ease, box-shadow .14s ease;
 }
 /* The tip: its point is the anchor, which is the place's exact lat/lng. Scaling turns around that point. */
 .clubi-bubble::after {
   content: ""; position: absolute; left: 50%; top: 100%; margin-left: ${-PIN.tipHalf}px; width: 0; height: 0;
-  border-left: ${PIN.tipHalf}px solid transparent; border-right: ${PIN.tipHalf}px solid transparent; border-top: ${PIN.tip}px solid var(--c);
+  border-left: ${PIN.tipHalf}px solid transparent; border-right: ${PIN.tipHalf}px solid transparent; border-top: ${PIN.tip}px solid ${PIN.fill};
+  filter: drop-shadow(0 2px 1px rgba(17,17,20,.14));
 }
-.clubi-pin.is-selected .clubi-bubble::after { border-top-color: ${PIN.selectedRing}; }
+.clubi-pin.is-selected .clubi-bubble::after { border-top-color: ${PIN.selectedFill}; filter: none; }
 .clubi-pin.is-selected::after {
   content: ""; position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box;
-  background: ${colors.white}; border: 2px solid ${PIN.selectedRing}; pointer-events: none;
+  background: ${colors.white}; border: 2px solid ${PIN.selectedFill}; pointer-events: none;
 }
 .clubi-bubble svg { flex: none; width: ${B.glyph}px; height: ${B.glyph}px; }
 .clubi-pin.is-top .clubi-bubble {
@@ -86,21 +87,21 @@ const CSS = `
 .clubi-pin[data-mode="bubble"]:hover .clubi-bubble { transform: scale(1.06); }
 .clubi-pin[data-mode="bubble"]:active .clubi-bubble { transform: scale(.96); }
 .clubi-pin.is-selected .clubi-bubble {
-  background: ${PIN.selectedFill};
-  box-shadow: 0 0 0 3px ${PIN.selectedRing}, 0 6px 16px rgba(0,0,0,.55);
+  background: ${PIN.selectedFill}; color: ${PIN.selectedInk};
+  box-shadow: 0 4px 12px rgba(17,17,20,.32);
   transform: scale(${PIN.selectedScale}) !important;
 }
 
 .clubi-dot {
   position: absolute; left: 0; top: 0; box-sizing: border-box;
   width: ${PIN.dot}px; height: ${PIN.dot}px; margin: ${-PIN.dot / 2}px 0 0 ${-PIN.dot / 2}px; border-radius: 50%;
-  background: var(--c); box-shadow: 0 0 0 ${PIN.edge}px ${PIN.edgeColor};
+  background: var(--c); box-shadow: 0 0 0 ${PIN.edge}px ${PIN.edgeColor}, 0 1px 3px ${PIN.shadow};
   opacity: 0; transform: scale(.3); pointer-events: none;
   transition: transform .18s ease, opacity .14s ease;
 }
 /* The dot is small; the clear box around it is the tap target. */
 .clubi-dot::before { content: ""; position: absolute; top: -12px; right: -12px; bottom: -12px; left: -12px; }
-.clubi-pin[data-mode="dot"] .clubi-dot { opacity: .92; transform: scale(1); pointer-events: auto; }
+.clubi-pin[data-mode="dot"] .clubi-dot { opacity: 1; transform: scale(1); pointer-events: auto; }
 .clubi-pin[data-mode="dot"]:hover .clubi-dot { opacity: 1; transform: scale(1.4); }
 
 .clubi-name {
@@ -108,18 +109,18 @@ const CSS = `
   height: ${PIN.name.height}px; line-height: ${PIN.name.height}px; text-align: center;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: ${colors.fg}; font-size: ${PIN.name.font}px; font-weight: 600; letter-spacing: 0.1px;
-  text-shadow: 0 0 3px ${colors.page}, 0 0 3px ${colors.page}, 0 1px 2px ${colors.page}, 0 0 6px ${colors.page};
+  text-shadow: 0 0 2px ${colors.white}, 0 0 2px ${colors.white}, 0 0 3px ${colors.white}, 0 0 4px ${colors.white};
   opacity: 0; pointer-events: none; transition: opacity .14s ease;
 }
 
 .clubi-pin.is-selected .clubi-name { top: ${PIN.name.gap + 3}px; font-weight: 700; }
 .clubi-pin[data-mode="bubble"][data-name="1"] .clubi-name { opacity: 1; }
 
-.clubi-anchor:focus-visible .clubi-bubble, .clubi-anchor:focus-visible .clubi-dot { outline: 2px solid ${colors.white}; outline-offset: 3px; }
+.clubi-anchor:focus-visible .clubi-bubble, .clubi-anchor:focus-visible .clubi-dot { outline: 2px solid ${colors.fg}; outline-offset: 3px; }
 .clubi-user {
   position: absolute; left: -8px; top: -8px; box-sizing: border-box; width: 16px; height: 16px; border-radius: 50%;
   background: ${PIN.user}; border: 3px solid ${colors.white};
-  box-shadow: 0 0 0 9px rgba(74,168,255,.2); pointer-events: none;
+  box-shadow: 0 0 0 9px ${PIN.userHalo}, 0 1px 4px ${PIN.shadow}; pointer-events: none;
 }
 `;
 
@@ -151,7 +152,7 @@ function pinElement(item: NearbyItem, selected: boolean, placement: PinPlacement
   const path = document.createElementNS(SVG_NS, "path");
   path.setAttribute("d", pinGlyph(item.category));
   path.setAttribute("fill", "none");
-  path.setAttribute("stroke", PIN.ink);
+  path.setAttribute("stroke", "currentColor");
   path.setAttribute("stroke-width", "2.4");
   path.setAttribute("stroke-linecap", "round");
   path.setAttribute("stroke-linejoin", "round");
