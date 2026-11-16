@@ -56,7 +56,12 @@ export default function TasteCard() {
           </View>
           <Rise delay={480} from={18}>
             <View style={styles.card}>
-              <Text variant="title">Your taste</Text>
+              <View style={styles.cardHead}>
+                <Text variant="title">Your taste</Text>
+                <Text variant="caption" muted>
+                  From your answers
+                </Text>
+              </View>
               <TasteMeters meters={meters} highlight={headline.top} startDelay={650} />
               {tags.length > 0 ? (
                 <Rise delay={1400}>
@@ -104,7 +109,7 @@ const SIDE = layout.gutter;
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 32, paddingBottom: 20, gap: 22 },
+  content: { flexGrow: 1, paddingHorizontal: SIDE, paddingTop: 40, paddingBottom: 20, gap: 26 },
   name: { gap: 4 },
   lead: { fontSize: 16, lineHeight: 22, color: colors.muted },
   title: { fontSize: 32, lineHeight: 37, fontWeight: "800", letterSpacing: -0.8, color: colors.fg },
@@ -118,6 +123,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     ...elevation.card,
   },
+  cardHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 },
   into: { gap: 10, paddingTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tag: { height: 32, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: palette.field, justifyContent: "center" },

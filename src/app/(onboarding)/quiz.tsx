@@ -127,7 +127,7 @@ export default function Quiz() {
           <Text accessibilityRole="header" style={styles.title}>
             {card.question}
           </Text>
-          <Text style={styles.hint}>{card.many ? "Pick as many as you like" : "Pick one"}</Text>
+          <Text style={styles.hint}>{card.many ? "Select all that apply" : "Choose one"}</Text>
         </Rise>
         <View accessibilityRole={card.many ? undefined : "radiogroup"} style={styles.options}>
           {card.options.map((option, index) => (

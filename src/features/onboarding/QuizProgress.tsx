@@ -34,6 +34,6 @@ export function QuizProgress({ step, total }: { step: number; total: number }) {
 }
 
 const styles = StyleSheet.create({
-  track: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
+  track: { height: 3, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
   fill: { height: "100%", borderRadius: 2, backgroundColor: colors.accent },
 });

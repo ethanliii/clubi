@@ -81,8 +81,8 @@ const styles = StyleSheet.create({
   meter: { gap: 8 },
   labels: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12 },
   label: { fontSize: 16, lineHeight: 21, fontWeight: fontWeight.semibold, letterSpacing: -0.2, color: colors.fg },
-  value: { fontSize: 15, lineHeight: 21, fontWeight: fontWeight.semibold, color: colors.muted, fontVariant: ["tabular-nums"] },
+  value: { fontSize: 15, lineHeight: 21, fontWeight: fontWeight.bold, color: colors.fg, fontVariant: ["tabular-nums"] },
   valueStrong: { color: colors.accent },
-  track: { height: 6, borderRadius: 3, backgroundColor: colors.raised, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 3, backgroundColor: colors.accent },
+  track: { height: 4, borderRadius: 2, backgroundColor: colors.raised, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 2, backgroundColor: colors.accent },
 });
