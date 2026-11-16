@@ -91,6 +91,7 @@ function RootNavigator() {
         <Stack.Screen name="trips" />
         <Stack.Screen name="trip/[tripId]" />
         <Stack.Screen name="plan" />
+        <Stack.Screen name="group-map" />
         <Stack.Screen name="following" />
         <Stack.Screen name="performer/[performerId]" />
       </Stack.Protected>
