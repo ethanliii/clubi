@@ -8,7 +8,7 @@ const INK = "#14111a";
 type Tone = "accent" | "onPhoto";
 
 /**
- * The one main button of Welcome, Sign up and Sign in. `accent` (default) is the solid teal pill
+ * The one main button of Welcome, Sign up and Sign in. `accent` (default) is the solid dark-red pill
  * for the white form screens; `onPhoto` is a white pill, which reads on any frame of the welcome
  * footage. While `busy` it shows a spinner and cannot be pressed again; the label never changes
  * (the phone tests find buttons by their text).

@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.field,
   },
   boxFocused: { borderColor: colors.fg, backgroundColor: colors.bg },
-  boxError: { borderColor: AUTH_ERROR, backgroundColor: colors.bg },
+  boxError: { borderColor: AUTH_ERROR, backgroundColor: palette.dangerSoft },
   prefix: { fontSize: 16, lineHeight: 22, fontWeight: "500", color: colors.muted, marginRight: 1 },
   input: {
     flex: 1,

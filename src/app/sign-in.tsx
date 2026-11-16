@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   hintOk: { color: colors.ok },
   reveal: { minHeight: 44, minWidth: 44, alignItems: "flex-end", justifyContent: "center" },
   revealText: { fontSize: 14, fontWeight: "600", color: colors.fg },
-  actions: { marginTop: 28, gap: 6 },
+  actions: { marginTop: 32, gap: 8 },
   formError: {
     color: AUTH_ERROR,
     fontSize: 14,
