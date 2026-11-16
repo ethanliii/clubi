@@ -157,7 +157,13 @@ const CSS = `
 `;
 
 function ensureStyle() {
-  if (document.getElementById(STYLE_ID)) return;
+  // A sheet left by an earlier version of this file (a hot reload) is brought up to date, not kept:
+  // a pin drawn without its rules would show its photo at full size.
+  const existing = document.getElementById(STYLE_ID);
+  if (existing) {
+    if (existing.textContent !== CSS) existing.textContent = CSS;
+    return;
+  }
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = CSS;
@@ -212,6 +218,11 @@ function pinElement(item: NearbyItem, selected: boolean, placement: PinPlacement
     picture.loading = "lazy";
     picture.decoding = "async";
     picture.draggable = false;
+    // The size is on the element itself too, so the picture can never be drawn at its own 800 px.
+    const side = item.tier === "top" ? PHOTO_PIN.sizeTop : PHOTO_PIN.size;
+    picture.width = side;
+    picture.height = side;
+    picture.style.cssText = "display:block;width:100%;height:100%;max-width:100%;max-height:100%;border-radius:50%;object-fit:cover;pointer-events:none;";
     picture.src = item.imageUrl;
     const chip = document.createElement("span");
     chip.textContent = formatScore(item.score);
@@ -409,6 +420,7 @@ export function MapCanvas({ items, center, user, selectedId, onSelect, recenterK
     const map = mapRef.current;
     if (!map) return;
     const drawn = drawnRef.current;
+    ensureStyle();
     const placements = layoutPins(items, scaleForZoom(map.getZoom()), selectedId);
     const seen = new Set<string>();
     for (const item of items) {
