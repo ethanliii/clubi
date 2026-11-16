@@ -16,9 +16,8 @@ const SLIDE_MS = 4200;
 const FADE_MS = 1100;
 
 /**
- * One clock for every `VideoBackground` on screen. Welcome and the sign-in sheet each mount their
- * own, and sharing the clip number is what makes the footage carry on from one into the other
- * instead of starting over.
+ * One clock for every `VideoBackground` on screen, so a second one mounted anywhere shows the same
+ * clip as the first instead of starting over. Today only Welcome mounts one.
  */
 let activeClip = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -43,7 +42,10 @@ function subscribe(listener: () => void) {
 
 const readActiveClip = () => activeClip;
 
-/** The welcome footage, full bleed, cross-fading from clip to clip. Put a scrim over it for text. */
+/**
+ * The welcome footage, full bleed, cross-fading from clip to clip. It is a photo surface: put a
+ * dark scrim over it and keep the text on it white, whatever the theme of the rest of the app.
+ */
 export function VideoBackground() {
   const active = useSyncExternalStore(subscribe, readActiveClip, readActiveClip);
   // Under the sign-in sheet the welcome screen is still mounted: stop decoding video nobody can see.

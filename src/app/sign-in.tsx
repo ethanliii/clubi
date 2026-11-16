@@ -13,7 +13,7 @@ import { AUTH_ERROR, AuthField } from "../features/auth/AuthField";
 import { AuthScreen } from "../features/auth/AuthScreen";
 import { birthdayEntryToIso, birthdayProblem, formatBirthdayEntry } from "../features/auth/birthday";
 import { authErrorMessage } from "../lib/errors";
-import { colors } from "../theme";
+import { colors, palette, type as typeScale } from "../theme";
 
 type Mode = "signup" | "signin";
 /** Sign up asks in two steps: the account (username, password), then the optional details. */
@@ -35,7 +35,7 @@ function placeError(userError: AuthUserError): Errors {
 }
 
 /**
- * Sign up or sign in, over the welcome footage. Nothing navigates from here: once the backend says
+ * Sign up or sign in, on a plain white page. Nothing navigates from here: once the backend says
  * we are signed in, the root layout swaps this screen for the quiz (new account) or the tabs.
  */
 export default function SignIn() {
@@ -49,7 +49,6 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [birthday, setBirthday] = useState("");
-  const [birthdayFocused, setBirthdayFocused] = useState(false);
   const [homeCity, setHomeCity] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   // True between a good sign-in and the root layout taking this screen away.
@@ -170,7 +169,7 @@ export default function SignIn() {
           onPress={back}
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}
         >
-          <Icon name="back" size={20} color={colors.fg} />
+          <Icon name="back" size={22} color={colors.fg} />
         </Pressable>
         {isSignUp ? (
           <View accessibilityLabel={onDetails ? "Step 2 of 2" : "Step 1 of 2"} style={styles.steps}>
@@ -190,13 +189,20 @@ export default function SignIn() {
           <Text accessibilityRole="header" style={styles.headline}>
             {!isSignUp ? "Welcome back" : onDetails ? "A little about you" : "Create your account"}
           </Text>
-          {onDetails ? <Text style={styles.sub}>All optional. Change any of it later in settings.</Text> : null}
+          <Text style={styles.sub}>
+            {!isSignUp
+              ? "Sign in to pick up where you left off."
+              : onDetails
+                ? "All optional. Change any of it later in settings."
+                : "Friends find you by your username."}
+          </Text>
         </View>
 
         {onDetails ? (
           <View key="details" style={styles.fields}>
             <AuthField
               label="Name"
+              placeholder="What friends call you"
               autoCapitalize="words"
               autoComplete="name"
               textContentType="name"
@@ -210,7 +216,7 @@ export default function SignIn() {
             <AuthField
               ref={birthdayRef}
               label="Birthday"
-              placeholder={birthdayFocused ? "MM/DD/YYYY" : "Birthday"}
+              placeholder="MM/DD/YYYY"
               keyboardType="number-pad"
               autoCorrect={false}
               maxLength={10}
@@ -218,8 +224,6 @@ export default function SignIn() {
               value={birthday}
               error={errors.birthday}
               hint={<Text style={styles.hint}>Under 21? We leave 21+ spots out of your picks.</Text>}
-              onFocus={() => setBirthdayFocused(true)}
-              onBlur={() => setBirthdayFocused(false)}
               onChangeText={(text) => {
                 setBirthday(formatBirthdayEntry(text));
                 clear("birthday");
@@ -229,6 +233,7 @@ export default function SignIn() {
             <AuthField
               ref={homeCityRef}
               label="Home city"
+              placeholder="Where you go out"
               autoCapitalize="words"
               textContentType="addressCity"
               returnKeyType="go"
@@ -243,6 +248,7 @@ export default function SignIn() {
             <AuthField
               label="Username"
               prefix="@"
+              placeholder="username"
               autoFocus
               autoCapitalize="none"
               autoCorrect={false}
@@ -263,6 +269,7 @@ export default function SignIn() {
             <AuthField
               ref={passwordRef}
               label="Password"
+              placeholder={isSignUp ? "Pick a password" : "Your password"}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
@@ -278,7 +285,7 @@ export default function SignIn() {
                 isSignUp ? (
                   <View style={styles.hintRow}>
                     {passwordReady ? <Icon name="check" size={14} color={colors.ok} /> : null}
-                    <Text style={styles.hint}>{PASSWORD_MIN} characters or more</Text>
+                    <Text style={[styles.hint, passwordReady && styles.hintOk]}>{PASSWORD_MIN} characters or more</Text>
                   </View>
                 ) : undefined
               }
@@ -331,10 +338,8 @@ export default function SignIn() {
   );
 }
 
-const soft = "rgba(242,238,247,0.62)";
-
 const styles = StyleSheet.create({
-  bar: { height: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  bar: { height: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   back: {
     width: 44,
     height: 44,
@@ -343,21 +348,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   steps: { flexDirection: "row", gap: 6 },
-  stepMark: { width: 22, height: 3, borderRadius: 2, backgroundColor: "rgba(242,238,247,0.24)" },
-  stepDone: { backgroundColor: colors.fg },
-  form: { paddingTop: 20 },
-  intro: { gap: 10 },
-  headline: { fontSize: 34, lineHeight: 38, fontWeight: "700", letterSpacing: -0.8, color: colors.fg },
-  sub: { fontSize: 16, lineHeight: 22, color: soft },
-  fields: { marginTop: 22, gap: 10 },
+  stepMark: { width: 24, height: 4, borderRadius: 2, backgroundColor: colors.line },
+  stepDone: { backgroundColor: colors.accent },
+  form: { paddingTop: 12 },
+  intro: { gap: 8 },
+  headline: { ...typeScale.heading, color: colors.fg },
+  sub: { fontSize: 16, lineHeight: 22, color: colors.muted },
+  fields: { marginTop: 26, gap: 18 },
   hintRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  hint: { fontSize: 13, lineHeight: 18, color: soft },
+  hint: { fontSize: 13, lineHeight: 18, color: colors.muted },
+  hintOk: { color: colors.ok },
   reveal: { minHeight: 44, minWidth: 44, alignItems: "flex-end", justifyContent: "center" },
-  revealText: { fontSize: 15, fontWeight: "600", color: colors.fg },
-  actions: { marginTop: 30, gap: 6 },
-  formError: { color: AUTH_ERROR, fontSize: 14, lineHeight: 20, marginBottom: 8 },
+  revealText: { fontSize: 14, fontWeight: "600", color: colors.fg },
+  actions: { marginTop: 28, gap: 6 },
+  formError: {
+    color: AUTH_ERROR,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: palette.dangerSoft,
+  },
   secondary: { alignSelf: "center", minHeight: 48, justifyContent: "center", paddingHorizontal: 16 },
-  secondaryText: { fontSize: 15, color: soft },
-  secondaryStrong: { fontSize: 15, fontWeight: "600", color: colors.fg },
+  secondaryText: { fontSize: 15, color: colors.muted },
+  secondaryStrong: { fontSize: 15, fontWeight: "700", color: colors.accent },
   pressed: { opacity: 0.55 },
 });
