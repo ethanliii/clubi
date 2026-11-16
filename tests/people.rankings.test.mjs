@@ -228,3 +228,33 @@ test("someone under 21 can't rank nightlife, and can rank everything else", asyn
   await t.db.patch(me, { birthday: "1990-01-01" });
   assert.equal((await rank(me, bars[0])).position, 1);
 });
+
+test("the first five rankings of a category take a direct score; from the sixth on they are compared", async () => {
+  const { t, f, me, bars, rank } = await world();
+  const more = [];
+  for (const name of ["Epsilon", "Zeta"]) more.push(await f.place(name, { venueVector: taste({ 0: 0.5 }) }));
+  const all = [...bars, ...more];
+  const direct = (id, score) => rank(me, id, { bucket: "fine", position: 99, score });
+  // The score decides the bucket and the place in it, whatever bucket and position were sent.
+  const a = await direct(all[0], 8.3);
+  assert.deepEqual([a.score, a.position, a.outOf], [8.3, 1, 1]);
+  const b = await direct(all[1], 9.14);
+  assert.deepEqual([b.score, b.position], [9.1, 1]);
+  await direct(all[2], 5);
+  await direct(all[3], 2.5);
+  const e = await direct(all[4], 8.9);
+  assert.deepEqual([e.score, e.position, e.outOf], [8.9, 2, 5]);
+  const rows = () => t.all("rankings").sort((x, y) => y.score - x.score).map((r) => [r.bucket, r.position, r.score, r.manualScore]);
+  assert.deepEqual(rows(), [["loved", 1, 9.1, 9.1], ["loved", 2, 8.9, 8.9], ["loved", 3, 8.3, 8.3], ["fine", 1, 5, 5], ["didnt", 1, 2.5, 2.5]]);
+  await assert.rejects(direct(all[0], 11), /from 1 to 10/);
+  await assert.rejects(direct(all[0], 0.5), /from 1 to 10/);
+  // Re-scoring one of the five is still direct.
+  assert.equal((await direct(all[0], 9.5)).position, 1);
+  // The sixth has five to compare against: a typed score is refused, and comparisons place it.
+  await assert.rejects(direct(all[5], 7), /compare/);
+  const sixth = await rank(me, all[5], { position: 2, comparisons: [{ winnerId: all[0], loserId: all[5] }, { winnerId: all[5], loserId: all[1] }] });
+  assert.deepEqual([sixth.position, sixth.outOf], [2, 6]);
+  // With six, every score in the category comes from its position again.
+  const loved = await t.run(rankings.listInBucket, me, { category: "nightlife", bucket: "loved" });
+  assert.deepEqual(loved.map((item) => [item.name, item.position, item.score]), [["Alpha", 1, 9.6], ["Zeta", 2, 8.8], ["Beta", 3, 7.9], ["Epsilon", 4, 7.1]]);
+});

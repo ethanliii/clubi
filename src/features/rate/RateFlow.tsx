@@ -11,6 +11,7 @@ import { DetailsStep, EMPTY_DRAFT, type Draft } from "./DetailsStep";
 import { FlowScreen } from "./FlowScreen";
 import { QuestionsStep } from "./QuestionsStep";
 import { answer, positionOf, startSearch, stopEarly, type Search } from "./search";
+import { DIRECT_SCORE_RANKINGS, ScoreStep } from "./ScoreStep";
 import { CompareStep, HowStep, ResultStep } from "./steps";
 import { createTapGuard } from "./tapGuard";
 import { usePhotoDraft } from "./usePhotoDraft";
@@ -40,6 +41,8 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   const [step, setStep] = useState<Step>("how");
   const [bucket, setBucket] = useState<Bucket | null>(null);
   const [search, setSearch] = useState<Search | null>(null);
+  // The 1.0 to 10.0 score given directly, while the user has fewer than five rankings in this category.
+  const [directScore, setDirectScore] = useState<number | null>(null);
   // The searches before each answer of this run, newest last, so "Undo" can step back one.
   const [history, setHistory] = useState<Search[]>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -117,10 +120,27 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
   }
 
   const isRerank = venue.myRanking !== undefined;
+  // How many other things the user has ranked in this category. Under five there is too little to
+  // compare against, so "How was it?" asks for a score from 1 to 10 instead of a bucket.
+  const rankedCount =
+    loved === undefined || fine === undefined || didnt === undefined
+      ? undefined
+      : [...loved, ...fine, ...didnt].filter((entry) => entry.id !== venue.id).length;
+
+  const pickScore = (score: number) => {
+    guard.mark();
+    setDirectScore(score);
+    setBucket(score >= 6.7 ? "loved" : score >= 3.4 ? "fine" : "didnt");
+    setHistory([]);
+    // Nothing to compare: the backend places it by its score.
+    setSearch(startSearch([], venue.id));
+    setStep("details");
+  };
 
   const pickBucket = (picked: Bucket) => {
     // A double tap on "Loved it" must not also answer the first "Which was better?".
     guard.mark();
+    setDirectScore(null);
     setBucket(picked);
     setSearch(null);
     setHistory([]);
@@ -186,8 +206,9 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
         kind: venue.kind,
         id: venue.id,
         bucket,
-        position: positionOf(search),
-        comparisons: search.comparisons,
+        position: directScore === null ? positionOf(search) : 1,
+        comparisons: directScore === null ? search.comparisons : [],
+        ...(directScore === null ? {} : { score: directScore }),
         tags: draft.tags,
         ...(caption === "" ? {} : { caption }),
         ...(photo?.storageId ? { photoStorageId: photo.storageId } : {}),
@@ -232,7 +253,28 @@ export function RateFlow({ kind, id }: { kind: Kind; id: string }) {
     }
   };
 
-  if (step === "how") return <HowStep venue={venue} picked={bucket} onPick={pickBucket} onBack={goBack} />;
+  if (step === "how") {
+    if (rankedCount === undefined) {
+      return (
+        <FlowScreen onBack={goBack}>
+          <Skeleton height={300} round={radius.xxl} />
+          <Skeleton height={34} width="50%" style={styles.centered} />
+        </FlowScreen>
+      );
+    }
+    if (rankedCount < DIRECT_SCORE_RANKINGS) {
+      return (
+        <ScoreStep
+          venue={venue}
+          initial={directScore ?? venue.myRanking?.score ?? null}
+          left={DIRECT_SCORE_RANKINGS - rankedCount}
+          onDone={pickScore}
+          onBack={goBack}
+        />
+      );
+    }
+    return <HowStep venue={venue} picked={bucket} onPick={pickBucket} onBack={goBack} />;
+  }
 
   if (step === "compare") {
     return (

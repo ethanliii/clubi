@@ -63,6 +63,9 @@ export const peopleTables = {
     placeId: v.optional(v.id("places")),
     eventId: v.optional(v.id("events")),
     tags: v.optional(v.array(v.string())),
+    // The 1.0 to 10.0 score the user gave directly, for one of their first five rankings in the
+    // category (lib/social.ts, DIRECT_SCORE_RANKINGS). `score` is what is shown.
+    manualScore: v.optional(v.number()),
     visitedAt: v.optional(v.number()),
     wasLocal: v.optional(v.boolean()),
     dayOfWeek: v.optional(v.number()),
